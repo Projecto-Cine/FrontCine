@@ -38,29 +38,24 @@ export default function Sidebar() {
             src="/logo.png"
             alt="Lumen Cinema"
             onError={() => setLogoError(true)}
-            style={{ height: 44, objectFit: 'contain', maxWidth: 160 }}
+            style={{
+              height: 52,
+              objectFit: 'contain',
+              maxWidth: 180,
+              filter: 'drop-shadow(0 0 6px rgba(184,150,106,0.3))',
+            }}
           />
         ) : (
-          <>
+          /* Fallback si no encuentra el archivo */
+          <div>
             <div style={{
-              width: 38, height: 38, borderRadius: 8,
-              background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.2rem', flexShrink: 0,
-              boxShadow: 'var(--shadow-gold)',
-            }}>🦁</div>
-            <div>
-              <div style={{
-                fontWeight: 700,
-                color: 'var(--accent)',
-                fontSize: '0.9rem',
-                letterSpacing: '0.05em',
-              }}>LUMEN CINEMA</div>
-              <div style={{ fontSize: '0.65rem', color: '#5e5a50', letterSpacing: '0.1em' }}>
-                SISTEMA DE GESTIÓN
-              </div>
+              fontWeight: 700, color: 'var(--accent)',
+              fontSize: '0.88rem', letterSpacing: '0.06em',
+            }}>LUMEN CINEMA</div>
+            <div style={{ fontSize: '0.62rem', color: '#5a5040', letterSpacing: '0.12em' }}>
+              SISTEMA DE GESTIÓN
             </div>
-          </>
+          </div>
         )}
       </div>
 

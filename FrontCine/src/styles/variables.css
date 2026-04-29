@@ -1,37 +1,38 @@
-/* ===== DARK THEME (DEFAULT) ===== */
+/* ===== DARK THEME — tones extracted from Lumen Cinema logo ===== */
 :root[data-theme="dark"],
 :root {
-  --bg-primary: #0c0b09;
-  --bg-secondary: #131210;
-  --bg-card: #1a1915;
-  --bg-card-hover: #211f1a;
-  --bg-sidebar: #0e0d0a;
-  --bg-input: #1e1c18;
-  --border-color: #2e2b24;
-  --border-accent: #C4A35A40;
+  /* Warm dark browns from logo background */
+  --bg-primary:    #120E08;
+  --bg-secondary:  #1A140C;
+  --bg-card:       #211910;
+  --bg-card-hover: #291F14;
+  --bg-sidebar:    #0E0A06;
+  --bg-input:      #1E1710;
+  --border-color:  #302618;
+  --border-accent: #B8966A35;
 
-  --text-primary: #f0ece4;
-  --text-secondary: #a09880;
-  --text-muted: #5e5a50;
+  --text-primary:   #EDE4D4;
+  --text-secondary: #9A8A70;
+  --text-muted:     #5A5040;
 
-  /* Gold matched to Lumen Cinema logo — burnished warm gold */
-  --accent: #C4A35A;
-  --accent-hover: #DEB96E;
-  --accent-dark: #9A7C3A;
-  --accent-bg: #C4A35A18;
-  --accent-bg-hover: #C4A35A28;
+  /* Bronze-gold from logo — warm, muted, NOT yellow */
+  --accent:         #B8966A;
+  --accent-hover:   #CCA87C;
+  --accent-dark:    #8A6E4E;
+  --accent-bg:      #B8966A18;
+  --accent-bg-hover:#B8966A28;
 
-  --success: #2d7a4f;
+  --success:    #2d7a4f;
   --success-bg: #2d7a4f20;
-  --danger: #c0392b;
-  --danger-bg: #c0392b20;
-  --warning: #e67e22;
-  --info: #2980b9;
+  --danger:     #c0392b;
+  --danger-bg:  #c0392b20;
+  --warning:    #e67e22;
+  --info:       #2980b9;
 
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.5);
-  --shadow-md: 0 4px 20px rgba(0,0,0,0.7);
-  --shadow-lg: 0 8px 40px rgba(0,0,0,0.85);
-  --shadow-gold: 0 0 24px rgba(196,163,90,0.25);
+  --shadow-sm:  0 2px 8px  rgba(0,0,0,0.55);
+  --shadow-md:  0 4px 20px rgba(0,0,0,0.75);
+  --shadow-lg:  0 8px 40px rgba(0,0,0,0.88);
+  --shadow-gold:0 0 28px rgba(184,150,106,0.22);
 
   --sidebar-width: 220px;
   --header-height: 60px;
@@ -43,66 +44,75 @@
 
 /* ===== LIGHT THEME ===== */
 :root[data-theme="light"] {
-  --bg-primary: #f2eeе6;
-  --bg-secondary: #faf7f1;
-  --bg-card: #ffffff;
-  --bg-card-hover: #f8f5ef;
-  --bg-sidebar: #0e0d0a;
-  --bg-input: #f0ece4;
-  --border-color: #ddd5c4;
-  --border-accent: #9A7C3A40;
+  --bg-primary:    #F5F0E8;
+  --bg-secondary:  #FBF8F2;
+  --bg-card:       #FFFFFF;
+  --bg-card-hover: #F8F4EC;
+  --bg-sidebar:    #0E0A06;   /* sidebar siempre oscuro en ambos modos */
+  --bg-input:      #EDE8DE;
+  --border-color:  #D8CFBE;
+  --border-accent: #8A6E4E35;
 
-  --text-primary: #1a1610;
-  --text-secondary: #5a5040;
-  --text-muted: #9a9080;
+  --text-primary:   #1E1810;
+  --text-secondary: #5A5040;
+  --text-muted:     #9A9080;
 
-  --accent: #9A7C3A;
-  --accent-hover: #B08E46;
-  --accent-dark: #7A6030;
-  --accent-bg: #9A7C3A18;
-  --accent-bg-hover: #9A7C3A28;
+  --accent:         #8A6E4E;
+  --accent-hover:   #A07F5C;
+  --accent-dark:    #6A5238;
+  --accent-bg:      #8A6E4E18;
+  --accent-bg-hover:#8A6E4E28;
 
-  --success: #2d7a4f;
+  --success:    #2d7a4f;
   --success-bg: #2d7a4f15;
-  --danger: #c0392b;
-  --danger-bg: #c0392b15;
-  --warning: #e67e22;
-  --info: #2980b9;
+  --danger:     #c0392b;
+  --danger-bg:  #c0392b15;
+  --warning:    #e67e22;
+  --info:       #2980b9;
 
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.07);
-  --shadow-md: 0 4px 20px rgba(0,0,0,0.10);
-  --shadow-lg: 0 8px 40px rgba(0,0,0,0.15);
-  --shadow-gold: 0 0 24px rgba(154,124,58,0.15);
+  --shadow-sm:  0 2px 8px  rgba(0,0,0,0.07);
+  --shadow-md:  0 4px 20px rgba(0,0,0,0.10);
+  --shadow-lg:  0 8px 40px rgba(0,0,0,0.14);
+  --shadow-gold:0 0 28px rgba(138,110,78,0.15);
 }
 
-/* ===== PALETTE PRESETS ===== */
+/* ===== PALETTE PRESETS — accent overrides only ===== */
+/* Cinema (default — bronce dorado del logo) */
 :root[data-palette="cinema"] {
-  --accent: #C4A35A;
-  --accent-hover: #DEB96E;
-  --accent-dark: #9A7C3A;
+  --accent:       #B8966A;
+  --accent-hover: #CCA87C;
+  --accent-dark:  #8A6E4E;
 }
 :root[data-palette="cinema"][data-theme="light"] {
-  --accent: #9A7C3A;
-  --accent-hover: #B08E46;
-  --accent-dark: #7A6030;
+  --accent:       #8A6E4E;
+  --accent-hover: #A07F5C;
+  --accent-dark:  #6A5238;
 }
+
+/* Ruby */
 :root[data-palette="ruby"] {
-  --accent: #e74c3c;
-  --accent-hover: #ff6b5b;
-  --accent-dark: #c0392b;
+  --accent:       #C0392B;
+  --accent-hover: #D9534F;
+  --accent-dark:  #962D23;
 }
+
+/* Sapphire */
 :root[data-palette="sapphire"] {
-  --accent: #2980b9;
-  --accent-hover: #3498db;
-  --accent-dark: #1f618d;
+  --accent:       #2471A3;
+  --accent-hover: #2E86C1;
+  --accent-dark:  #1A5276;
 }
+
+/* Emerald */
 :root[data-palette="emerald"] {
-  --accent: #27ae60;
-  --accent-hover: #2ecc71;
-  --accent-dark: #1e8449;
+  --accent:       #1E8449;
+  --accent-hover: #27AE60;
+  --accent-dark:  #166437;
 }
+
+/* Violet */
 :root[data-palette="violet"] {
-  --accent: #8e44ad;
-  --accent-hover: #9b59b6;
-  --accent-dark: #6c3483;
+  --accent:       #7D3C98;
+  --accent-hover: #9B59B6;
+  --accent-dark:  #5B2C6F;
 }

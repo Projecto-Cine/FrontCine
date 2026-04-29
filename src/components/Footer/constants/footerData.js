@@ -9,8 +9,8 @@
 
 export const LEGAL_LINKS = [
   { label: "Términos y Condiciones", href: "/terminos" },
-  { label: "Política de Privacidad", href: "/privacidad" },
-  { label: "Cookies", href: "/cookies" },
+  { label: "Privacy Policy", href: "/privacidad" },
+  { label: "Cookies Policy", href: "/cookies" },
 ];
 
 export const CONTACT = {

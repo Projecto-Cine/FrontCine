@@ -1,0 +1,10 @@
+{
+  "name": "frontcine-root",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix ./FrontCine run dev",
+    "build": "npm --prefix ./FrontCine run build",
+    "preview": "npm --prefix ./FrontCine run preview",
+    "install:app": "npm --prefix ./FrontCine install"
+  }
+}

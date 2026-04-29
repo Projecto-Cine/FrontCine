@@ -1,0 +1,79 @@
+.terms-page {
+  min-height: 100svh;
+  background:
+    radial-gradient(80% 120% at 50% -20%, #2b2412 0%, #0a0a0a 65%),
+    #070707;
+  color: #d1aa4b;
+  padding: 28px 16px 40px;
+  box-sizing: border-box;
+}
+
+.terms-card {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 28px 24px;
+  border: 1px solid #2a2208;
+  border-radius: 14px;
+  background: rgba(10, 10, 10, 0.88);
+  text-align: left;
+}
+
+.terms-card h1 {
+  margin: 0 0 10px;
+  color: #e8c76a;
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.terms-updated {
+  margin: 0 0 18px;
+  color: #b69133;
+  font-size: 0.95rem;
+}
+
+.terms-card h2 {
+  margin: 20px 0 8px;
+  color: #e8c76a;
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.terms-card p,
+.terms-card li {
+  margin: 0;
+  color: #caa756;
+  line-height: 1.65;
+  font-size: 0.98rem;
+}
+
+.terms-card p + p {
+  margin-top: 10px;
+}
+
+.terms-card ul {
+  margin: 8px 0 0 20px;
+  padding: 0;
+}
+
+.terms-card li + li {
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .terms-page {
+    padding: 18px 10px 24px;
+  }
+
+  .terms-card {
+    padding: 18px 14px;
+    border-radius: 10px;
+  }
+
+  .terms-card h1 {
+    font-size: 1.5rem;
+  }
+
+  .terms-card h2 {
+    font-size: 1.05rem;
+  }
+}

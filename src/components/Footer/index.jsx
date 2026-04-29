@@ -13,6 +13,7 @@ export default function Footer() {
         </div>
         <div className="footer__block footer__block--nav">
           <FooterNav />
+          <p className="footer__copy-inline">© 2026 Lumen Cinema. Todos los derechos reservados.</p>
         </div>
         <div className="footer__block footer__block--legal">
           <FooterBottom />

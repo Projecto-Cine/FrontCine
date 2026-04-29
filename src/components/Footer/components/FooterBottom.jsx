@@ -10,8 +10,6 @@ export default function FooterBottom() {
           </a>
         ))}
       </nav>
-
-      <span className="footer-bottom__copy">© 2026 Lumen Cinema. Todos los derechos reservados.</span>
     </div>
   );
 }

@@ -8,12 +8,11 @@ export default function Footer() {
         <div style={styles.col}>
           <div style={styles.brand}>
             <img
-              src="/logo.png"
-              alt="Foco Cines"
+              src="/claroOscuro.png"
+              alt="Claroscuro Cine"
               style={styles.logoImg}
               onError={(e) => { e.currentTarget.style.display = 'none' }}
             />
-            <span style={styles.brandName}>FOCO CINES</span>
           </div>
           <p style={styles.brandDesc}>
             Experiencia cinematográfica premium en el corazón de la ciudad.
@@ -40,7 +39,7 @@ export default function Footer() {
                   <polyline points="22,6 12,13 2,6" />
                 </svg>
               </span>
-              info@focoCines.es
+              info@claroscurocine.es
             </li>
             <li style={styles.listItem}>
               <span style={styles.icon}>
@@ -93,7 +92,7 @@ export default function Footer() {
       <div style={styles.copyright}>
         <hr style={styles.divider} />
         <p style={styles.copyrightText}>
-          © {year} Foco Cines. Todos los derechos reservados.
+          © {year} Claroscuro Cine. Todos los derechos reservados.
         </p>
       </div>
     </footer>
@@ -102,8 +101,8 @@ export default function Footer() {
 
 const styles = {
   footer: {
-    background: '#080812',
-    borderTop: '1px solid #2A2A42',
+    background: '#0d0d0d',
+    borderTop: '1px solid #2a2a2a',
     padding: '3rem 2rem 1.5rem',
     marginTop: 'auto',
   },
@@ -125,15 +124,15 @@ const styles = {
     gap: '0.625rem',
   },
   logoImg: {
-    width: '32px',
-    height: '32px',
+    height: '90px',
+    width: 'auto',
     objectFit: 'contain',
-    borderRadius: '6px',
+    display: 'block',
   },
   brandName: {
     fontSize: '0.875rem',
     fontWeight: '800',
-    color: '#8B5CF6',
+    color: '#c9a84c',
     letterSpacing: '0.1em',
   },
   brandDesc: {
@@ -144,7 +143,7 @@ const styles = {
   colTitle: {
     fontSize: '0.75rem',
     fontWeight: '700',
-    color: '#8B5CF6',
+    color: '#c9a84c',
     letterSpacing: '0.1em',
     textTransform: 'uppercase',
     marginBottom: '0.25rem',
@@ -162,7 +161,7 @@ const styles = {
     color: '#9a9a9a',
   },
   icon: {
-    color: '#8B5CF6',
+    color: '#c9a84c',
     flexShrink: 0,
     display: 'flex',
   },
@@ -188,14 +187,14 @@ const styles = {
   hours: {
     marginTop: '0.75rem',
     padding: '0.75rem',
-    background: '#17172A',
-    border: '1px solid #2A2A42',
+    background: '#1a1a1a',
+    border: '1px solid #2a2a2a',
     borderRadius: '8px',
   },
   hoursTitle: {
     fontSize: '0.75rem',
     fontWeight: '600',
-    color: '#8B5CF6',
+    color: '#c9a84c',
     marginBottom: '0.375rem',
   },
   hoursText: {
@@ -209,7 +208,7 @@ const styles = {
   },
   divider: {
     border: 'none',
-    borderTop: '1px solid #2A2A42',
+    borderTop: '1px solid #2a2a2a',
     marginBottom: '1rem',
   },
   copyrightText: {

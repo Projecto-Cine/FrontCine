@@ -1,0 +1,108 @@
+/* ===== DARK THEME (DEFAULT) ===== */
+:root[data-theme="dark"],
+:root {
+  --bg-primary: #0c0b09;
+  --bg-secondary: #131210;
+  --bg-card: #1a1915;
+  --bg-card-hover: #211f1a;
+  --bg-sidebar: #0e0d0a;
+  --bg-input: #1e1c18;
+  --border-color: #2e2b24;
+  --border-accent: #C4A35A40;
+
+  --text-primary: #f0ece4;
+  --text-secondary: #a09880;
+  --text-muted: #5e5a50;
+
+  /* Gold matched to Lumen Cinema logo — burnished warm gold */
+  --accent: #C4A35A;
+  --accent-hover: #DEB96E;
+  --accent-dark: #9A7C3A;
+  --accent-bg: #C4A35A18;
+  --accent-bg-hover: #C4A35A28;
+
+  --success: #2d7a4f;
+  --success-bg: #2d7a4f20;
+  --danger: #c0392b;
+  --danger-bg: #c0392b20;
+  --warning: #e67e22;
+  --info: #2980b9;
+
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.7);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.85);
+  --shadow-gold: 0 0 24px rgba(196,163,90,0.25);
+
+  --sidebar-width: 220px;
+  --header-height: 60px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --transition: 0.2s ease;
+}
+
+/* ===== LIGHT THEME ===== */
+:root[data-theme="light"] {
+  --bg-primary: #f2eeе6;
+  --bg-secondary: #faf7f1;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8f5ef;
+  --bg-sidebar: #0e0d0a;
+  --bg-input: #f0ece4;
+  --border-color: #ddd5c4;
+  --border-accent: #9A7C3A40;
+
+  --text-primary: #1a1610;
+  --text-secondary: #5a5040;
+  --text-muted: #9a9080;
+
+  --accent: #9A7C3A;
+  --accent-hover: #B08E46;
+  --accent-dark: #7A6030;
+  --accent-bg: #9A7C3A18;
+  --accent-bg-hover: #9A7C3A28;
+
+  --success: #2d7a4f;
+  --success-bg: #2d7a4f15;
+  --danger: #c0392b;
+  --danger-bg: #c0392b15;
+  --warning: #e67e22;
+  --info: #2980b9;
+
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.07);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.10);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.15);
+  --shadow-gold: 0 0 24px rgba(154,124,58,0.15);
+}
+
+/* ===== PALETTE PRESETS ===== */
+:root[data-palette="cinema"] {
+  --accent: #C4A35A;
+  --accent-hover: #DEB96E;
+  --accent-dark: #9A7C3A;
+}
+:root[data-palette="cinema"][data-theme="light"] {
+  --accent: #9A7C3A;
+  --accent-hover: #B08E46;
+  --accent-dark: #7A6030;
+}
+:root[data-palette="ruby"] {
+  --accent: #e74c3c;
+  --accent-hover: #ff6b5b;
+  --accent-dark: #c0392b;
+}
+:root[data-palette="sapphire"] {
+  --accent: #2980b9;
+  --accent-hover: #3498db;
+  --accent-dark: #1f618d;
+}
+:root[data-palette="emerald"] {
+  --accent: #27ae60;
+  --accent-hover: #2ecc71;
+  --accent-dark: #1e8449;
+}
+:root[data-palette="violet"] {
+  --accent: #8e44ad;
+  --accent-hover: #9b59b6;
+  --accent-dark: #6c3483;
+}

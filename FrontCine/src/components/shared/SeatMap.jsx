@@ -1,56 +1,43 @@
 import { useMemo } from 'react';
 import styles from './SeatMap.module.css';
 
-// Genera una disposición de butacas determinista basada en el ID de sesión
+// Fisher-Yates partial shuffle — O(n), deterministic per sessionId
 function generateOccupied(sessionId, capacity, sold) {
-  const rng = (seed) => {
-    let s = seed;
-    return () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return Math.abs(s) / 0xffffffff; };
+  let seed = (sessionId * 1664525 + 1013904223) & 0x7fffffff;
+  const rand = () => {
+    seed = (seed * 1664525 + 1013904223) & 0x7fffffff;
+    return seed / 0x7fffffff;
   };
-  const rand = rng(sessionId * 31337);
-  const total = capacity;
-  const occupied = new Set();
-  while (occupied.size < Math.min(sold, total)) {
-    const idx = Math.floor(rand() * total);
-    occupied.add(idx);
+  const indices = Array.from({ length: capacity }, (_, i) => i);
+  const toOccupy = Math.min(sold, capacity);
+  for (let i = 0; i < toOccupy; i++) {
+    const j = i + Math.floor(rand() * (capacity - i));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
   }
-  return occupied;
+  return new Set(indices.slice(0, toOccupy));
 }
 
-export default function SeatMap({ session, room, selectedSeats, onToggle, maxSelect = 10 }) {
+const ROW_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+export default function SeatMap({ session, room, selectedSeats, onToggle, maxSelect = 20 }) {
   if (!session || !room) return null;
 
   const COLS = room.capacity <= 80 ? 8 : room.capacity <= 150 ? 12 : room.capacity <= 220 ? 16 : 20;
   const ROWS = Math.ceil(room.capacity / COLS);
-  const ROW_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const AISLE = COLS > 10 ? Math.floor(COLS / 2) : -1;
 
   const occupied = useMemo(
     () => generateOccupied(session.id, room.capacity, session.sold),
     [session.id, room.capacity, session.sold]
   );
 
-  const seats = useMemo(() => {
-    const arr = [];
-    for (let r = 0; r < ROWS; r++) {
-      const row = [];
-      for (let c = 0; c < COLS; c++) {
-        const idx = r * COLS + c;
-        if (idx >= room.capacity) { row.push(null); continue; }
-        const id = `${ROW_LETTERS[r]}${String(c + 1).padStart(2, '0')}`;
-        row.push({ id, idx, occupied: occupied.has(idx) });
-      }
-      arr.push({ letter: ROW_LETTERS[r], seats: row });
-    }
-    return arr;
-  }, [ROWS, COLS, room.capacity, occupied]);
-
-  const handleClick = (seat) => {
-    if (!seat || seat.occupied) return;
-    if (selectedSeats.includes(seat.id)) {
-      onToggle(selectedSeats.filter(s => s !== seat.id));
+  const handleSeat = (id, isOcc) => {
+    if (isOcc) return;
+    if (selectedSeats.includes(id)) {
+      onToggle(selectedSeats.filter(s => s !== id));
     } else {
       if (selectedSeats.length >= maxSelect) return;
-      onToggle([...selectedSeats, seat.id]);
+      onToggle([...selectedSeats, id]);
     }
   };
 
@@ -58,64 +45,88 @@ export default function SeatMap({ session, room, selectedSeats, onToggle, maxSel
   const occPct = Math.round((session.sold / room.capacity) * 100);
 
   return (
-    <div className={styles.wrap}>
+    <div className={styles.cinema}>
       {/* Screen */}
-      <div className={styles.screenWrap}>
-        <div className={styles.screen}>PANTALLA</div>
+      <div className={styles.screenArea}>
+        <div className={styles.screenArc} />
+        <span className={styles.screenLabel}>Pantalla</span>
       </div>
 
-      {/* Stats */}
-      <div className={styles.stats}>
-        <span className={styles.statItem}><span className={styles.dot} style={{ background: 'var(--text-3)' }} />Ocupada</span>
-        <span className={styles.statItem}><span className={styles.dot} style={{ background: 'var(--bg-4)', border: '1px solid var(--border-l)' }} />Libre</span>
-        <span className={styles.statItem}><span className={styles.dot} style={{ background: 'var(--accent)' }} />Seleccionada</span>
-        <span className={styles.statSep} />
-        <span className={styles.statInfo}>{available} libres · {occPct}% ocupación</span>
+      {/* Legend */}
+      <div className={styles.legend}>
+        <span className={styles.legendItem}>
+          <span className={`${styles.legendSeat} ${styles.lFree}`} />Libre
+        </span>
+        <span className={styles.legendItem}>
+          <span className={`${styles.legendSeat} ${styles.lOcc}`} />Ocupada
+        </span>
+        <span className={styles.legendItem}>
+          <span className={`${styles.legendSeat} ${styles.lSel}`} />Seleccionada
+        </span>
+        <span className={styles.legendSep} />
+        <span className={styles.legendInfo}>{available} libres · {occPct}% ocupación</span>
       </div>
 
-      {/* Grid */}
-      <div className={styles.grid} style={{ '--cols': COLS }}>
-        {seats.map(({ letter, seats: row }) => (
-          <div key={letter} className={styles.row}>
-            <span className={styles.rowLabel}>{letter}</span>
-            <div className={styles.rowSeats}>
-              {/* Gap central para pasillo */}
-              {row.map((seat, ci) => {
-                const isGap = COLS > 10 && ci === Math.floor(COLS / 2);
-                return (
-                  <div key={seat?.id ?? `gap-${letter}-${ci}`} style={{ display: 'flex', gap: isGap ? 12 : 0 }}>
-                    {isGap && <span className={styles.aisle} />}
-                    {seat ? (
-                      <button
-                        className={`${styles.seat}
-                          ${seat.occupied ? styles.seatOcc : ''}
-                          ${selectedSeats.includes(seat.id) ? styles.seatSel : ''}
-                          ${!seat.occupied && !selectedSeats.includes(seat.id) ? styles.seatFree : ''}
-                        `}
-                        onClick={() => handleClick(seat)}
-                        title={`Butaca ${seat.id}${seat.occupied ? ' — ocupada' : ''}`}
-                        disabled={seat.occupied}
-                        aria-label={`${seat.id}${seat.occupied ? ' ocupada' : selectedSeats.includes(seat.id) ? ' seleccionada' : ' libre'}`}
-                      />
-                    ) : (
-                      <span className={styles.emptySeat} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <span className={styles.rowLabel}>{letter}</span>
-          </div>
-        ))}
+      {/* Seat grid */}
+      <div className={styles.mapScroll}>
+        <div className={styles.grid}>
+          {Array.from({ length: ROWS }, (_, r) => {
+            const letter = ROW_LETTERS[r] ?? String(r + 1);
+            return (
+              <div key={letter} className={styles.row}>
+                <span className={styles.rowLbl}>{letter}</span>
+
+                <div className={styles.seats}>
+                  {Array.from({ length: COLS }, (_, c) => {
+                    const idx = r * COLS + c;
+                    if (idx >= room.capacity) return <span key={c} className={styles.ghost} />;
+
+                    const id = `${letter}${String(c + 1).padStart(2, '0')}`;
+                    const isOcc = occupied.has(idx);
+                    const isSel = selectedSeats.includes(id);
+
+                    return (
+                      <div key={c} className={styles.seatWrap}>
+                        {c === AISLE && <span className={styles.aisle} />}
+                        <button
+                          className={`${styles.seat} ${isOcc ? styles.occ : isSel ? styles.sel : styles.free}`}
+                          onClick={() => handleSeat(id, isOcc)}
+                          disabled={isOcc}
+                          title={
+                            isOcc ? `${id} — ocupada`
+                            : isSel ? `${id} — seleccionada`
+                            : `${id} — libre`
+                          }
+                          aria-label={`Butaca ${id}${isOcc ? ' ocupada' : isSel ? ' seleccionada' : ' libre'}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <span className={styles.rowLbl}>{letter}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Selected summary */}
+      {/* Selection summary */}
       {selectedSeats.length > 0 && (
-        <div className={styles.selection}>
-          <span className={styles.selLabel}>Butacas seleccionadas:</span>
-          <div className={styles.selSeats}>
+        <div className={styles.selSummary}>
+          <span className={styles.selLabel}>
+            {selectedSeats.length} butaca{selectedSeats.length !== 1 ? 's' : ''} seleccionada{selectedSeats.length !== 1 ? 's' : ''}:
+          </span>
+          <div className={styles.selBadges}>
             {selectedSeats.map(s => (
-              <span key={s} className={styles.selBadge}>{s}</span>
+              <button
+                key={s}
+                className={styles.selBadge}
+                onClick={() => onToggle(selectedSeats.filter(x => x !== s))}
+                title={`Deseleccionar ${s}`}
+              >
+                {s} ×
+              </button>
             ))}
           </div>
         </div>

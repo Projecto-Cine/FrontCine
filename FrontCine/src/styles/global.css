@@ -41,7 +41,16 @@ input, select, textarea { font-family: inherit; }
 .page-body {
   flex: 1;
   overflow-y: auto;
-  padding: 32px;
+  padding: 36px 96px;
+}
+@media (max-width: 1280px) {
+  .page-body { padding: 28px 48px; }
+}
+@media (max-width: 900px) {
+  .page-body { padding: 20px 24px; }
+}
+@media (max-width: 560px) {
+  .page-body { padding: 16px 12px; }
 }
 
 .page-header {
@@ -145,8 +154,17 @@ input, select, textarea { font-family: inherit; }
 
 .grid-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
+}
+@media (max-width: 1280px) {
+  .grid-cards { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 900px) {
+  .grid-cards { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .grid-cards { grid-template-columns: 1fr; }
 }
 
 .empty-state {

@@ -35,7 +35,7 @@ export default function Sidebar() {
       }}>
         {!logoError ? (
           <img
-            src="/logo.png"
+            src="/logoNegro.png"
             alt="Lumen Cinema"
             onError={() => setLogoError(true)}
             style={{

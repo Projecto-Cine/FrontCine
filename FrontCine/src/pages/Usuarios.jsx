@@ -75,7 +75,7 @@ export default function Usuarios() {
       {filtrados.length === 0 ? (
         <div className="empty-state">No hay usuarios</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+        <div className="grid-cards">
           {filtrados.map(u => (
             <div key={u.id} className="card" style={{ padding: '20px 24px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>

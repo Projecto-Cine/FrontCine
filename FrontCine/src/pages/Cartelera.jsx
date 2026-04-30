@@ -314,6 +314,100 @@ function ConfirmationView({ sesion, seatLabels, total, onBack }) {
   )
 }
 
+/* ── Movie card (groups sessions by movie) ── */
+function MovieCard({ pelicula, sesiones, onSelect }) {
+  return (
+    <div className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* Poster */}
+      <div style={{ position: 'relative', height: 310, flexShrink: 0, background: 'var(--bg-input)' }}>
+        {pelicula.imagen ? (
+          <img
+            src={pelicula.imagen}
+            alt={pelicula.titulo}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            onError={e => { e.currentTarget.parentElement.style.display = 'flex'; e.currentTarget.style.display = 'none' }}
+          />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem' }}>🎬</div>
+        )}
+        {/* Gradient + badges */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 55%)',
+          display: 'flex', alignItems: 'flex-end',
+          padding: '12px 14px',
+          pointerEvents: 'none',
+        }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <span className="badge badge-gray">{pelicula.genero}</span>
+            {pelicula.clasificacion && pelicula.clasificacion !== 'TP' && (
+              <span className="badge badge-accent">{pelicula.clasificacion}</span>
+            )}
+            {pelicula.duracion && (
+              <span style={{
+                fontSize: '0.7rem', color: 'rgba(255,255,255,0.75)',
+                display: 'flex', alignItems: 'center', gap: 3,
+              }}>⏱ {pelicula.duracion} min</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Info + sessions */}
+      <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 700, lineHeight: 1.3 }}>{pelicula.titulo}</h3>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          {sesiones.map(s => {
+            const disponibles = s.aforo - s.entradasVendidas
+            const agotado = disponibles === 0
+            const pct = (s.entradasVendidas / s.aforo) * 100
+            return (
+              <button
+                key={s.id}
+                disabled={agotado}
+                onClick={() => !agotado && onSelect(s)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '9px 12px',
+                  background: agotado ? 'var(--bg-input)' : 'var(--accent-bg)',
+                  border: `1px solid ${agotado ? 'var(--border-color)' : 'var(--border-accent)'}`,
+                  borderRadius: 8,
+                  cursor: agotado ? 'not-allowed' : 'pointer',
+                  opacity: agotado ? 0.5 : 1,
+                  transition: 'all 0.15s',
+                  width: '100%',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={e => { if (!agotado) e.currentTarget.style.background = 'var(--accent-bg-hover)' }}
+                onMouseLeave={e => { if (!agotado) e.currentTarget.style.background = 'var(--accent-bg)' }}
+              >
+                <div>
+                  <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--accent)' }}>{s.hora}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: 8 }}>{s.sala}</span>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    {formatDate(s.fecha)}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: agotado ? 'var(--text-muted)' : 'var(--accent)' }}>
+                    {agotado ? 'Agotado' : formatPrice(s.precioEntrada)}
+                  </div>
+                  {!agotado && (
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                      {disponibles} libres
+                    </div>
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── Session list ── */
 function SessionList({ sesiones, onSelect }) {
   const [search, setSearch] = useState('')
@@ -323,6 +417,15 @@ function SessionList({ sesiones, onSelect }) {
     [sesiones, search]
   )
 
+  const movieGroups = useMemo(() => {
+    const groups = {}
+    filtered.forEach(s => {
+      if (!groups[s.peliculaId]) groups[s.peliculaId] = { pelicula: s.pelicula, sesiones: [] }
+      groups[s.peliculaId].sesiones.push(s)
+    })
+    return Object.values(groups)
+  }, [filtered])
+
   return (
     <div>
       <div className="page-header">
@@ -330,7 +433,7 @@ function SessionList({ sesiones, onSelect }) {
         <p>Selecciona una sesión para elegir tus butacas</p>
       </div>
 
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 28 }}>
         <input
           className="form-input"
           style={{ maxWidth: 400 }}
@@ -340,81 +443,18 @@ function SessionList({ sesiones, onSelect }) {
         />
       </div>
 
-      {filtered.length === 0 ? (
+      {movieGroups.length === 0 ? (
         <div className="empty-state">No hay sesiones disponibles</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {filtered.map(s => {
-            const disponibles = s.aforo - s.entradasVendidas
-            const pct = (s.entradasVendidas / s.aforo) * 100
-            const agotado = disponibles === 0
-
-            return (
-              <div
-                key={s.id}
-                className="card"
-                style={{
-                  padding: '18px 22px',
-                  display: 'flex', alignItems: 'center', gap: 18,
-                  opacity: agotado ? 0.6 : 1,
-                }}
-              >
-                {s.pelicula.imagen && (
-                  <img
-                    src={s.pelicula.imagen}
-                    alt={s.pelicula.titulo}
-                    style={{ width: 60, height: 88, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }}
-                    onError={e => { e.target.style.display = 'none' }}
-                  />
-                )}
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 6 }}>
-                    {s.pelicula.titulo}
-                  </h3>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', color: 'var(--text-secondary)', fontSize: '0.82rem', marginBottom: 10 }}>
-                    <span>📅 {formatDate(s.fecha)}</span>
-                    <span>🕐 {s.hora}</span>
-                    <span>🏛 {s.sala}</span>
-                    <span className="badge badge-gray">{s.pelicula.genero}</span>
-                    {s.pelicula.clasificacion !== 'TP' && (
-                      <span className="badge badge-accent">{s.pelicula.clasificacion}</span>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      flex: 1, height: 5,
-                      background: 'var(--bg-input)', borderRadius: 3, overflow: 'hidden',
-                      maxWidth: 220,
-                    }}>
-                      <div style={{
-                        width: `${pct}%`, height: '100%',
-                        background: pct > 80 ? 'var(--danger)' : 'var(--accent)',
-                        borderRadius: 3, transition: 'width 0.3s',
-                      }} />
-                    </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {disponibles} libres de {s.aforo}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{
-                    fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent)', marginBottom: 10,
-                  }}>{formatPrice(s.precioEntrada)}</div>
-                  <button
-                    className="btn btn-primary"
-                    disabled={agotado}
-                    onClick={() => onSelect(s)}
-                    style={{ fontSize: '0.85rem' }}
-                  >
-                    {agotado ? 'Agotado' : 'Elegir butacas'}
-                  </button>
-                </div>
-              </div>
-            )
-          })}
+        <div className="grid-cards" style={{ gap: 24 }}>
+          {movieGroups.map(({ pelicula, sesiones: movieSesiones }) => (
+            <MovieCard
+              key={pelicula.id}
+              pelicula={pelicula}
+              sesiones={movieSesiones}
+              onSelect={onSelect}
+            />
+          ))}
         </div>
       )}
     </div>

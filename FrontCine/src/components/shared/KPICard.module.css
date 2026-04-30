@@ -1,0 +1,32 @@
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 6px;
+  transition: border-color var(--t);
+}
+.clickable { cursor: pointer; }
+.clickable:hover { border-color: var(--border-l); }
+
+.top { display: flex; align-items: center; justify-content: space-between; }
+.label { font-size: 11px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+
+.icon {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm);
+}
+.accent { background: var(--accent-dim); color: var(--accent); }
+.green  { background: var(--green-dim); color: var(--green); }
+.yellow { background: var(--yellow-dim); color: var(--yellow); }
+.red    { background: var(--red-dim); color: var(--red); }
+.cyan   { background: var(--cyan-dim); color: var(--cyan); }
+.purple { background: var(--purple-dim); color: var(--purple); }
+
+.value { font-size: 26px; font-weight: 700; color: var(--text-1); line-height: 1.1; }
+.bottom { display: flex; align-items: center; justify-content: space-between; }
+.sub { font-size: 11px; color: var(--text-3); }
+.trend { font-size: 11px; font-weight: 600; }
+.up { color: var(--green); }
+.down { color: var(--red); }

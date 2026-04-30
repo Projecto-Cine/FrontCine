@@ -1,0 +1,96 @@
+.header {
+  height: var(--header-h);
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.left { display: flex; align-items: center; gap: 14px; }
+.right { display: flex; align-items: center; gap: 12px; }
+
+.toggleBtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: var(--r-sm);
+  color: var(--text-3);
+  transition: background var(--t), color var(--t);
+}
+.toggleBtn:hover { background: var(--bg-3); color: var(--text-1); }
+
+.headerLogo {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(201,168,76,0.25);
+  flex-shrink: 0;
+}
+
+.pageDivider {
+  width: 1px; height: 18px;
+  background: var(--border-l);
+  flex-shrink: 0;
+}
+
+.pageTitle { font-size: 13px; font-weight: 600; color: var(--text-1); }
+
+.clock {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--mono);
+}
+
+.iconBtn {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: var(--r-sm);
+  color: var(--text-3);
+  transition: background var(--t), color var(--t);
+}
+.iconBtn:hover { background: var(--bg-3); color: var(--text-1); }
+.notifDot {
+  position: absolute; top: 6px; right: 6px;
+  width: 6px; height: 6px;
+  background: var(--red);
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-1);
+}
+
+.userChip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px 4px 4px;
+  background: var(--bg-3);
+  border-radius: 99px;
+  border: 1px solid var(--border-l);
+}
+.avatar {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--accent-dim2);
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800;
+  flex-shrink: 0;
+  border: 1px solid rgba(201,168,76,0.3);
+}
+.meta { display: flex; flex-direction: column; }
+.name { font-size: 12px; font-weight: 600; color: var(--text-1); line-height: 1.2; }
+.role { font-size: 10px; color: var(--text-3); line-height: 1.2; }
+
+/* Gold accent bar en top */
+.header::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.6;
+}
+.header { position: relative; }

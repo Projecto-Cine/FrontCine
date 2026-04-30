@@ -1,13 +1,14 @@
-import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useState } from 'react'
 
 const NAV_ITEMS = [
   { to: '/cartelera',     label: 'Cartelera',      icon: '🎟' },
-  { to: '/merchandising', label: 'Merchandising',   icon: '🛍' },
-  { to: '/dashboard',     label: 'Dashboard',       icon: '📊' },
-  { to: '/usuarios',      label: 'Usuarios',        icon: '👤' },
+  { to: '/merchandising', label: 'Venta',           icon: '🍿' },
+  { to: '/clientes',      label: 'Clientes',        icon: '👥' },
+  { to: '/horarios',      label: 'Horarios',        icon: '🕐' },
   { to: '/peliculas',     label: 'Películas',       icon: '🎬' },
   { to: '/productos',     label: 'Productos',       icon: '📦' },
+  { to: '/dashboard',     label: 'Dashboard',       icon: '📊' },
 ]
 
 export default function Sidebar() {
@@ -30,28 +31,26 @@ export default function Sidebar() {
         borderBottom: '1px solid #1e1c18',
         display: 'flex',
         alignItems: 'center',
-        gap: 10,
+        justifyContent: 'center',
         minHeight: 72,
       }}>
         {!logoError ? (
           <img
-            src="/logoNegro.png"
+            src="/logoLumen.png"
             alt="Lumen Cinema"
             onError={() => setLogoError(true)}
             style={{
               height: 52,
               objectFit: 'contain',
-              maxWidth: 180,
+              maxWidth: 188,
               filter: 'drop-shadow(0 0 6px rgba(184,150,106,0.3))',
             }}
           />
         ) : (
-          /* Fallback si no encuentra el archivo */
           <div>
-            <div style={{
-              fontWeight: 700, color: 'var(--accent)',
-              fontSize: '0.88rem', letterSpacing: '0.06em',
-            }}>LUMEN CINEMA</div>
+            <div style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '0.88rem', letterSpacing: '0.06em' }}>
+              LUMEN CINEMA
+            </div>
             <div style={{ fontSize: '0.62rem', color: '#5a5040', letterSpacing: '0.12em' }}>
               SISTEMA DE GESTIÓN
             </div>
@@ -79,25 +78,20 @@ export default function Sidebar() {
               padding: '10px 12px',
               borderRadius: 8,
               color: isActive ? '#0e0d0a' : '#7a7060',
-              background: isActive
-                ? 'var(--accent)'
-                : 'transparent',
+              background: isActive ? 'var(--accent)' : 'transparent',
               fontWeight: isActive ? 600 : 400,
               fontSize: '0.88rem',
               transition: 'all 0.18s',
               textDecoration: 'none',
-              letterSpacing: isActive ? '0.01em' : 0,
             })}
             onMouseEnter={e => {
-              const isActive = e.currentTarget.getAttribute('aria-current') === 'page'
-              if (!isActive) {
+              if (e.currentTarget.getAttribute('aria-current') !== 'page') {
                 e.currentTarget.style.background = 'var(--accent-bg)'
                 e.currentTarget.style.color = 'var(--accent)'
               }
             }}
             onMouseLeave={e => {
-              const isActive = e.currentTarget.getAttribute('aria-current') === 'page'
-              if (!isActive) {
+              if (e.currentTarget.getAttribute('aria-current') !== 'page') {
                 e.currentTarget.style.background = 'transparent'
                 e.currentTarget.style.color = '#7a7060'
               }

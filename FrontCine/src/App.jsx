@@ -8,7 +8,8 @@ import Cartelera from './pages/Cartelera'
 import Merchandising from './pages/Merchandising'
 import Peliculas from './pages/Peliculas'
 import Productos from './pages/Productos'
-import Usuarios from './pages/Usuarios'
+import Clientes from './pages/Clientes'
+import Horarios from './pages/Horarios'
 import './styles/global.css'
 
 export default function App() {
@@ -19,13 +20,14 @@ export default function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Layout />}>
-                <Route index element={<Navigate to="/dashboard" replace />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="cartelera" element={<Cartelera />} />
+                <Route index element={<Navigate to="/cartelera" replace />} />
+                <Route path="dashboard"     element={<Dashboard />} />
+                <Route path="cartelera"     element={<Cartelera />} />
                 <Route path="merchandising" element={<Merchandising />} />
-                <Route path="peliculas" element={<Peliculas />} />
-                <Route path="productos" element={<Productos />} />
-                <Route path="usuarios" element={<Usuarios />} />
+                <Route path="clientes"      element={<Clientes />} />
+                <Route path="horarios"      element={<Horarios />} />
+                <Route path="peliculas"     element={<Peliculas />} />
+                <Route path="productos"     element={<Productos />} />
               </Route>
             </Routes>
           </BrowserRouter>

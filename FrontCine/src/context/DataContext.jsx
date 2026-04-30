@@ -32,88 +32,88 @@ const MOCK_PRODUCTOS = [
   { id: 8, nombre: 'Bolsa Palomitas Especial', descripcion: 'Palomitas en bolsa coleccionable', categoria: 'Comida', precio: 8.0, stock: 75, imagen: 'https://images.unsplash.com/photo-1578849278619-e73505e9610f?w=400&h=300&fit=crop' },
 ]
 
-const MOCK_USUARIOS = [
-  { id: 1, nombre: 'Ana García', email: 'ana@example.com', edad: 32, tipoDescuento: null, visitas: 15, fechaRegistro: '2024-01-15' },
-  { id: 2, nombre: 'Carlos Ruiz', email: 'carlos@example.com', edad: 22, tipoDescuento: 'Estudiante', visitas: 8, fechaRegistro: '2024-03-20' },
-  { id: 3, nombre: 'María López', email: 'maria@example.com', edad: 68, tipoDescuento: null, visitas: 12, fechaRegistro: '2023-11-10' },
+const MOCK_CLIENTES = [
+  { id: 1, nombre: 'Ana García', email: 'ana@example.com', telefono: '612 345 678', tipoDescuento: null, visitas: 15, fechaRegistro: '2024-01-15' },
+  { id: 2, nombre: 'Carlos Ruiz', email: 'carlos@example.com', telefono: '623 456 789', tipoDescuento: 'Estudiante', visitas: 8, fechaRegistro: '2024-03-20' },
+  { id: 3, nombre: 'María López', email: 'maria@example.com', telefono: '634 567 890', tipoDescuento: 'Jubilado', visitas: 12, fechaRegistro: '2023-11-10' },
+]
+
+const MOCK_TRABAJADORES = [
+  { id: 1, nombre: 'Laura Sánchez', rol: 'Taquillera', telefono: '612 111 222', email: 'laura@lumencine.es' },
+  { id: 2, nombre: 'Pedro Martín', rol: 'Acomodador', telefono: '623 222 333', email: 'pedro@lumencine.es' },
+  { id: 3, nombre: 'Sofía Romero', rol: 'Encargada', telefono: '634 333 444', email: 'sofia@lumencine.es' },
+  { id: 4, nombre: 'Diego Torres', rol: 'Taquillero', telefono: '645 444 555', email: 'diego@lumencine.es' },
+  { id: 5, nombre: 'Carmen Vega', rol: 'Acomodadora', telefono: '656 555 666', email: 'carmen@lumencine.es' },
+]
+
+const MOCK_TURNOS = [
+  { id: 1,  trabajadorId: 1, fecha: '2026-04-28', inicio: '09:00', fin: '17:00' },
+  { id: 2,  trabajadorId: 3, fecha: '2026-04-28', inicio: '09:00', fin: '18:00' },
+  { id: 3,  trabajadorId: 2, fecha: '2026-04-28', inicio: '14:00', fin: '22:00' },
+  { id: 4,  trabajadorId: 1, fecha: '2026-04-29', inicio: '09:00', fin: '17:00' },
+  { id: 5,  trabajadorId: 3, fecha: '2026-04-29', inicio: '09:00', fin: '18:00' },
+  { id: 6,  trabajadorId: 4, fecha: '2026-04-30', inicio: '16:00', fin: '22:00' },
+  { id: 7,  trabajadorId: 5, fecha: '2026-04-30', inicio: '14:00', fin: '22:00' },
+  { id: 8,  trabajadorId: 2, fecha: '2026-05-01', inicio: '09:00', fin: '17:00' },
+  { id: 9,  trabajadorId: 4, fecha: '2026-05-01', inicio: '09:00', fin: '17:00' },
+  { id: 10, trabajadorId: 1, fecha: '2026-05-02', inicio: '14:00', fin: '22:00' },
+  { id: 11, trabajadorId: 5, fecha: '2026-05-02', inicio: '09:00', fin: '17:00' },
+  { id: 12, trabajadorId: 3, fecha: '2026-05-03', inicio: '10:00', fin: '18:00' },
 ]
 
 export function DataProvider({ children }) {
   const [peliculas, setPeliculas] = useState(MOCK_PELICULAS)
-  const [sesiones, setSesiones] = useState(MOCK_SESIONES)
+  const [sesiones, setSesiones]   = useState(MOCK_SESIONES)
   const [productos, setProductos] = useState(MOCK_PRODUCTOS)
-  const [usuarios, setUsuarios] = useState(MOCK_USUARIOS)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [clientes, setClientes]   = useState(MOCK_CLIENTES)
+  const [trabajadores, setTrabajadores] = useState(MOCK_TRABAJADORES)
+  const [turnos, setTurnos]       = useState(MOCK_TURNOS)
 
-  // Peliculas CRUD
-  const addPelicula = useCallback((pelicula) => {
-    const newPelicula = { ...pelicula, id: Date.now() }
-    setPeliculas(prev => [...prev, newPelicula])
-    return newPelicula
-  }, [])
-
-  const updatePelicula = useCallback((id, updates) => {
-    setPeliculas(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p))
-  }, [])
-
-  const deletePelicula = useCallback((id) => {
+  // Peliculas
+  const addPelicula    = useCallback((p)       => setPeliculas(prev => [...prev, { ...p, id: Date.now() }]), [])
+  const updatePelicula = useCallback((id, upd) => setPeliculas(prev => prev.map(p => p.id === id ? { ...p, ...upd } : p)), [])
+  const deletePelicula = useCallback((id)      => {
     setPeliculas(prev => prev.filter(p => p.id !== id))
     setSesiones(prev => prev.filter(s => s.peliculaId !== id))
   }, [])
 
-  // Sesiones CRUD
-  const addSesion = useCallback((sesion) => {
-    const newSesion = { ...sesion, id: Date.now(), entradasVendidas: 0 }
-    setSesiones(prev => [...prev, newSesion])
-    return newSesion
+  // Sesiones
+  const addSesion    = useCallback((s)       => setSesiones(prev => [...prev, { ...s, id: Date.now(), entradasVendidas: 0 }]), [])
+  const updateSesion = useCallback((id, upd) => setSesiones(prev => prev.map(s => s.id === id ? { ...s, ...upd } : s)), [])
+  const deleteSesion = useCallback((id)      => setSesiones(prev => prev.filter(s => s.id !== id)), [])
+
+  // Productos
+  const addProducto    = useCallback((p)       => setProductos(prev => [...prev, { ...p, id: Date.now() }]), [])
+  const updateProducto = useCallback((id, upd) => setProductos(prev => prev.map(p => p.id === id ? { ...p, ...upd } : p)), [])
+  const deleteProducto = useCallback((id)      => setProductos(prev => prev.filter(p => p.id !== id)), [])
+
+  // Clientes
+  const addCliente    = useCallback((c)       => setClientes(prev => [...prev, { ...c, id: Date.now(), visitas: 0, fechaRegistro: new Date().toISOString().split('T')[0] }]), [])
+  const updateCliente = useCallback((id, upd) => setClientes(prev => prev.map(c => c.id === id ? { ...c, ...upd } : c)), [])
+  const deleteCliente = useCallback((id)      => setClientes(prev => prev.filter(c => c.id !== id)), [])
+
+  // Trabajadores
+  const addTrabajador    = useCallback((t)       => setTrabajadores(prev => [...prev, { ...t, id: Date.now() }]), [])
+  const updateTrabajador = useCallback((id, upd) => setTrabajadores(prev => prev.map(t => t.id === id ? { ...t, ...upd } : t)), [])
+  const deleteTrabajador = useCallback((id)      => {
+    setTrabajadores(prev => prev.filter(t => t.id !== id))
+    setTurnos(prev => prev.filter(t => t.trabajadorId !== id))
   }, [])
 
-  const updateSesion = useCallback((id, updates) => {
-    setSesiones(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s))
-  }, [])
-
-  const deleteSesion = useCallback((id) => {
-    setSesiones(prev => prev.filter(s => s.id !== id))
-  }, [])
-
-  // Productos CRUD
-  const addProducto = useCallback((producto) => {
-    const newProducto = { ...producto, id: Date.now() }
-    setProductos(prev => [...prev, newProducto])
-    return newProducto
-  }, [])
-
-  const updateProducto = useCallback((id, updates) => {
-    setProductos(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p))
-  }, [])
-
-  const deleteProducto = useCallback((id) => {
-    setProductos(prev => prev.filter(p => p.id !== id))
-  }, [])
-
-  // Usuarios CRUD
-  const addUsuario = useCallback((usuario) => {
-    const newUsuario = { ...usuario, id: Date.now(), visitas: 0, fechaRegistro: new Date().toISOString().split('T')[0] }
-    setUsuarios(prev => [...prev, newUsuario])
-    return newUsuario
-  }, [])
-
-  const updateUsuario = useCallback((id, updates) => {
-    setUsuarios(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u))
-  }, [])
-
-  const deleteUsuario = useCallback((id) => {
-    setUsuarios(prev => prev.filter(u => u.id !== id))
-  }, [])
+  // Turnos
+  const addTurno    = useCallback((t)       => setTurnos(prev => [...prev, { ...t, id: Date.now(), trabajadorId: parseInt(t.trabajadorId) }]), [])
+  const updateTurno = useCallback((id, upd) => setTurnos(prev => prev.map(t => t.id === id ? { ...t, ...upd, trabajadorId: parseInt(upd.trabajadorId ?? t.trabajadorId) } : t)), [])
+  const deleteTurno = useCallback((id)      => setTurnos(prev => prev.filter(t => t.id !== id)), [])
 
   return (
     <DataContext.Provider value={{
-      peliculas, sesiones, productos, usuarios, loading, error,
+      peliculas, sesiones, productos, clientes, trabajadores, turnos,
       addPelicula, updatePelicula, deletePelicula,
       addSesion, updateSesion, deleteSesion,
       addProducto, updateProducto, deleteProducto,
-      addUsuario, updateUsuario, deleteUsuario,
+      addCliente, updateCliente, deleteCliente,
+      addTrabajador, updateTrabajador, deleteTrabajador,
+      addTurno, updateTurno, deleteTurno,
     }}>
       {children}
     </DataContext.Provider>

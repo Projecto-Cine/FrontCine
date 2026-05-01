@@ -22,14 +22,6 @@
 }
 .toggleBtn:hover { background: var(--bg-3); color: var(--text-1); }
 
-.headerLogo {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid rgba(201,168,76,0.25);
-  flex-shrink: 0;
-}
-
 .pageDivider {
   width: 1px; height: 18px;
   background: var(--border-l);

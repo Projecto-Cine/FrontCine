@@ -2,7 +2,6 @@ import { PanelLeftClose, PanelLeft, Bell, Clock } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
-import logoSrc from '../assets/logoLumen.png';
 import styles from './Header.module.css';
 
 const ROUTE_LABELS = {
@@ -15,6 +14,7 @@ const ROUTE_LABELS = {
   '/reservas': 'Reservas',
   '/incidencias': 'Incidencias',
   '/inventario': 'Inventario',
+  '/cuadrante': 'Cuadrante de Turnos',
   '/informes': 'Informes',
   '/usuarios': 'Usuarios',
   '/auditoria': 'Auditoría y Seguridad',
@@ -37,7 +37,6 @@ export default function Header() {
         <button className={styles.toggleBtn} onClick={toggleSidebar} title="Alternar barra lateral">
           {sidebarCollapsed ? <PanelLeft size={15} /> : <PanelLeftClose size={15} />}
         </button>
-        <img src={logoSrc} alt="Lumen Cinema" className={styles.headerLogo} />
         <div className={styles.pageDivider} />
         <h2 className={styles.pageTitle}>{ROUTE_LABELS[location.pathname] || 'Lumen'}</h2>
       </div>

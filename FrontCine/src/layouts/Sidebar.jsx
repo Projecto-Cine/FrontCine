@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Film, Building2, CalendarDays, Ticket,
   AlertTriangle, Package, BarChart2, Users, ShieldCheck,
-  ChevronDown, ChevronRight, LogOut, ShoppingCart, TicketCheck
+  ChevronDown, ChevronRight, LogOut, ShoppingCart, TicketCheck, ClipboardList
 } from 'lucide-react';
 import { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
@@ -34,6 +34,7 @@ const NAV = [
       { label: 'Incidencias', icon: AlertTriangle, to: '/incidencias' },
       { label: 'Inventario', icon: Package, to: '/inventario' },
       { label: 'Informes', icon: BarChart2, to: '/informes' },
+      { label: 'Cuadrante', icon: ClipboardList, to: '/cuadrante' },
     ],
   },
   {

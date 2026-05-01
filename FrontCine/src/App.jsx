@@ -15,6 +15,7 @@ import UsersPage from './pages/users/UsersPage';
 import AuditPage from './pages/audit/AuditPage';
 import TaquillaPage from './pages/pos/TaquillaPage';
 import CajaPage from './pages/pos/CajaPage';
+import CuadrantePage from './pages/cuadrante/CuadrantePage';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -44,6 +45,7 @@ export default function App() {
               <Route path="incidencias" element={<IncidentsPage />} />
               <Route path="informes" element={<ReportsPage />} />
               <Route path="inventario" element={<InventoryPage />} />
+              <Route path="cuadrante" element={<CuadrantePage />} />
               <Route path="usuarios" element={<UsersPage />} />
               <Route path="auditoria" element={<AuditPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />

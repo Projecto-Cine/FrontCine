@@ -115,30 +115,106 @@
   overflow-y: auto;
   padding: 16px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
   gap: 10px;
   align-content: start;
+}
+.sessionList {
+  grid-template-columns: 1fr !important;
 }
 
 .sessionCard {
   background: var(--bg-3);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  padding: 14px 16px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0;
   cursor: pointer;
   transition: border-color var(--t), background var(--t), transform var(--t);
   text-align: left;
   position: relative;
+  overflow: hidden;
 }
-.sessionCard:hover:not(:disabled) { border-color: var(--accent); background: var(--bg-4); transform: translateY(-1px); }
+.sessionCard:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
 .sessionCard:active:not(:disabled) { transform: translateY(0); }
 .sessionFull { opacity: 0.5; cursor: not-allowed !important; }
 
+/* Poster area (grid mode) */
+.sessionPoster {
+  width: 100%;
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+.sessionPosterInitials {
+  font-size: 28px;
+  font-weight: 900;
+  color: rgba(237,228,212,0.18);
+  letter-spacing: -0.02em;
+  font-family: var(--font);
+  user-select: none;
+}
+.sessionPosterBadges {
+  position: absolute;
+  bottom: 7px;
+  left: 8px;
+  display: flex;
+  gap: 4px;
+}
+.posterFullOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--red);
+  letter-spacing: 0.12em;
+}
+
+/* Card body below poster */
+.sessionCardBody {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+/* List mode thumbnail */
+.sessionCardList {
+  flex-direction: row !important;
+  align-items: center;
+  padding: 10px 14px !important;
+  gap: 12px !important;
+}
+.sessionListThumb {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sessionListInitials {
+  font-size: 13px;
+  font-weight: 900;
+  color: rgba(237,228,212,0.35);
+  font-family: var(--font);
+  user-select: none;
+}
+
 .sessionCardTop { display: flex; align-items: center; justify-content: space-between; }
-.sessionTime { font-family: var(--mono); font-size: 22px; font-weight: 800; color: var(--text-1); line-height: 1; }
+.sessionTime { font-family: var(--mono); font-size: 18px; font-weight: 800; color: var(--accent); line-height: 1; }
 .sessionMovie { font-size: 13px; font-weight: 600; color: var(--text-1); line-height: 1.3; }
 .sessionRoom { font-size: 11px; color: var(--text-3); }
 .sessionOcc { display: flex; align-items: center; gap: 8px; margin-top: 4px; }

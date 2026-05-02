@@ -40,7 +40,7 @@ const NAV = [
   {
     section: 'ADMINISTRACIÓN',
     items: [
-      { label: 'Usuarios', icon: Users, to: '/usuarios' },
+      { label: 'Trabajadores', icon: Users, to: '/usuarios' },
       { label: 'Auditoría', icon: ShieldCheck, to: '/auditoria' },
     ],
   },

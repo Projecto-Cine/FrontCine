@@ -76,13 +76,13 @@ export default function UsersPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Usuarios y Permisos"
+        title="Trabajadores y Permisos"
         subtitle={`${users.filter(u => u.status === 'active').length} activos · ${users.length} total`}
         actions={isAdmin && <Button icon={Plus} onClick={openCreate}>Nuevo usuario</Button>}
       />
 
       <div className={styles.kpiRow}>
-        <KPICard label="Usuarios totales" value={users.length} icon={Users} color="accent" />
+        <KPICard label="Trabajadores totales" value={users.length} icon={Users} color="accent" />
         <KPICard label="Activos" value={users.filter(u => u.status === 'active').length} icon={UserCheck} color="green" />
         <KPICard label="Inactivos" value={users.filter(u => u.status === 'inactive').length} icon={UserX} color="red" />
         <KPICard label="Roles distintos" value={Object.keys(ROLES).length} icon={Shield} color="purple" />
@@ -93,7 +93,7 @@ export default function UsersPage() {
           <div key={key} className={styles.roleCard} onClick={() => setPermDetail(key)}>
             <div className={styles.roleTop}>
               <Badge variant={r.color}>{r.label}</Badge>
-              <span className={styles.roleCount}>{users.filter(u => u.role === key).length} usuarios</span>
+              <span className={styles.roleCount}>{users.filter(u => u.role === key).length} trabajadores</span>
             </div>
             <ul className={styles.rolePerms}>
               {PERMISSIONS_DETAIL[key]?.slice(0, 2).map((p, i) => <li key={i}>{p}</li>)}
@@ -163,7 +163,7 @@ export default function UsersPage() {
         {permDetail && (
           <div className={styles.permDetail}>
             <Badge variant={ROLES[permDetail]?.color} size="md">{ROLES[permDetail]?.label}</Badge>
-            <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>{users.filter(u => u.role === permDetail).length} usuarios con este rol</p>
+            <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>{users.filter(u => u.role === permDetail).length} trabajadores con este rol</p>
             <ul className={styles.permDetailList}>
               {PERMISSIONS_DETAIL[permDetail]?.map((p, i) => <li key={i}><span className={styles.permDot} />  {p}</li>)}
             </ul>

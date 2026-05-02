@@ -18,6 +18,26 @@ const todaySessions = SESSIONS.filter(s => s.date === TODAY && s.status !== 'can
 const FORMAT_BADGE = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', VIP: 'yellow', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
 const OCC_COLOR = (pct) => pct >= 95 ? 'var(--red)' : pct >= 80 ? 'var(--yellow)' : 'var(--green)';
 
+const GENRE_GRADIENT = {
+  'Ciencia ficción': 'linear-gradient(145deg, #071828 0%, #0e3252 100%)',
+  'Drama':           'linear-gradient(145deg, #150d22 0%, #321860 100%)',
+  'Drama/Historia':  'linear-gradient(145deg, #120d1e 0%, #2e1a55 100%)',
+  'Drama/Thriller':  'linear-gradient(145deg, #12100a 0%, #30260e 100%)',
+  'Animación':       'linear-gradient(145deg, #0a1e0c 0%, #173d1a 100%)',
+  'Terror':          'linear-gradient(145deg, #1a0606 0%, #3d0d0d 100%)',
+  'Terror/Sci-Fi':   'linear-gradient(145deg, #100a18 0%, #280d30 100%)',
+  'Terror/Drama':    'linear-gradient(145deg, #180606 0%, #350f0f 100%)',
+  'Thriller':        'linear-gradient(145deg, #141008 0%, #32260a 100%)',
+  'Acción':          'linear-gradient(145deg, #180c04 0%, #3d1a06 100%)',
+  'Fantasía':        'linear-gradient(145deg, #0a0818 0%, #1e1440 100%)',
+};
+const DEFAULT_GRADIENT = 'linear-gradient(145deg, #161008 0%, #2a1e10 100%)';
+
+function getInitials(title = '') {
+  const words = title.split(' ').filter(w => w.length > 2);
+  return (words.slice(0, 2).map(w => w[0]).join('') || title.slice(0, 2)).toUpperCase();
+}
+
 function generateTicketId() {
   return 'TKT-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
 }
@@ -134,25 +154,57 @@ export default function TaquillaPage() {
                     onClick={() => s.status !== 'full' && selectSession(s)}
                     disabled={s.status === 'full'}
                   >
-                    <div className={styles.sessionCardTop}>
-                      <div className={styles.sessionTime}>{s.time}</div>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <Badge variant={FORMAT_BADGE[mv?.format] || 'default'}>{mv?.format}</Badge>
-                        <Badge variant="default">{mv?.language}</Badge>
-                      </div>
-                    </div>
-                    <div className={styles.sessionMovie}>{mv?.title}</div>
-                    <div className={styles.sessionRoom}>{rm?.name.split('—')[0].trim()}</div>
-                    <div className={styles.sessionOcc}>
-                      <div className={styles.occBar}>
-                        <div className={styles.occFill} style={{ width: `${occPct}%`, background: OCC_COLOR(occPct) }} />
-                      </div>
-                      <span className={styles.occText} style={{ color: OCC_COLOR(occPct) }}>
-                        {s.status === 'full' ? 'LLENA' : `${avail} libres`}
-                      </span>
-                    </div>
-                    <div className={styles.sessionPrice}>Desde €{s.price.toFixed(2)}</div>
-                    {s.status !== 'full' && <ChevronRight size={14} className={styles.sessionArrow} />}
+                    {viewMode === 'grid' ? (
+                      <>
+                        <div className={styles.sessionPoster} style={{ background: GENRE_GRADIENT[mv?.genre] || DEFAULT_GRADIENT }}>
+                          <span className={styles.sessionPosterInitials}>{getInitials(mv?.title)}</span>
+                          <div className={styles.sessionPosterBadges}>
+                            <Badge variant={FORMAT_BADGE[mv?.format] || 'default'}>{mv?.format}</Badge>
+                            <Badge variant="default">{mv?.language}</Badge>
+                          </div>
+                          {s.status === 'full' && <div className={styles.posterFullOverlay}>LLENA</div>}
+                        </div>
+                        <div className={styles.sessionCardBody}>
+                          <div className={styles.sessionTime}>{s.time}</div>
+                          <div className={styles.sessionMovie}>{mv?.title}</div>
+                          <div className={styles.sessionRoom}>{rm?.name.split('—')[0].trim()}</div>
+                          <div className={styles.sessionOcc}>
+                            <div className={styles.occBar}>
+                              <div className={styles.occFill} style={{ width: `${occPct}%`, background: OCC_COLOR(occPct) }} />
+                            </div>
+                            <span className={styles.occText} style={{ color: OCC_COLOR(occPct) }}>
+                              {s.status === 'full' ? 'LLENA' : `${avail} libres`}
+                            </span>
+                          </div>
+                          <div className={styles.sessionPrice}>Desde €{s.price.toFixed(2)}</div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className={styles.sessionListThumb} style={{ background: GENRE_GRADIENT[mv?.genre] || DEFAULT_GRADIENT }}>
+                          <span className={styles.sessionListInitials}>{getInitials(mv?.title)}</span>
+                        </div>
+                        <div className={styles.sessionCardTop}>
+                          <div className={styles.sessionTime}>{s.time}</div>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <Badge variant={FORMAT_BADGE[mv?.format] || 'default'}>{mv?.format}</Badge>
+                            <Badge variant="default">{mv?.language}</Badge>
+                          </div>
+                        </div>
+                        <div className={styles.sessionMovie}>{mv?.title}</div>
+                        <div className={styles.sessionRoom}>{rm?.name.split('—')[0].trim()}</div>
+                        <div className={styles.sessionOcc}>
+                          <div className={styles.occBar}>
+                            <div className={styles.occFill} style={{ width: `${occPct}%`, background: OCC_COLOR(occPct) }} />
+                          </div>
+                          <span className={styles.occText} style={{ color: OCC_COLOR(occPct) }}>
+                            {s.status === 'full' ? 'LLENA' : `${avail} libres`}
+                          </span>
+                        </div>
+                        <div className={styles.sessionPrice}>Desde €{s.price.toFixed(2)}</div>
+                        {s.status !== 'full' && <ChevronRight size={14} className={styles.sessionArrow} />}
+                      </>
+                    )}
                   </button>
                 );
               })}

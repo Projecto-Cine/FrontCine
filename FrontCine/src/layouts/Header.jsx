@@ -16,7 +16,7 @@ const ROUTE_LABELS = {
   '/inventario': 'Inventario',
   '/cuadrante': 'Cuadrante de Turnos',
   '/informes': 'Informes',
-  '/usuarios': 'Usuarios',
+  '/usuarios': 'Trabajadores',
   '/auditoria': 'Auditoría y Seguridad',
 };
 

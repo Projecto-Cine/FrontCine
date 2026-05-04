@@ -1,19 +1,20 @@
+import { useState, useEffect } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import PageHeader from '../../components/shared/PageHeader';
 import KPICard from '../../components/shared/KPICard';
 import { Euro, TrendingUp, Users, Film, Download } from 'lucide-react';
 import Button from '../../components/ui/Button';
-import { SALES_WEEK, OCCUPANCY_BY_ROOM, INCIDENTS, SESSIONS, MOVIES } from '../../data/mockData';
+import { reportsService } from '../../services/reportsService';
+import { moviesService } from '../../services/moviesService';
 import styles from './ReportsPage.module.css';
 
-const TICKET_WEEK = SALES_WEEK.map(d => ({ ...d, tickets: d.tickets }));
+const PIE_COLORS = ['var(--accent)', 'var(--purple)', 'var(--cyan)', 'var(--green)', 'var(--red)', 'var(--yellow)'];
 
 const INCIDENT_BY_CAT = [
-  { name: 'Técnico', value: 2 }, { name: 'Infraestructura', value: 1 },
-  { name: 'Mobiliario', value: 1 }, { name: 'Software', value: 1 },
-  { name: 'Seguridad', value: 1 }, { name: 'Operativo', value: 1 },
+  { name: 'Técnico', value: 0 }, { name: 'Infraestructura', value: 0 },
+  { name: 'Mobiliario', value: 0 }, { name: 'Software', value: 0 },
+  { name: 'Seguridad', value: 0 }, { name: 'Operativo', value: 0 },
 ];
-const PIE_COLORS = ['var(--accent)', 'var(--purple)', 'var(--cyan)', 'var(--green)', 'var(--red)', 'var(--yellow)'];
 
 const FORMAT_STATS = [
   { format: 'IMAX', revenue: 18200, sessions: 14, pct: 32 },
@@ -31,9 +32,24 @@ const CustomTT = ({ active, payload, label }) => active && payload?.length ? (
 ) : null;
 
 export default function ReportsPage() {
-  const totalWeek = SALES_WEEK.reduce((s, d) => s + d.revenue, 0);
-  const totalTickets = SALES_WEEK.reduce((s, d) => s + d.tickets, 0);
-  const bestDay = SALES_WEEK.reduce((a, b) => b.revenue > a.revenue ? b : a);
+  const [salesWeek, setSalesWeek] = useState([]);
+  const [occupancy, setOccupancy] = useState([]);
+  const [movies, setMovies] = useState([]);
+  const [incidentByCat, setIncidentByCat] = useState([]);
+
+  useEffect(() => {
+    reportsService.salesWeek()
+      .then(data => setSalesWeek(data.map(d => ({ day: d.day, revenue: d.ventas ?? d.revenue ?? 0, tickets: d.entradas ?? d.tickets ?? 0 }))))
+      .catch(() => {});
+    reportsService.occupancy()
+      .then(data => setOccupancy(data.map(d => ({ room: d.sala ?? d.room, pct: d.pct }))))
+      .catch(() => {});
+    moviesService.getAll().then(setMovies).catch(() => {});
+  }, []);
+
+  const totalWeek = salesWeek.reduce((s, d) => s + d.revenue, 0);
+  const totalTickets = salesWeek.reduce((s, d) => s + d.tickets, 0);
+  const bestDay = salesWeek.length ? salesWeek.reduce((a, b) => b.revenue > a.revenue ? b : a) : { day: '—', revenue: 0 };
 
   return (
     <div className={styles.page}>
@@ -47,14 +63,14 @@ export default function ReportsPage() {
         <KPICard label="Ingresos semana" value={`€${totalWeek.toLocaleString('es-ES')}`} icon={Euro} color="green" trend={8} sub="vs. semana anterior" />
         <KPICard label="Entradas vendidas" value={totalTickets.toLocaleString()} icon={Users} color="accent" trend={5} />
         <KPICard label="Mejor día" value={bestDay.day} icon={TrendingUp} color="cyan" sub={`€${bestDay.revenue.toLocaleString()}`} />
-        <KPICard label="Películas activas" value={MOVIES.filter(m => m.status === 'active').length} icon={Film} color="purple" />
+        <KPICard label="Películas activas" value={movies.filter(m => m.status === 'active').length} icon={Film} color="purple" />
       </div>
 
       <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Ingresos diarios — semana</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={SALES_WEEK} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+            <BarChart data={salesWeek} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
               <Tooltip content={<CustomTT />} />
@@ -65,7 +81,7 @@ export default function ReportsPage() {
         <div className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Entradas vendidas — semana</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={TICKET_WEEK} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
+            <LineChart data={salesWeek} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
               <Tooltip content={<CustomTT />} />
@@ -79,7 +95,7 @@ export default function ReportsPage() {
         <div className={styles.chartCard}>
           <h3 className={styles.chartTitle}>Ocupación por sala (%)</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={OCCUPANCY_BY_ROOM} layout="vertical" margin={{ top: 0, right: 8, left: 20, bottom: 0 }}>
+            <BarChart data={occupancy} layout="vertical" margin={{ top: 0, right: 8, left: 20, bottom: 0 }}>
               <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
               <YAxis dataKey="room" type="category" tick={{ fontSize: 11, fill: 'var(--text-2)' }} axisLine={false} tickLine={false} width={60} />
               <Tooltip content={({ active, payload, label }) => active && payload?.length ? (
@@ -88,7 +104,7 @@ export default function ReportsPage() {
                 </div>
               ) : null} />
               <Bar dataKey="pct" radius={[0, 3, 3, 0]}>
-                {OCCUPANCY_BY_ROOM.map((e, i) => <Cell key={i} fill={e.pct === 0 ? 'var(--bg-4)' : e.pct >= 90 ? 'var(--green)' : 'var(--accent)'} />)}
+                {occupancy.map((e, i) => <Cell key={i} fill={e.pct === 0 ? 'var(--bg-4)' : e.pct >= 90 ? 'var(--green)' : 'var(--accent)'} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>

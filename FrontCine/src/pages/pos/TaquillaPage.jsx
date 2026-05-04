@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Film, ChevronRight, Minus, Plus,
@@ -6,14 +6,23 @@ import {
   CheckCircle, X, Ticket, ArrowLeft, Search,
   LayoutGrid, List
 } from 'lucide-react';
-import { SESSIONS, MOVIES, ROOMS, TICKET_TYPES } from '../../data/mockData';
+import { sessionsService } from '../../services/sessionsService';
+import { moviesService } from '../../services/moviesService';
+import { roomsService } from '../../services/roomsService';
 import { useApp } from '../../contexts/AppContext';
 import Badge from '../../components/ui/Badge';
 import SeatMap from '../../components/shared/SeatMap';
 import styles from './TaquillaPage.module.css';
 
-const TODAY = '2024-04-30';
-const todaySessions = SESSIONS.filter(s => s.date === TODAY && s.status !== 'cancelled');
+const TICKET_TYPES = [
+  { id: 'adulto',     label: 'Adulto',        price: 13.50, color: 'accent' },
+  { id: 'reducida',   label: 'Reducida',       price: 9.00,  color: 'cyan'   },
+  { id: 'estudiante', label: 'Estudiante',      price: 8.00,  color: 'purple' },
+  { id: 'infantil',   label: 'Infantil (<12)', price: 7.00,  color: 'green'  },
+  { id: 'imax',       label: 'IMAX +',         price: 5.00,  color: 'yellow', extra: true },
+  { id: '4dx',        label: '4DX +',          price: 6.50,  color: 'red',    extra: true },
+  { id: 'vip',        label: 'VIP +',          price: 8.00,  color: 'purple', extra: true },
+];
 
 const FORMAT_BADGE = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', VIP: 'yellow', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
 const OCC_COLOR = (pct) => pct >= 95 ? 'var(--red)' : pct >= 80 ? 'var(--yellow)' : 'var(--green)';
@@ -53,11 +62,23 @@ export default function TaquillaPage() {
   const [tickets, setTickets] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // grid | list
+  const [sessions, setSessions] = useState([]);
+  const [movies, setMovies] = useState([]);
+  const [rooms, setRooms] = useState([]);
   const { toast } = useApp();
+
+  useEffect(() => {
+    sessionsService.getAll().then(setSessions).catch(() => {});
+    moviesService.getAll().then(setMovies).catch(() => {});
+    roomsService.getAll().then(setRooms).catch(() => {});
+  }, []);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todaySessions = sessions.filter(s => s.date === today && s.status !== 'cancelled');
 
   const filteredSessions = todaySessions.filter(s => {
     if (!searchQuery) return true;
-    const movie = MOVIES.find(m => m.id === s.movie_id);
+    const movie = movies.find(m => m.id === s.movie_id);
     return movie?.title.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
@@ -67,8 +88,8 @@ export default function TaquillaPage() {
     setStep('seats');
   };
 
-  const movie = selectedSession ? MOVIES.find(m => m.id === selectedSession.movie_id) : null;
-  const room  = selectedSession ? ROOMS.find(r => r.id === selectedSession.room_id) : null;
+  const movie = selectedSession ? movies.find(m => m.id === selectedSession.movie_id) : null;
+  const room  = selectedSession ? rooms.find(r => r.id === selectedSession.room_id) : null;
 
   const baseType  = TICKET_TYPES.find(t => t.id === ticketType) || TICKET_TYPES[0];
   const basePrice = baseType.price;

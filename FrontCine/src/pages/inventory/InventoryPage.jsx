@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, AlertTriangle, Package } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
@@ -7,19 +7,23 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import KPICard from '../../components/shared/KPICard';
 import { useApp } from '../../contexts/AppContext';
-import { INVENTORY } from '../../data/mockData';
+import { inventoryService } from '../../services/inventoryService';
 import styles from './InventoryPage.module.css';
 
 const CAT_COLOR = { Técnico: 'accent', Concesión: 'yellow', Oficina: 'default', Limpieza: 'green', Comercial: 'purple' };
 const EMPTY = { name: '', category: 'Técnico', quantity: '', min_stock: '', unit: 'ud', location: '', supplier: '', price_unit: '' };
 
 export default function InventoryPage() {
-  const [items, setItems] = useState(INVENTORY);
+  const [items, setItems] = useState([]);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [filterCat, setFilterCat] = useState('all');
   const { toast } = useApp();
+
+  useEffect(() => {
+    inventoryService.getAll().then(setItems).catch(() => {});
+  }, []);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setModal('form'); };
   const openEdit = (item) => { setEditing(item); setForm({ ...item }); setModal('form'); };
@@ -34,9 +38,11 @@ export default function InventoryPage() {
     if (editing) {
       setItems(p => p.map(i => i.id === editing.id ? { ...i, ...form, quantity: Number(form.quantity), min_stock: Number(form.min_stock), price_unit: Number(form.price_unit) } : i));
       toast('Artículo actualizado.', 'success');
+      inventoryService.update(editing.id, { ...form, quantity: Number(form.quantity), min_stock: Number(form.min_stock), price_unit: Number(form.price_unit) }).catch(() => toast('Error al guardar en el servidor.', 'error'));
     } else {
       setItems(p => [...p, { ...form, id: Date.now(), quantity: Number(form.quantity), min_stock: Number(form.min_stock), price_unit: Number(form.price_unit), last_order: '' }]);
       toast('Artículo añadido.', 'success');
+      inventoryService.create({ ...form, quantity: Number(form.quantity), min_stock: Number(form.min_stock), price_unit: Number(form.price_unit) }).catch(() => toast('Error al guardar en el servidor.', 'error'));
     }
     setModal(null);
   };

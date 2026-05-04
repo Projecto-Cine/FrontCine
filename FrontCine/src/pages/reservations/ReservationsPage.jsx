@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, XCircle, RefreshCw, Eye } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
@@ -8,7 +8,9 @@ import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import KPICard from '../../components/shared/KPICard';
 import { Ticket, Euro, CreditCard } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
-import { RESERVATIONS, SESSIONS, MOVIES } from '../../data/mockData';
+import { reservationsService } from '../../services/reservationsService';
+import { sessionsService } from '../../services/sessionsService';
+import { moviesService } from '../../services/moviesService';
 import styles from './ReservationsPage.module.css';
 
 const STATUS_MAP = {
@@ -21,17 +23,26 @@ const PAYMENT_LABEL = { card: 'Tarjeta', cash: 'Efectivo', online: 'Online' };
 const PAYMENT_COLOR = { card: 'accent', cash: 'green', online: 'purple' };
 
 export default function ReservationsPage() {
-  const [reservations, setReservations] = useState(RESERVATIONS);
+  const [reservations, setReservations] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [movies, setMovies] = useState([]);
   const [detail, setDetail] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const { toast } = useApp();
+
+  useEffect(() => {
+    reservationsService.getAll().then(setReservations).catch(() => {});
+    sessionsService.getAll().then(setSessions).catch(() => {});
+    moviesService.getAll().then(setMovies).catch(() => {});
+  }, []);
 
   const filtered = filterStatus === 'all' ? reservations : reservations.filter(r => r.status === filterStatus);
 
   const handleCancel = () => {
     setReservations(p => p.map(r => r.id === cancelTarget.id ? { ...r, status: 'cancelled' } : r));
     toast(`Reserva ${cancelTarget.id} cancelada.`, 'warning');
+    reservationsService.update(cancelTarget.id, { ...cancelTarget, status: 'cancelled' }).catch(() => {});
     setCancelTarget(null);
   };
 
@@ -43,8 +54,8 @@ export default function ReservationsPage() {
       <div><div style={{ fontWeight: 500 }}>{v}</div><div style={{ fontSize: 11, color: 'var(--text-3)' }}>{row.email}</div></div>
     )},
     { key: 'session_id', label: 'Sesión', render: v => {
-      const s = SESSIONS.find(s => s.id === v);
-      const m = s ? MOVIES.find(m => m.id === s.movie_id) : null;
+      const s = sessions.find(s => s.id === v);
+      const m = s ? movies.find(m => m.id === s.movie_id) : null;
       return <span style={{ fontSize: 11 }}>{m?.title || '—'} <span style={{ color: 'var(--text-3)' }}>{s?.date} {s?.time}</span></span>;
     }},
     { key: 'seats', label: 'Asientos', width: 120, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v.join(', ')}</span> },
@@ -95,8 +106,8 @@ export default function ReservationsPage() {
 
       <Modal open={!!detail} onClose={() => setDetail(null)} title={`Reserva ${detail?.id}`} size="sm">
         {detail && (() => {
-          const s = SESSIONS.find(s => s.id === detail.session_id);
-          const m = s ? MOVIES.find(m => m.id === s.movie_id) : null;
+          const s = sessions.find(s => s.id === detail.session_id);
+          const m = s ? movies.find(m => m.id === s.movie_id) : null;
           return (
             <div className={styles.detail}>
               <div className={styles.detailSection}>

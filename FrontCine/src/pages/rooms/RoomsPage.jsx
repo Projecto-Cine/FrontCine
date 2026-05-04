@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, Wrench, CheckCircle } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
@@ -8,19 +8,23 @@ import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import KPICard from '../../components/shared/KPICard';
 import { Building2, Layers, Users } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
-import { ROOMS } from '../../data/mockData';
+import { roomsService } from '../../services/roomsService';
 import styles from './RoomsPage.module.css';
 
 const STATUS_MAP = { active: { label: 'Operativa', v: 'green' }, maintenance: { label: 'Mantenimiento', v: 'yellow' }, blocked: { label: 'Bloqueada', v: 'red' } };
 const EMPTY = { name: '', capacity: '', format: '2D', status: 'active', screen: '', audio: '', last_maintenance: '' };
 
 export default function RoomsPage() {
-  const [rooms, setRooms] = useState(ROOMS);
+  const [rooms, setRooms] = useState([]);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [maintTarget, setMaintTarget] = useState(null);
   const { toast } = useApp();
+
+  useEffect(() => {
+    roomsService.getAll().then(setRooms).catch(() => {});
+  }, []);
 
   const openEdit = (r) => { setEditing(r); setForm({ ...r }); setModal('form'); };
   const openCreate = () => { setEditing(null); setForm(EMPTY); setModal('form'); };
@@ -31,18 +35,22 @@ export default function RoomsPage() {
     if (editing) {
       setRooms(p => p.map(r => r.id === editing.id ? { ...r, ...form, capacity: Number(form.capacity) } : r));
       toast('Sala actualizada.', 'success');
+      roomsService.update(editing.id, { ...form, capacity: Number(form.capacity) }).catch(() => toast('Error al guardar en el servidor.', 'error'));
     } else {
       setRooms(p => [...p, { ...form, id: Date.now(), capacity: Number(form.capacity), seats_available: Number(form.capacity) }]);
       toast('Sala creada.', 'success');
+      roomsService.create({ ...form, capacity: Number(form.capacity) }).catch(() => toast('Error al guardar en el servidor.', 'error'));
     }
     setModal(null);
   };
 
   const toggleMaintenance = () => {
+    const newStatus = maintTarget.status === 'maintenance' ? 'active' : 'maintenance';
     setRooms(p => p.map(r => r.id === maintTarget.id
-      ? { ...r, status: r.status === 'maintenance' ? 'active' : 'maintenance', seats_available: r.status === 'maintenance' ? r.capacity : 0 }
+      ? { ...r, status: newStatus, seats_available: newStatus === 'maintenance' ? 0 : r.capacity }
       : r));
     toast(`Sala ${maintTarget.status === 'maintenance' ? 'reactivada' : 'en mantenimiento'}.`, 'warning');
+    roomsService.update(maintTarget.id, { ...maintTarget, status: newStatus }).catch(() => {});
     setMaintTarget(null);
   };
 

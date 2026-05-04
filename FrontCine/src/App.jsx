@@ -18,12 +18,14 @@ import CajaPage from './pages/pos/CajaPage';
 import CuadrantePage from './pages/cuadrante/CuadrantePage';
 
 function ProtectedRoute({ children }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return null;
   return user ? children : <Navigate to="/login" replace />;
 }
 
 function PublicRoute({ children }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return null;
   return user ? <Navigate to="/" replace /> : children;
 }
 

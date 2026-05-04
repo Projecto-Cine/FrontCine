@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Eye } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
@@ -6,7 +6,7 @@ import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useApp } from '../../contexts/AppContext';
-import { MOVIES } from '../../data/mockData';
+import { moviesService } from '../../services/moviesService';
 import styles from './MoviesPage.module.css';
 
 const STATUS_MAP = { active: { label: 'Activa', v: 'green' }, upcoming: { label: 'Próximamente', v: 'cyan' }, inactive: { label: 'Baja', v: 'default' } };
@@ -16,12 +16,16 @@ const RATING_COLOR = { 'PG': 'green', 'PG-13': 'yellow', 'R': 'red' };
 const EMPTY_MOVIE = { title: '', duration: '', genre: '', language: 'ES', format: '2D', rating: 'PG-13', status: 'active', director: '', year: new Date().getFullYear() };
 
 export default function MoviesPage() {
-  const [movies, setMovies] = useState(MOVIES);
+  const [movies, setMovies] = useState([]);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_MOVIE);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { toast } = useApp();
+
+  useEffect(() => {
+    moviesService.getAll().then(setMovies).catch(() => {});
+  }, []);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_MOVIE); setModal('form'); };
   const openEdit = (movie) => { setEditing(movie); setForm({ ...movie }); setModal('form'); };
@@ -32,9 +36,12 @@ export default function MoviesPage() {
     if (editing) {
       setMovies(prev => prev.map(m => m.id === editing.id ? { ...m, ...form } : m));
       toast(`"${form.title}" actualizada.`, 'success');
+      moviesService.update(editing.id, form).catch(() => toast('Error al guardar en el servidor.', 'error'));
     } else {
-      setMovies(prev => [...prev, { ...form, id: Date.now(), duration: Number(form.duration) }]);
+      const newMovie = { ...form, id: Date.now(), duration: Number(form.duration) };
+      setMovies(prev => [...prev, newMovie]);
       toast(`"${form.title}" añadida.`, 'success');
+      moviesService.create({ ...form, duration: Number(form.duration) }).catch(() => toast('Error al guardar en el servidor.', 'error'));
     }
     setModal(null);
   };
@@ -42,6 +49,7 @@ export default function MoviesPage() {
   const handleDelete = () => {
     setMovies(prev => prev.filter(m => m.id !== deleteTarget.id));
     toast(`"${deleteTarget.title}" eliminada.`, 'warning');
+    moviesService.remove(deleteTarget.id).catch(() => {});
     setDeleteTarget(null);
   };
 

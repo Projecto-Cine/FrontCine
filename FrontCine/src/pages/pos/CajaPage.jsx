@@ -4,11 +4,10 @@ import {
   ShoppingCart, CheckCircle, Printer, Trash2, Search,
   RotateCcw, ChevronDown
 } from 'lucide-react';
-import { CONCESSION_PRODUCTS } from '../../data/mockData';
+import { inventoryService } from '../../services/inventoryService';
 import { useApp } from '../../contexts/AppContext';
 import styles from './CajaPage.module.css';
 
-const CATEGORIES = ['Todo', ...new Set(CONCESSION_PRODUCTS.map(p => p.category))];
 const PAY_METHODS = [
   { id: 'card',   label: 'Tarjeta', Icon: CreditCard },
   { id: 'cash',   label: 'Efectivo', Icon: Banknote },
@@ -20,6 +19,7 @@ function generateReceiptId() {
 }
 
 export default function CajaPage() {
+  const [allProducts, setAllProducts] = useState([]);
   const [category, setCategory] = useState('Todo');
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState([]); // [{product, qty}]
@@ -28,6 +28,18 @@ export default function CajaPage() {
   const [showPayModal, setShowPayModal] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const searchRef = useRef(null);
+
+  useEffect(() => {
+    inventoryService.getAll()
+      .then(items => setAllProducts(
+        items
+          .filter(i => i.category === 'Concesión' && i.quantity > 0)
+          .map(i => ({ id: i.id, name: i.name, category: i.category, price: i.price_unit ?? 0, emoji: '', desc: '' }))
+      ))
+      .catch(() => {});
+  }, []);
+
+  const CATEGORIES = ['Todo', ...new Set(allProducts.map(p => p.category))];
   const { toast } = useApp();
 
   // Keyboard shortcut: F2 = focus search, F4 = cobrar, Escape = clear cart
@@ -41,7 +53,7 @@ export default function CajaPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [cart, showPayModal, receipt]);
 
-  const products = CONCESSION_PRODUCTS.filter(p => {
+  const products = allProducts.filter(p => {
     if (category !== 'Todo' && p.category !== category) return false;
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;

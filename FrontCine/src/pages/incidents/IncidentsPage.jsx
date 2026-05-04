@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, CheckCircle, Eye } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
@@ -8,7 +8,8 @@ import Modal from '../../components/ui/Modal';
 import KPICard from '../../components/shared/KPICard';
 import { AlertTriangle, Clock, CheckSquare } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
-import { INCIDENTS, USERS } from '../../data/mockData';
+import { incidentsService } from '../../services/incidentsService';
+import { usersService } from '../../services/usersService';
 import styles from './IncidentsPage.module.css';
 
 const PRIORITY_MAP = { critical: { label: 'Crítica', v: 'red' }, high: { label: 'Alta', v: 'yellow' }, medium: { label: 'Media', v: 'accent' }, low: { label: 'Baja', v: 'green' } };
@@ -18,13 +19,19 @@ const CATEGORY_COLOR = { Técnico: 'accent', Infraestructura: 'purple', Mobiliar
 const EMPTY = { title: '', category: 'Técnico', priority: 'medium', status: 'open', room: '', description: '', assigned_to: '' };
 
 export default function IncidentsPage() {
-  const [incidents, setIncidents] = useState(INCIDENTS);
+  const [incidents, setIncidents] = useState([]);
+  const [users, setUsers] = useState([]);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [detail, setDetail] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const { toast } = useApp();
+
+  useEffect(() => {
+    incidentsService.getAll().then(setIncidents).catch(() => {});
+    usersService.getAll().then(setUsers).catch(() => {});
+  }, []);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setModal('form'); };
   const openEdit = (i) => { setEditing(i); setForm({ ...i }); setModal('form'); };
@@ -38,10 +45,12 @@ export default function IncidentsPage() {
     if (editing) {
       setIncidents(p => p.map(i => i.id === editing.id ? { ...i, ...form, updated_at: now } : i));
       toast('Incidencia actualizada.', 'success');
+      incidentsService.update(editing.id, { ...form, updated_at: now }).catch(() => toast('Error al guardar en el servidor.', 'error'));
     } else {
       const id = `INC-${String(incidents.length + 1).padStart(3, '0')}`;
       setIncidents(p => [...p, { ...form, id, reported_by: 'operador1', created_at: now, updated_at: now }]);
       toast('Incidencia registrada.', 'success');
+      incidentsService.create({ ...form, created_at: now, updated_at: now }).catch(() => toast('Error al guardar en el servidor.', 'error'));
     }
     setModal(null);
   };
@@ -50,6 +59,7 @@ export default function IncidentsPage() {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
     setIncidents(p => p.map(i => i.id === inc.id ? { ...i, status: 'resolved', updated_at: now } : i));
     toast(`Incidencia ${inc.id} resuelta.`, 'success');
+    incidentsService.update(inc.id, { ...inc, status: 'resolved', updated_at: now }).catch(() => {});
   };
 
   const columns = [
@@ -135,7 +145,7 @@ export default function IncidentsPage() {
             <label className={styles.label}>Asignar a</label>
             <select className={styles.input} value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)}>
               <option value="">Sin asignar</option>
-              {USERS.filter(u => ['maintenance', 'operator', 'supervisor', 'admin'].includes(u.role)).map(u => <option key={u.username} value={u.username}>{u.name} ({u.role})</option>)}
+              {users.filter(u => ['maintenance', 'operator', 'supervisor', 'admin'].includes(u.role)).map(u => <option key={u.username} value={u.username}>{u.name} ({u.role})</option>)}
             </select>
           </div>
           <div>

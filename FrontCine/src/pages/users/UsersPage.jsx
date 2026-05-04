@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, Lock, Unlock, Shield } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
@@ -9,8 +9,17 @@ import KPICard from '../../components/shared/KPICard';
 import { Users, UserCheck, UserX } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { USERS, ROLES } from '../../data/mockData';
+import { usersService } from '../../services/usersService';
 import styles from './UsersPage.module.css';
+
+const ROLES = {
+  admin:       { label: 'Administrador', color: 'red',    permissions: ['*'] },
+  supervisor:  { label: 'Supervisor',    color: 'purple', permissions: ['read', 'create', 'update', 'approve'] },
+  operator:    { label: 'Operador',      color: 'accent', permissions: ['read', 'create', 'update'] },
+  ticket:      { label: 'Taquilla',      color: 'cyan',   permissions: ['read', 'create_reservation'] },
+  maintenance: { label: 'Mantenimiento', color: 'yellow', permissions: ['read', 'create_incident', 'update_incident'] },
+  readonly:    { label: 'Consulta',      color: 'green',  permissions: ['read'] },
+};
 
 const PERMISSIONS_DETAIL = {
   admin: ['Acceso total al sistema', 'Gestión de usuarios y permisos', 'Auditoría completa', 'Configuración del sistema'],
@@ -24,7 +33,7 @@ const PERMISSIONS_DETAIL = {
 const EMPTY = { name: '', username: '', email: '', role: 'operator', status: 'active' };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState(USERS);
+  const [users, setUsers] = useState([]);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
@@ -32,6 +41,10 @@ export default function UsersPage() {
   const [permDetail, setPermDetail] = useState(null);
   const { toast } = useApp();
   const { user: me } = useAuth();
+
+  useEffect(() => {
+    usersService.getAll().then(setUsers).catch(() => {});
+  }, []);
 
   const isAdmin = me?.role === 'admin';
   const openCreate = () => { if (!isAdmin) return; setEditing(null); setForm(EMPTY); setModal('form'); };
@@ -43,16 +56,20 @@ export default function UsersPage() {
     if (editing) {
       setUsers(p => p.map(u => u.id === editing.id ? { ...u, ...form } : u));
       toast('Usuario actualizado.', 'success');
+      usersService.update(editing.id, form).catch(() => toast('Error al guardar en el servidor.', 'error'));
     } else {
       setUsers(p => [...p, { ...form, id: Date.now(), last_login: '—', created_at: new Date().toISOString().slice(0, 10) }]);
       toast('Usuario creado.', 'success');
+      usersService.create(form).catch(() => toast('Error al guardar en el servidor.', 'error'));
     }
     setModal(null);
   };
 
   const handleToggle = () => {
-    setUsers(p => p.map(u => u.id === toggleTarget.id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u));
+    const newStatus = toggleTarget.status === 'active' ? 'inactive' : 'active';
+    setUsers(p => p.map(u => u.id === toggleTarget.id ? { ...u, status: newStatus } : u));
     toast(`Usuario ${toggleTarget.status === 'active' ? 'desactivado' : 'activado'}.`, 'warning');
+    usersService.update(toggleTarget.id, { ...toggleTarget, status: newStatus }).catch(() => {});
     setToggleTarget(null);
   };
 

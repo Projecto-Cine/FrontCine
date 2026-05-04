@@ -17,11 +17,9 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      const ok = login(username.trim(), password);
-      if (ok) navigate('/', { replace: true });
-      setLoading(false);
-    }, 400);
+    const ok = await login(username.trim(), password);
+    if (ok) navigate('/', { replace: true });
+    setLoading(false);
   };
 
   return (

@@ -85,13 +85,13 @@ export default function UsersPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Usuarios"
-        subtitle={`${users.length} usuarios · ${users.filter(user => user.role === 'ADMIN').length} administradores`}
-        actions={isAdmin && <Button icon={Plus} onClick={openCreate}>Nuevo usuario</Button>}
+        title="Trabajadores"
+        subtitle={`${users.length} registrados · ${users.filter(user => user.role === 'ADMIN').length} administradores`}
+        actions={isAdmin && <Button icon={Plus} onClick={openCreate}>Nuevo trabajador</Button>}
       />
 
       <div className={styles.kpiRow}>
-        <KPICard label="Usuarios totales" value={users.length} icon={Users} color="accent" />
+        <KPICard label="Trabajadores" value={users.length} icon={Users} color="accent" />
         <KPICard label="Administradores" value={users.filter(user => user.role === 'ADMIN').length} icon={Shield} color="red" />
         <KPICard label="Clientes" value={users.filter(user => user.role === 'CLIENT').length} icon={UserCheck} color="green" />
       </div>
@@ -119,10 +119,10 @@ export default function UsersPage() {
         ) : null}
       />
 
-      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar usuario' : 'Nuevo usuario'}
+      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar trabajador' : 'Nuevo trabajador'}
         footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
-          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Crear usuario'}</Button>
+          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Crear trabajador'}</Button>
         </div>}
       >
         <div className={styles.formGrid}>
@@ -145,8 +145,8 @@ export default function UsersPage() {
       </Modal>
 
       <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete}
-        title="Eliminar usuario" danger
-        message={`¿Eliminar ${deleteTarget?.email}?`}
+        title="Eliminar trabajador" danger
+        message={`¿Eliminar el trabajador ${deleteTarget?.email}?`}
         confirmLabel="Eliminar" />
     </div>
   );

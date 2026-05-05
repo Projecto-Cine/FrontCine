@@ -118,6 +118,7 @@ export default function SchedulesPage() {
         <div className={styles.dateFilter}>
           <CalendarDays size={13} className={styles.filterIcon} />
           <input type="date" className={styles.dateInput} value={filterDate} onChange={e => setFilterDate(e.target.value)} />
+          <button className={styles.todayBtn} onClick={() => setFilterDate(new Date().toISOString().split('T')[0])}>Hoy</button>
           {filterDate && <button className={styles.clearDate} onClick={() => setFilterDate('')}>×</button>}
         </div>
         <div className={styles.statChips}>

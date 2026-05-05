@@ -9,10 +9,11 @@ export default function MainLayout() {
   const { sidebarCollapsed } = useApp();
   return (
     <div className="app-shell">
+      <a href="#main-content" className="skip-link">Saltar al contenido principal</a>
       <Sidebar />
       <div className={`main-area ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <Header />
-        <main className="page-content">
+        <main id="main-content" className="page-content" tabIndex={-1}>
           <Outlet />
         </main>
       </div>

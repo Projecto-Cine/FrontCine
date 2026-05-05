@@ -23,9 +23,12 @@ async function request(path, options = {}) {
   });
 
   if (res.status === 401) {
-    localStorage.removeItem('lumen_token');
-    window.location.href = '/login';
-    return;
+    // Don't redirect if this IS the login request (would suppress the error)
+    if (!path.includes('/auth/login')) {
+      localStorage.removeItem('lumen_token');
+      window.location.href = '/login';
+      return;
+    }
   }
 
   if (!res.ok) {

@@ -51,4 +51,5 @@
 .pgBtn:hover:not(:disabled) { background: var(--bg-4); color: var(--text-1); }
 .pgBtn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-.empty { padding: 40px; text-align: center; color: var(--text-3); font-size: 12px; }
+.empty { padding: 48px 40px; text-align: center; color: var(--text-3); font-size: 12px; }
+.emptyIcon { display: block; margin: 0 auto 10px; opacity: 0.35; }

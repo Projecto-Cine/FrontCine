@@ -116,3 +116,37 @@ html.a11y-high-contrast :focus-visible {
   outline-offset: 2px;
   box-shadow: 0 0 0 5px #000;
 }
+
+/* Modo claro — paleta cálida crema, mantiene identidad Lumen */
+html.a11y-light-mode {
+  --bg-0:        #F8F3EC;
+  --bg-1:        #F0E9DF;
+  --bg-2:        #E8DFCF;
+  --bg-3:        #DED4C0;
+  --bg-4:        #D3C8B0;
+  --bg-sidebar:  #EDE6D8;
+  --border:      #C8B898;
+  --border-l:    #B8A888;
+  --text-1:      #1A1208;
+  --text-2:      #4A3820;
+  --text-3:      #7A6448;
+  --accent:      #8B5E0A;
+  --accent-h:    #A07018;
+  --accent-dim:  rgba(139,94,10,0.12);
+  --accent-dim2: rgba(139,94,10,0.22);
+  --green:       #166534;
+  --green-dim:   rgba(22,101,52,0.12);
+  --yellow:      #92400E;
+  --yellow-dim:  rgba(146,64,14,0.12);
+  --red:         #991B1B;
+  --red-dim:     rgba(153,27,27,0.10);
+  --cyan:        #0E7490;
+  --cyan-dim:    rgba(14,116,144,0.10);
+  --purple:      #6B21A8;
+  --purple-dim:  rgba(107,33,168,0.10);
+  --shadow:      0 2px 8px rgba(0,0,0,0.15);
+  --shadow-lg:   0 8px 32px rgba(0,0,0,0.18);
+}
+
+/* El icono del widget en modo claro: el SVG usa --bg-0 para la figura,
+   que ahora es crema claro → queda visible sobre el acento dorado oscuro */

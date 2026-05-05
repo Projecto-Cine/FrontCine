@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Toasts from '../components/shared/Toasts';
+import AccessibilityWidget from '../components/accessibility/AccessibilityWidget';
 import { useApp } from '../contexts/AppContext';
 import '../App.css';
 
@@ -17,6 +18,7 @@ export default function MainLayout() {
         </main>
       </div>
       <Toasts />
+      <AccessibilityWidget />
     </div>
   );
 }

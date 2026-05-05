@@ -72,3 +72,47 @@ ul, ol { list-style: none; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 
 .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); }
+
+/* ═══════════════════════════════════════════
+   Widget de Accesibilidad — efectos globales
+   ═══════════════════════════════════════════ */
+
+/* Tamaño de fuente aumentado */
+html.a11y-font-large  { font-size: 17px; }
+html.a11y-font-xlarge { font-size: 20px; }
+
+/* Subrayar todos los enlaces y nav-links */
+html.a11y-underline-links a,
+html.a11y-underline-links [role="link"],
+html.a11y-underline-links nav a { text-decoration: underline !important; }
+
+/* Alto contraste — sobreescribe el design system */
+html.a11y-high-contrast {
+  --bg-0:        #000000;
+  --bg-1:        #000000;
+  --bg-2:        #111111;
+  --bg-3:        #111111;
+  --bg-4:        #1a1a1a;
+  --bg-sidebar:  #000000;
+  --border:      #ffffff;
+  --border-l:    #ffffff;
+  --text-1:      #ffffff;
+  --text-2:      #ffffff;
+  --text-3:      #cccccc;
+  --accent:      #ffff00;
+  --accent-h:    #ffff44;
+  --accent-dim:  rgba(255,255,0,0.15);
+  --accent-dim2: rgba(255,255,0,0.25);
+  --green:       #00ff00;
+  --yellow:      #ffff00;
+  --red:         #ff4444;
+  --cyan:        #00ffff;
+  --purple:      #ff88ff;
+}
+
+/* Focus ring reforzado en alto contraste */
+html.a11y-high-contrast :focus-visible {
+  outline: 3px solid #ffff00;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #000;
+}

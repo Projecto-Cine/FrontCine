@@ -7,7 +7,6 @@ import Badge from '../components/ui/Badge';
 import { reportsService } from '../services/reportsService';
 import { sessionsService } from '../services/sessionsService';
 import { incidentsService } from '../services/incidentsService';
-import { reservationsService } from '../services/reservationsService';
 import { roomsService } from '../services/roomsService';
 import { moviesService } from '../services/moviesService';
 import styles from './Dashboard.module.css';
@@ -46,13 +45,12 @@ export default function Dashboard() {
       .catch(() => {});
     sessionsService.getAll().then(setSessions).catch(() => {});
     incidentsService.getAll().then(setIncidents).catch(() => {});
-    reservationsService.getAll().then(setReservations).catch(() => {});
     roomsService.getAll().then(setRooms).catch(() => {});
     moviesService.getAll().then(setMovies).catch(() => {});
   }, []);
 
   const today = new Date().toISOString().slice(0, 10);
-  const todaySessions = sessions.filter(s => s.date === today);
+  const todaySessions = sessions.filter(s => (s.fechaHora?.slice(0, 10) ?? s.date) === today);
   const openIncidents = incidents.filter(i => i.status === 'open' || i.status === 'in_progress');
   const todayRevenue = todaySessions.reduce((sum, s) => sum + (s.sold ?? 0) * (s.price ?? 0), 0);
   const avgOccupancy = Math.round(todaySessions.reduce((sum, s) => sum + ((s.sold ?? 0) / (s.capacity || 1)) * 100, 0) / (todaySessions.length || 1));
@@ -120,13 +118,18 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {todaySessions.map(s => {
-                const movie = movies.find(m => m.id === s.movie_id);
-                const room = rooms.find(r => r.id === s.room_id);
+                const movieId = s.peliculaId ?? s.movieId ?? s.movie_id;
+                const roomId  = s.salaId     ?? s.theaterId ?? s.room_id;
+                const movie   = movies.find(m => m.id === movieId);
+                const room    = rooms.find(r => r.id === roomId);
+                const title   = movie?.titulo ?? movie?.title ?? '—';
+                const rmName  = room?.nombre  ?? room?.name  ?? '—';
+                const time    = s.fechaHora?.slice(11, 16) ?? s.time ?? '';
                 return (
                   <tr key={s.id}>
-                    <td className={styles.tdMovie}>{movie?.title}</td>
-                    <td>{room?.name.split('—')[0].trim()}</td>
-                    <td className={styles.mono}>{s.time}</td>
+                    <td className={styles.tdMovie}>{title}</td>
+                    <td>{rmName.split('—')[0].trim()}</td>
+                    <td className={styles.mono}>{time}</td>
                     <td>
                       <span className={styles.sold}>{s.sold}/{s.capacity}</span>
                       <div className={styles.bar}><div className={styles.barFill} style={{ width: `${((s.sold ?? 0) / (s.capacity || 1)) * 100}%`, background: s.sold >= s.capacity ? 'var(--green)' : 'var(--accent)' }} /></div>

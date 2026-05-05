@@ -30,7 +30,19 @@ const PERMISSIONS_DETAIL = {
   readonly: ['Solo lectura en todos los módulos'],
 };
 
-const EMPTY = { name: '', username: '', email: '', role: 'operator', status: 'active' };
+const EMPTY = { name: '', email: '', password: '', fechaNacimiento: '', role: 'operator', status: 'active' };
+
+// Maps backend field names (nombre, rol, createdAt) to the frontend display keys
+function normalizeBackendUser(u) {
+  return {
+    ...u,
+    name:       u.nombre     ?? u.name       ?? '',
+    role:       u.rol === 'ADMIN' ? 'admin' : (u.role ?? 'operator'),
+    status:     u.status     ?? 'active',
+    last_login: u.last_login ?? '—',
+    created_at: u.createdAt  ?? u.created_at ?? '',
+  };
+}
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -43,24 +55,55 @@ export default function UsersPage() {
   const { user: me } = useAuth();
 
   useEffect(() => {
-    usersService.getAll().then(setUsers).catch(() => {});
+    usersService.getAll()
+      .then(data => setUsers((Array.isArray(data) ? data : []).map(normalizeBackendUser)))
+      .catch(() => {});
   }, []);
 
   const isAdmin = me?.role === 'admin';
   const openCreate = () => { if (!isAdmin) return; setEditing(null); setForm(EMPTY); setModal('form'); };
-  const openEdit = (u) => { if (!isAdmin) return; setEditing(u); setForm({ ...u }); setModal('form'); };
+  const openEdit = (u) => {
+    if (!isAdmin) return;
+    setEditing(u);
+    setForm({
+      name:            u.name            ?? '',
+      email:           u.email           ?? '',
+      password:        '',
+      fechaNacimiento: u.fechaNacimiento ?? '',
+      role:            u.role            ?? 'operator',
+      status:          u.status          ?? 'active',
+    });
+    setModal('form');
+  };
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   const handleSave = () => {
-    if (!form.name.trim() || !form.username.trim() || !form.email.trim()) { toast('Nombre, usuario y email son obligatorios.', 'error'); return; }
+    if (!form.name.trim() || !form.email.trim()) {
+      toast('Nombre y email son obligatorios.', 'error'); return;
+    }
+    if (!editing && !form.password.trim()) {
+      toast('La contraseña es obligatoria para nuevos usuarios.', 'error'); return;
+    }
+
+    const backendPayload = {
+      nombre: form.name,
+      email:  form.email,
+      rol:    form.role === 'admin' ? 'ADMIN' : 'USER',
+      ...(form.password        && { password: form.password }),
+      ...(form.fechaNacimiento && { fechaNacimiento: form.fechaNacimiento }),
+    };
+
     if (editing) {
-      setUsers(p => p.map(u => u.id === editing.id ? { ...u, ...form } : u));
+      setUsers(p => p.map(u => u.id === editing.id ? { ...u, name: form.name, email: form.email, role: form.role } : u));
       toast('Usuario actualizado.', 'success');
-      usersService.update(editing.id, form).catch(() => toast('Error al guardar en el servidor.', 'error'));
+      usersService.update(editing.id, backendPayload).catch(() => toast('Error al guardar en el servidor.', 'error'));
     } else {
-      setUsers(p => [...p, { ...form, id: Date.now(), last_login: '—', created_at: new Date().toISOString().slice(0, 10) }]);
-      toast('Usuario creado.', 'success');
-      usersService.create(form).catch(() => toast('Error al guardar en el servidor.', 'error'));
+      usersService.create(backendPayload)
+        .then(created => {
+          setUsers(p => [...p, normalizeBackendUser(created)]);
+          toast('Usuario creado.', 'success');
+        })
+        .catch(() => toast('Error al guardar en el servidor.', 'error'));
     }
     setModal(null);
   };
@@ -76,8 +119,8 @@ export default function UsersPage() {
   const columns = [
     { key: 'name', label: 'Nombre', render: (v, row) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-dim2)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{v.charAt(0)}</div>
-        <div><div style={{ fontWeight: 500 }}>{v}</div><div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{row.username}</div></div>
+        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-dim2)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{v?.charAt(0) ?? '?'}</div>
+        <div><div style={{ fontWeight: 500 }}>{v}</div><div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>{row.email}</div></div>
       </div>
     )},
     { key: 'email', label: 'Email', render: v => <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v}</span> },
@@ -123,7 +166,7 @@ export default function UsersPage() {
       <DataTable
         columns={columns}
         data={users}
-        searchKeys={['name', 'username', 'email']}
+        searchKeys={['name', 'email']}
         rowActions={(row) => isAdmin ? (
           <div style={{ display: 'flex', gap: 2 }}>
             <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)} />
@@ -147,24 +190,25 @@ export default function UsersPage() {
             <input className={styles.input} value={form.name} onChange={e => set('name', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label}>Usuario *</label>
-            <input className={styles.input} value={form.username} onChange={e => set('username', e.target.value)} style={{ fontFamily: 'var(--mono)' }} />
-          </div>
-          <div>
             <label className={styles.label}>Email *</label>
             <input className={styles.input} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
           </div>
+          {!editing && (
+            <div>
+              <label className={styles.label}>Contraseña *</label>
+              <input className={styles.input} type="password" value={form.password} onChange={e => set('password', e.target.value)} autoComplete="new-password" />
+            </div>
+          )}
+          {!editing && (
+            <div>
+              <label className={styles.label}>Fecha de nacimiento</label>
+              <input className={styles.input} type="date" value={form.fechaNacimiento} onChange={e => set('fechaNacimiento', e.target.value)} />
+            </div>
+          )}
           <div>
             <label className={styles.label}>Rol</label>
             <select className={styles.input} value={form.role} onChange={e => set('role', e.target.value)}>
               {Object.entries(ROLES).map(([k, r]) => <option key={k} value={k}>{r.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={styles.label}>Estado</label>
-            <select className={styles.input} value={form.status} onChange={e => set('status', e.target.value)}>
-              <option value="active">Activo</option>
-              <option value="inactive">Inactivo</option>
             </select>
           </div>
           {form.role && (

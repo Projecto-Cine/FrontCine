@@ -24,7 +24,7 @@ async function request(path, options = {}) {
 
 async function uploadFile(path, file) {
   const fd = new FormData();
-  fd.append('image', file);
+  fd.append('file', file);
   const res = await fetch(`${BASE}${path}`, { method: 'POST', body: fd });
   if (!res.ok) {
     const json = await res.json().catch(() => null);

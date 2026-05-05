@@ -16,7 +16,7 @@ import styles from './ReservationsPage.module.css';
 // Status values from the backend
 const STATUS_MAP = {
   PENDING:   { label: 'Pendiente',   v: 'yellow'  },
-  PAID:      { label: 'Confirmada',  v: 'green'   },
+  CONFIRMED: { label: 'Confirmada',  v: 'green'   },
   CANCELLED: { label: 'Cancelada',   v: 'default' },
 };
 
@@ -69,12 +69,12 @@ export default function ReservationsPage() {
     }
   };
 
-  const paidCount    = reservations.filter(r => r.status === 'PAID').length;
+  const paidCount    = reservations.filter(r => r.status === 'CONFIRMED').length;
   const pendingCount = reservations.filter(r => r.status === 'PENDING').length;
 
   // Helper: find the screening for a purchase (uses screeningId field)
   const getScreening = (r) => sessions.find(s => s.id === (r.screeningId ?? r.sesionId ?? r.session_id));
-  const getMovie     = (s) => s ? movies.find(m => m.id === (s.peliculaId ?? s.movieId ?? s.movie_id)) : null;
+  const getMovie     = (s) => s ? (s.movie ?? movies.find(m => m.id === (s.peliculaId ?? s.movieId ?? s.movie_id ?? s.movie?.id))) : null;
 
   const columns = [
     { key: 'id',     label: 'Ref.',    width: 80,
@@ -83,14 +83,13 @@ export default function ReservationsPage() {
       render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v}</span> },
     { key: 'screeningId', label: 'Sesión', render: (v, row) => {
       const s = getScreening(row);
-      const m = getMovie(s);
-      const title = m?.titulo ?? m?.title ?? '—';
-      const time  = s?.fechaHora?.slice(11, 16) ?? s?.time ?? '';
+      const title = row.movieTitulo ?? getMovie(s)?.titulo ?? '—';
+      const time  = s?.fechaHora?.slice(11, 16) ?? '';
       return <span style={{ fontSize: 11 }}>{title} <span style={{ color: 'var(--text-3)' }}>{time}</span></span>;
     }},
     { key: 'tickets', label: 'Entradas', width: 80,
       render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{Array.isArray(v) ? v.length : '—'}</span> },
-    { key: 'totalPrice', label: 'Importe', width: 90,
+    { key: 'totalAmount', label: 'Importe', width: 90,
       render: v => v != null ? <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600 }}>€{Number(v).toFixed(2)}</span> : '—' },
     { key: 'status', label: 'Estado', width: 130,
       render: v => <Badge variant={STATUS_MAP[v]?.v ?? 'default'} dot>{STATUS_MAP[v]?.label ?? v}</Badge> },
@@ -121,8 +120,7 @@ export default function ReservationsPage() {
         >
           <option value="">— Selecciona una sesión —</option>
           {sessions.map(s => {
-            const m    = getMovie(s);
-            const title = m?.titulo ?? m?.title ?? `Sesión #${s.id}`;
+            const title = s.movie?.titulo ?? getMovie(s)?.titulo ?? `Sesión #${s.id}`;
             const time  = s.fechaHora?.slice(0, 16).replace('T', ' ') ?? '';
             return <option key={s.id} value={s.id}>{title} · {time}</option>;
           })}
@@ -175,10 +173,9 @@ export default function ReservationsPage() {
       <Modal open={!!detail} onClose={() => setDetail(null)} title={`Compra #${detail?.id}`} size="sm">
         {detail && (() => {
           const s = getScreening(detail);
-          const m = getMovie(s);
-          const title = m?.titulo ?? m?.title ?? '—';
-          const time  = s?.fechaHora?.slice(11, 16) ?? '';
-          const date  = s?.fechaHora?.slice(0, 10)  ?? '';
+          const title = detail.movieTitulo ?? getMovie(s)?.titulo ?? '—';
+          const time  = detail.fechaHora?.slice(11, 16) ?? s?.fechaHora?.slice(11, 16) ?? '';
+          const date  = detail.fechaHora?.slice(0, 10)  ?? s?.fechaHora?.slice(0, 10)  ?? '';
           return (
             <div className={styles.detail}>
               <div className={styles.detailSection}>
@@ -200,7 +197,7 @@ export default function ReservationsPage() {
                 <div>
                   <p className={styles.detailLbl}>Importe</p>
                   <p className={styles.detailVal}>
-                    {detail.totalPrice != null ? `€${Number(detail.totalPrice).toFixed(2)}` : '—'}
+                    {detail.totalAmount != null ? `€${Number(detail.totalAmount).toFixed(2)}` : '—'}
                   </p>
                 </div>
                 <div>

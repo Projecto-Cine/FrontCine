@@ -14,12 +14,12 @@ import Badge    from '../../components/ui/Badge';
 import SeatMap  from '../../components/shared/SeatMap';
 import styles   from './TaquillaPage.module.css';
 
-// Frontend display types → backend ticketType
+// Frontend display types → backend ticketType (STANDARD | STUDENT | SENIOR)
 const TICKET_TYPES = [
-  { id: 'adulto',     label: 'Adulto',        price: 13.50, backendType: 'ADULT'  },
-  { id: 'reducida',   label: 'Reducida',       price: 9.00,  backendType: 'SENIOR' },
-  { id: 'estudiante', label: 'Estudiante',      price: 8.00,  backendType: 'ADULT'  },
-  { id: 'infantil',   label: 'Infantil (<12)', price: 7.00,  backendType: 'CHILD'  },
+  { id: 'adulto',     label: 'Adulto',        price: 13.50, backendType: 'STANDARD' },
+  { id: 'reducida',   label: 'Reducida',       price: 9.00,  backendType: 'SENIOR'   },
+  { id: 'estudiante', label: 'Estudiante',      price: 8.00,  backendType: 'STUDENT'  },
+  { id: 'infantil',   label: 'Infantil (<12)', price: 7.00,  backendType: 'STANDARD' },
   { id: 'imax',       label: 'IMAX +',         price: 5.00,  backendType: null, extra: true },
   { id: '4dx',        label: '4DX +',          price: 6.50,  backendType: null, extra: true },
   { id: 'vip',        label: 'VIP +',          price: 8.00,  backendType: null, extra: true },
@@ -50,18 +50,18 @@ function isPastSession(fechaHora) {
   return fechaHora ? new Date(fechaHora) < new Date() : false;
 }
 
-// Reads common Spanish/English field name variants from a backend object
+// Reads common Spanish/English/embedded field name variants from a backend object
 const get = {
-  movieId:  (s) => s.peliculaId   ?? s.movieId    ?? s.movie_id,
-  roomId:   (s) => s.salaId       ?? s.theaterId  ?? s.room_id,
+  movieId:  (s) => s.peliculaId   ?? s.movieId    ?? s.movie_id   ?? s.movie?.id,
+  roomId:   (s) => s.salaId       ?? s.theaterId  ?? s.room_id    ?? s.theater?.id,
   title:    (m) => m?.titulo      ?? m?.title      ?? '—',
   genre:    (m) => m?.genero      ?? m?.genre,
   format:   (m) => m?.formato     ?? m?.format,
   language: (m) => m?.idioma      ?? m?.language,
   roomName: (r) => r?.nombre      ?? r?.name       ?? '—',
-  capacity: (r) => r?.aforo       ?? r?.capacity   ?? 100,
+  capacity: (r) => r?.aforo       ?? r?.capacity   ?? r?.totalSeats ?? r?.capacidad ?? 100,
   sold:     (s) => s?.butacasOcupadas ?? s?.sold   ?? 0,
-  price:    (s) => s?.precio      ?? s?.price,
+  price:    (s) => s?.precio      ?? s?.price      ?? s?.precioBase,
   time:     (s) => s?.fechaHora   ? s.fechaHora.slice(11, 16) : (s?.time ?? ''),
   date:     (s) => s?.fechaHora   ? s.fechaHora.slice(0, 10)  : (s?.date ?? ''),
 };
@@ -100,7 +100,7 @@ export default function TaquillaPage() {
 
   const filteredSessions = todaySessions.filter(s => {
     if (!searchQuery) return true;
-    const mv = movies.find(m => m.id === get.movieId(s));
+    const mv = s.movie ?? movies.find(m => m.id === get.movieId(s));
     return get.title(mv).toLowerCase().includes(searchQuery.toLowerCase());
   });
 
@@ -113,20 +113,36 @@ export default function TaquillaPage() {
     setSelectedSeatIds([]);
     setSeats([]);
     setStep('seats');
+
+    const theaterId = session.theater?.id ?? get.roomId(session);
+    if (!theaterId) {
+      toast('Error al cargar el mapa de asientos: sala no encontrada.', 'error');
+      return;
+    }
     try {
-      const data = await sessionsService.getSeats(session.id);
-      setSeats(Array.isArray(data) ? data : []);
+      const [allSeats, purchases] = await Promise.all([
+        roomsService.getSeats(theaterId),
+        sessionsService.getPurchases(session.id).catch(() => []),
+      ]);
+      const occupiedIds = new Set(
+        (Array.isArray(purchases) ? purchases : [])
+          .filter(p => p.status !== 'CANCELLED')
+          .flatMap(p => (p.tickets ?? []).map(t => t.seatId))
+      );
+      const merged = (Array.isArray(allSeats) ? allSeats : [])
+        .map(s => ({ ...s, ocupado: occupiedIds.has(s.id) }));
+      setSeats(merged);
     } catch {
       toast('Error al cargar el mapa de asientos.', 'error');
     }
   };
 
-  // Derived from selected session
+  // Derived from selected session (backend embeds movie/theater directly)
   const movie = selectedSession
-    ? (selectedSession.pelicula ?? movies.find(m => m.id === get.movieId(selectedSession)))
+    ? (selectedSession.movie ?? selectedSession.pelicula ?? movies.find(m => m.id === get.movieId(selectedSession)))
     : null;
   const room = selectedSession
-    ? (selectedSession.sala ?? selectedSession.theater ?? rooms.find(r => r.id === get.roomId(selectedSession)))
+    ? (selectedSession.theater ?? selectedSession.sala ?? rooms.find(r => r.id === get.roomId(selectedSession)))
     : null;
 
   const baseType       = TICKET_TYPES.find(t => t.id === ticketType) ?? TICKET_TYPES[0];
@@ -153,12 +169,6 @@ export default function TaquillaPage() {
     // Past session check
     if (isPastSession(selectedSession?.fechaHora)) {
       toast('No se pueden comprar entradas para sesiones ya finalizadas.', 'error');
-      return;
-    }
-
-    // CHILD ticket requires at least one ADULT in the same order
-    if (baseType.backendType === 'CHILD') {
-      toast('Las entradas infantiles requieren al menos una entrada de adulto en el mismo pedido.', 'error');
       return;
     }
 
@@ -252,13 +262,12 @@ export default function TaquillaPage() {
 
             <div className={`${styles.sessionGrid} ${viewMode === 'list' ? styles.sessionList : ''}`}>
               {filteredSessions.map(s => {
-                const mv      = movies.find(m => m.id === get.movieId(s));
-                const rm      = rooms.find(r => r.id === get.roomId(s));
+                const mv      = s.movie ?? movies.find(m => m.id === get.movieId(s));
+                const rm      = s.theater ?? rooms.find(r => r.id === get.roomId(s));
                 const cap     = get.capacity(rm);
-                const sold    = get.sold(s);
-                const occPct  = cap > 0 ? Math.round((sold / cap) * 100) : 0;
-                const avail   = cap - sold;
-                const isFull  = avail <= 0;
+                const avail   = s.asientosDisponibles != null ? s.asientosDisponibles : cap - get.sold(s);
+                const isFull  = s.completo != null ? s.completo : avail <= 0;
+                const occPct  = cap > 0 ? Math.round(((cap - avail) / cap) * 100) : 0;
                 const isPast  = isPastSession(s.fechaHora);
                 const title   = get.title(mv);
                 const genre   = get.genre(mv);
@@ -365,11 +374,6 @@ export default function TaquillaPage() {
               </div>
               {extra && (
                 <p className={styles.extraNote}>+ suplemento {extra.label}: €{extra.price.toFixed(2)} / entrada</p>
-              )}
-              {baseType.backendType === 'CHILD' && (
-                <p style={{ fontSize: 11, color: 'var(--yellow)', marginTop: 6 }}>
-                  ⚠ Las entradas infantiles requieren al menos una entrada de adulto en el pedido.
-                </p>
               )}
             </div>
 

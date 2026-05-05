@@ -11,8 +11,7 @@ import { moviesService } from '../../services/moviesService';
 import { roomsService } from '../../services/roomsService';
 import styles from './SchedulesPage.module.css';
 
-const STATUS_MAP = { active: { label: 'Activa', v: 'green' }, full: { label: 'Llena', v: 'red' }, scheduled: { label: 'Programada', v: 'cyan' }, cancelled: { label: 'Cancelada', v: 'default' } };
-const EMPTY = { movie_id: '', room_id: '', date: '', time: '', price: '', status: 'scheduled' };
+const EMPTY = { movie_id: '', room_id: '', date: '', time: '', price: '' };
 
 export default function SchedulesPage() {
   const [sessions, setSessions] = useState([]);
@@ -32,27 +31,54 @@ export default function SchedulesPage() {
   }, []);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setModal('form'); };
-  const openEdit = (s) => { setEditing(s); setForm({ ...s, movie_id: String(s.movie_id), room_id: String(s.room_id) }); setModal('form'); };
+  const openEdit = (s) => {
+    setEditing(s);
+    setForm({
+      movie_id: String(s.movie?.id ?? ''),
+      room_id:  String(s.theater?.id ?? ''),
+      date:     s.fechaHora?.slice(0, 10) ?? '',
+      time:     s.fechaHora?.slice(11, 16) ?? '',
+      price:    String(s.precioBase ?? ''),
+    });
+    setModal('form');
+  };
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
-  const filtered = filterDate ? sessions.filter(s => s.date === filterDate) : sessions;
+  const filtered = filterDate
+    ? sessions.filter(s => s.fechaHora?.slice(0, 10) === filterDate)
+    : sessions;
 
   const handleSave = () => {
-    if (!form.movie_id || !form.room_id || !form.date || !form.time) { toast('Todos los campos son obligatorios.', 'error'); return; }
-    const movie = movies.find(m => m.id === Number(form.movie_id));
-    const [h, min] = form.time.split(':').map(Number);
-    const endMin = (h * 60 + min + (movie?.duration || 120)) % (24 * 60);
-    const endTime = `${String(Math.floor(endMin / 60)).padStart(2, '0')}:${String(endMin % 60).padStart(2, '0')}`;
-    const room = rooms.find(r => r.id === Number(form.room_id));
+    if (!form.movie_id || !form.room_id || !form.date || !form.time) {
+      toast('Todos los campos son obligatorios.', 'error'); return;
+    }
+    const fechaHora = `${form.date}T${form.time}:00`;
 
     if (editing) {
-      setSessions(p => p.map(s => s.id === editing.id ? { ...s, ...form, movie_id: Number(form.movie_id), room_id: Number(form.room_id), price: Number(form.price), end_time: endTime } : s));
-      toast('Sesión actualizada.', 'success');
-      sessionsService.update(editing.id, { ...form, movie_id: Number(form.movie_id), room_id: Number(form.room_id), price: Number(form.price), end_time: endTime }).catch(() => toast('Error al guardar en el servidor.', 'error'));
+      sessionsService.update(editing.id, {
+        fechaHora,
+        precioBase: Number(form.price) || 0,
+      })
+        .then(updated => {
+          setSessions(p => p.map(s => s.id === editing.id
+            ? { ...s, fechaHora, precioBase: Number(form.price) || 0 }
+            : s
+          ));
+          toast('Sesión actualizada.', 'success');
+        })
+        .catch(() => toast('Error al guardar en el servidor.', 'error'));
     } else {
-      setSessions(p => [...p, { ...form, id: Date.now(), movie_id: Number(form.movie_id), room_id: Number(form.room_id), price: Number(form.price), capacity: room?.capacity || 100, sold: 0, end_time: endTime }]);
-      toast('Sesión creada.', 'success');
-      sessionsService.create({ ...form, movie_id: Number(form.movie_id), room_id: Number(form.room_id), price: Number(form.price) }).catch(() => toast('Error al guardar en el servidor.', 'error'));
+      sessionsService.create({
+        movieId:   Number(form.movie_id),
+        theaterId: Number(form.room_id),
+        fechaHora,
+        precioBase: Number(form.price) || 0,
+      })
+        .then(created => {
+          setSessions(p => [...p, created]);
+          toast('Sesión creada.', 'success');
+        })
+        .catch(() => toast('Error al guardar en el servidor.', 'error'));
     }
     setModal(null);
   };
@@ -65,25 +91,40 @@ export default function SchedulesPage() {
   };
 
   const columns = [
-    { key: 'date', label: 'Fecha', width: 100, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v}</span> },
-    { key: 'time', label: 'Hora', width: 80, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-1)', fontWeight: 600 }}>{v}</span> },
-    { key: 'movie_id', label: 'Película', render: (v) => <span style={{ fontWeight: 500 }}>{movies.find(m => m.id === v)?.title || '—'}</span> },
-    { key: 'room_id', label: 'Sala', width: 160, render: v => rooms.find(r => r.id === v)?.name.split('—')[0].trim() || '—' },
-    { key: 'sold', label: 'Ocupación', width: 110, render: (v, row) => (
-      <div className={styles.occ}>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v}/{row.capacity}</span>
-        <div className={styles.bar}><div className={styles.barFill} style={{ width: `${(v / row.capacity) * 100}%`, background: v >= row.capacity ? 'var(--green)' : v > row.capacity * 0.8 ? 'var(--yellow)' : 'var(--accent)' }} /></div>
-      </div>
-    )},
-    { key: 'price', label: 'Precio', width: 80, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>€{Number(v).toFixed(2)}</span> },
-    { key: 'status', label: 'Estado', width: 120, render: v => <Badge variant={STATUS_MAP[v]?.v || 'default'} dot>{STATUS_MAP[v]?.label || v}</Badge> },
+    { key: 'fechaHora', label: 'Fecha', width: 100,
+      render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v?.slice(0, 10) ?? '—'}</span> },
+    { key: '_hora', label: 'Hora', width: 80, sortable: false,
+      render: (_, row) => <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-1)', fontWeight: 600 }}>{row.fechaHora?.slice(11, 16) ?? '—'}</span> },
+    { key: 'movie', label: 'Película',
+      render: v => <span style={{ fontWeight: 500 }}>{v?.titulo ?? '—'}</span> },
+    { key: 'theater', label: 'Sala', width: 160,
+      render: v => v?.nombre?.split('—')[0].trim() ?? '—' },
+    { key: 'asientosDisponibles', label: 'Ocupación', width: 110, render: (v, row) => {
+      const cap   = row.theater?.totalSeats ?? row.theater?.capacidad ?? 100;
+      const avail = v != null ? v : cap;
+      const sold  = cap - avail;
+      return (
+        <div className={styles.occ}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{sold}/{cap}</span>
+          <div className={styles.bar}><div className={styles.barFill} style={{ width: `${cap > 0 ? (sold / cap) * 100 : 0}%`, background: sold >= cap ? 'var(--red)' : sold > cap * 0.8 ? 'var(--yellow)' : 'var(--accent)' }} /></div>
+        </div>
+      );
+    }},
+    { key: 'precioBase', label: 'Precio', width: 80,
+      render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>€{Number(v ?? 0).toFixed(2)}</span> },
+    { key: 'completo', label: 'Estado', width: 120, render: (v, row) => {
+      const isPast = row.fechaHora ? new Date(row.fechaHora) < new Date() : false;
+      if (isPast) return <Badge variant="default" dot>Finalizada</Badge>;
+      if (v)      return <Badge variant="red" dot>Llena</Badge>;
+      return <Badge variant="green" dot>Activa</Badge>;
+    }},
   ];
 
   return (
     <div className={styles.page}>
       <PageHeader
         title="Horarios"
-        subtitle={`${sessions.length} sesiones · ${sessions.filter(s => s.status === 'active').length} activas hoy`}
+        subtitle={`${sessions.length} sesiones · ${sessions.filter(s => !s.completo && s.fechaHora && new Date(s.fechaHora) > new Date()).length} próximas`}
         actions={<Button icon={Plus} onClick={openCreate}>Nueva sesión</Button>}
       />
 
@@ -94,9 +135,9 @@ export default function SchedulesPage() {
           {filterDate && <button className={styles.clearDate} onClick={() => setFilterDate('')}>×</button>}
         </div>
         <div className={styles.statChips}>
-          {Object.entries(STATUS_MAP).map(([k, { label, v }]) => (
-            <span key={k} className={styles.chip}><Badge variant={v}>{label}</Badge> <span className={styles.chipN}>{sessions.filter(s => s.status === k).length}</span></span>
-          ))}
+          <span className={styles.chip}><Badge variant="green">Activas</Badge> <span className={styles.chipN}>{sessions.filter(s => !s.completo && s.fechaHora && new Date(s.fechaHora) > new Date()).length}</span></span>
+          <span className={styles.chip}><Badge variant="red">Llenas</Badge> <span className={styles.chipN}>{sessions.filter(s => s.completo).length}</span></span>
+          <span className={styles.chip}><Badge variant="default">Finalizadas</Badge> <span className={styles.chipN}>{sessions.filter(s => s.fechaHora && new Date(s.fechaHora) < new Date()).length}</span></span>
         </div>
       </div>
 
@@ -124,14 +165,14 @@ export default function SchedulesPage() {
             <label className={styles.label}>Película *</label>
             <select className={styles.input} value={form.movie_id} onChange={e => set('movie_id', e.target.value)}>
               <option value="">— Seleccionar película —</option>
-              {movies.filter(m => m.status === 'active').map(m => <option key={m.id} value={m.id}>{m.title} ({m.duration} min)</option>)}
+              {movies.filter(m => m.active !== false).map(m => <option key={m.id} value={m.id}>{m.titulo} ({m.duracionMin} min)</option>)}
             </select>
           </div>
           <div className={styles.fieldFull}>
             <label className={styles.label}>Sala *</label>
             <select className={styles.input} value={form.room_id} onChange={e => set('room_id', e.target.value)}>
               <option value="">— Seleccionar sala —</option>
-              {rooms.filter(r => r.status === 'active').map(r => <option key={r.id} value={r.id}>{r.name} ({r.capacity} but.)</option>)}
+              {rooms.map(r => <option key={r.id} value={r.id}>{r.nombre} ({r.totalSeats ?? r.capacidad} but.)</option>)}
             </select>
           </div>
           <div>
@@ -145,14 +186,6 @@ export default function SchedulesPage() {
           <div>
             <label className={styles.label}>Precio (€)</label>
             <input className={styles.input} type="number" step="0.50" value={form.price} onChange={e => set('price', e.target.value)} />
-          </div>
-          <div>
-            <label className={styles.label}>Estado</label>
-            <select className={styles.input} value={form.status} onChange={e => set('status', e.target.value)}>
-              <option value="scheduled">Programada</option>
-              <option value="active">Activa</option>
-              <option value="cancelled">Cancelada</option>
-            </select>
           </div>
         </div>
       </Modal>

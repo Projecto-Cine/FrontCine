@@ -1,0 +1,45 @@
+.bar {
+  height: 22px;
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.left, .right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.item {
+  font-size: 10px;
+  color: var(--text-3);
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.sep {
+  color: var(--border-l);
+  font-size: 10px;
+}
+
+.conn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-family: var(--mono);
+}
+
+.connOnline { color: var(--green); }
+.connOffline { color: var(--red); }
+
+.activeDot {
+  color: var(--green);
+  fill: var(--green);
+}

@@ -2,6 +2,8 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Toasts from '../components/shared/Toasts';
+import StatusBar from '../components/shared/StatusBar';
+import AccessibilityWidget from '../components/accessibility/AccessibilityWidget';
 import { useApp } from '../contexts/AppContext';
 import '../App.css';
 
@@ -12,11 +14,13 @@ export default function MainLayout() {
       <Sidebar />
       <div className={`main-area ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <Header />
-        <main className="page-content">
+        <main id="main-content" className="page-content" tabIndex={-1}>
           <Outlet />
         </main>
+        <StatusBar />
       </div>
       <Toasts />
+      <AccessibilityWidget />
     </div>
   );
 }

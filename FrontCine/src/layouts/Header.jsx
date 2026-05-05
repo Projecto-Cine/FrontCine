@@ -1,8 +1,9 @@
-import { PanelLeftClose, PanelLeft, Bell, Clock } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, Bell, Clock, Keyboard } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import ShortcutsModal from '../components/shared/ShortcutsModal';
 import styles from './Header.module.css';
 
 const ROUTE_LABELS = {
@@ -44,36 +45,64 @@ export default function Header() {
   const { user } = useAuth();
   const location = useLocation();
   const now = useLiveClock();
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === '?' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+        setShowShortcuts(v => !v);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   return (
-    <header className={styles.header}>
-      <div className={styles.left}>
-        <button className={styles.toggleBtn} onClick={toggleSidebar} title="Alternar barra lateral">
-          {sidebarCollapsed ? <PanelLeft size={15} /> : <PanelLeftClose size={15} />}
-        </button>
-        <div className={styles.pageDivider} />
-        <h2 className={styles.pageTitle}>{ROUTE_LABELS[location.pathname] || 'Lumen'}</h2>
-      </div>
-
-      <div className={styles.right}>
-        <div className={styles.clock}>
-          <Clock size={11} />
-          <span>{now}</span>
+    <>
+      <header className={styles.header}>
+        <div className={styles.left}>
+          <button
+            className={styles.toggleBtn}
+            onClick={toggleSidebar}
+            title={sidebarCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
+            aria-expanded={!sidebarCollapsed}
+            aria-controls="app-sidebar"
+          >
+            {sidebarCollapsed ? <PanelLeft size={15} aria-hidden="true" /> : <PanelLeftClose size={15} aria-hidden="true" />}
+          </button>
+          <div className={styles.pageDivider} aria-hidden="true" />
+          <h1 className={styles.pageTitle}>{ROUTE_LABELS[location.pathname] || 'Lumen'}</h1>
         </div>
-        <button className={styles.iconBtn} title="Notificaciones">
-          <Bell size={14} />
-          <span className={styles.notifDot} />
-        </button>
-        {user && (
-          <div className={styles.userChip}>
-            <div className={styles.avatar}>{user.name.charAt(0)}</div>
-            <div className={styles.meta}>
-              <span className={styles.name}>{user.name.split(' ')[0]}</span>
-              <span className={styles.role}>{ROLE_LABELS[user.role]}</span>
-            </div>
+
+        <div className={styles.right}>
+          <div className={styles.clock} aria-hidden="true">
+            <Clock size={11} />
+            <span>{now}</span>
           </div>
-        )}
-      </div>
-    </header>
+          <button
+            className={styles.iconBtn}
+            onClick={() => setShowShortcuts(true)}
+            title="Atajos de teclado (?)"
+            aria-label="Ver atajos de teclado"
+          >
+            <Keyboard size={14} aria-hidden="true" />
+          </button>
+          <button className={styles.iconBtn} title="Notificaciones" aria-label="Notificaciones">
+            <Bell size={14} aria-hidden="true" />
+            <span className={styles.notifDot} />
+          </button>
+          {user && (
+            <div className={styles.userChip} aria-label={`Usuario: ${user.name}, ${ROLE_LABELS[user.role]}`}>
+              <div className={styles.avatar} aria-hidden="true">{user.name.charAt(0)}</div>
+              <div className={styles.meta}>
+                <span className={styles.name}>{user.name.split(' ')[0]}</span>
+                <span className={styles.role}>{ROLE_LABELS[user.role]}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </header>
+      <ShortcutsModal open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+    </>
   );
 }

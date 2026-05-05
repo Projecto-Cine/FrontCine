@@ -2,6 +2,7 @@ import { PanelLeftClose, PanelLeft, Bell, Clock } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import styles from './Header.module.css';
 
 const ROUTE_LABELS = {
@@ -25,11 +26,24 @@ const ROLE_LABELS = {
   ticket: 'Taquilla', maintenance: 'Mantenimiento', readonly: 'Consulta',
 };
 
+function useLiveClock() {
+  const [time, setTime] = useState(() =>
+    new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+  );
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTime(new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }));
+    }, 10000);
+    return () => clearInterval(id);
+  }, []);
+  return time;
+}
+
 export default function Header() {
   const { sidebarCollapsed, toggleSidebar } = useApp();
   const { user } = useAuth();
   const location = useLocation();
-  const now = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const now = useLiveClock();
 
   return (
     <header className={styles.header}>

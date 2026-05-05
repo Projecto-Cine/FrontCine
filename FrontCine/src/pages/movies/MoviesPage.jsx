@@ -41,7 +41,7 @@ export default function MoviesPage() {
   useEffect(() => {
     moviesService.getAll()
       .then(data => setMovies((data ?? []).map(normalizeMovie)))
-      .catch(() => toast('No se pudieron cargar las peliculas del backend.', 'error'));
+      .catch(() => toast('No se pudieron cargar las películas.', 'error'));
   }, [toast]);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_MOVIE); setModal('form'); };
@@ -49,7 +49,7 @@ export default function MoviesPage() {
   const openDetail = (movie) => { setEditing(movie); setModal('detail'); };
 
   const handleSave = async () => {
-    if (!form.title.trim() || !form.durationMin) { toast('Titulo y duracion son obligatorios.', 'error'); return; }
+    if (!form.title.trim() || !form.durationMin) { toast('Título y duración son obligatorios.', 'error'); return; }
     const payload = toPayload(form);
     if (editing) {
       const saved = normalizeMovie(await moviesService.update(editing.id, payload));
@@ -58,7 +58,7 @@ export default function MoviesPage() {
     } else {
       const saved = normalizeMovie(await moviesService.create(payload));
       setMovies(prev => [...prev, saved]);
-      toast(`"${form.title}" anadida.`, 'success');
+      toast(`"${form.title}" añadida.`, 'success');
     }
     setModal(null);
   };

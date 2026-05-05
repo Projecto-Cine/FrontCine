@@ -48,7 +48,7 @@ export default function SchedulesPage() {
         setMovies(moviesData ?? []);
         setTheaters(theatersData ?? []);
       })
-      .catch(() => toast('No se pudieron cargar los horarios del backend.', 'error'));
+      .catch(() => toast('No se pudieron cargar los horarios.', 'error'));
   }, [toast]);
 
   const filtered = useMemo(
@@ -72,7 +72,7 @@ export default function SchedulesPage() {
 
   const handleSave = async () => {
     if (!form.movieId || !form.theaterId || !form.dateTime) {
-      toast('Pelicula, sala y fecha son obligatorios.', 'error');
+      toast('Película, sala y fecha son obligatorios.', 'error');
       return;
     }
 
@@ -87,11 +87,11 @@ export default function SchedulesPage() {
     if (editing) {
       const saved = await screeningsService.update(editing.id, payload);
       setScreenings(prev => prev.map(screening => screening.id === editing.id ? saved : screening));
-      toast('Proyeccion actualizada.', 'success');
+      toast('Proyección actualizada.', 'success');
     } else {
       const saved = await screeningsService.create(payload);
       setScreenings(prev => [...prev, saved]);
-      toast('Proyeccion creada.', 'success');
+      toast('Proyección creada.', 'success');
     }
     setModal(null);
   };
@@ -99,7 +99,7 @@ export default function SchedulesPage() {
   const handleDelete = async () => {
     await screeningsService.remove(deleteTarget.id);
     setScreenings(prev => prev.filter(screening => screening.id !== deleteTarget.id));
-    toast('Proyeccion eliminada.', 'warning');
+    toast('Proyección eliminada.', 'warning');
     setDeleteTarget(null);
   };
 
@@ -117,7 +117,7 @@ export default function SchedulesPage() {
       <PageHeader
         title="Horarios"
         subtitle={`${screenings.length} proyecciones · ${screenings.filter(s => s.status === 'ACTIVE').length} activas`}
-        actions={<Button icon={Plus} onClick={openCreate}>Nueva proyeccion</Button>}
+        actions={<Button icon={Plus} onClick={openCreate}>Nueva proyección</Button>}
       />
 
       <div className={styles.toolbar}>
@@ -145,17 +145,17 @@ export default function SchedulesPage() {
         )}
       />
 
-      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar proyeccion' : 'Nueva proyeccion'}
+      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar proyección' : 'Nueva proyección'}
         footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
-          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Crear proyeccion'}</Button>
+          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Crear proyección'}</Button>
         </div>}
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
-            <label className={styles.label}>Pelicula *</label>
+            <label className={styles.label}>Película *</label>
             <select className={styles.input} value={form.movieId} onChange={e => set('movieId', e.target.value)}>
-              <option value="">Seleccionar pelicula</option>
+              <option value="">Seleccionar película</option>
               {movies.filter(movie => movie.active !== false).map(movie => <option key={movie.id} value={movie.id}>{movie.title}</option>)}
             </select>
           </div>
@@ -186,9 +186,9 @@ export default function SchedulesPage() {
       </Modal>
 
       <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete}
-        title="Eliminar proyeccion" danger
-        message="¿Seguro que quieres eliminar esta proyeccion?"
-        confirmLabel="Eliminar proyeccion" />
+        title="Eliminar proyección" danger
+        message="¿Seguro que quieres eliminar esta proyección?"
+        confirmLabel="Eliminar proyección" />
     </div>
   );
 }

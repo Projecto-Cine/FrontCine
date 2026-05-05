@@ -1,141 +1,239 @@
 import { useState, useEffect } from 'react';
-import { Search, XCircle, RefreshCw, Eye } from 'lucide-react';
+import { XCircle, Eye } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
-import DataTable from '../../components/shared/DataTable';
-import Badge from '../../components/ui/Badge';
-import Button from '../../components/ui/Button';
+import DataTable  from '../../components/shared/DataTable';
+import Badge      from '../../components/ui/Badge';
+import Button     from '../../components/ui/Button';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
-import KPICard from '../../components/shared/KPICard';
-import { Ticket, Euro, CreditCard } from 'lucide-react';
-import { useApp } from '../../contexts/AppContext';
+import KPICard    from '../../components/shared/KPICard';
+import { Ticket, Euro } from 'lucide-react';
+import { useApp }  from '../../contexts/AppContext';
 import { reservationsService } from '../../services/reservationsService';
-import { sessionsService } from '../../services/sessionsService';
-import { moviesService } from '../../services/moviesService';
+import { sessionsService }     from '../../services/sessionsService';
+import { moviesService }       from '../../services/moviesService';
 import styles from './ReservationsPage.module.css';
 
+// Status values from the backend
 const STATUS_MAP = {
-  confirmed: { label: 'Confirmada', v: 'green' },
-  pending: { label: 'Pendiente', v: 'yellow' },
-  cancelled: { label: 'Cancelada', v: 'default' },
-  refunded: { label: 'Reembolsada', v: 'red' },
+  PENDING:   { label: 'Pendiente',   v: 'yellow'  },
+  PAID:      { label: 'Confirmada',  v: 'green'   },
+  CANCELLED: { label: 'Cancelada',   v: 'default' },
 };
-const PAYMENT_LABEL = { card: 'Tarjeta', cash: 'Efectivo', online: 'Online' };
-const PAYMENT_COLOR = { card: 'accent', cash: 'green', online: 'purple' };
+
+function isPastSession(fechaHora) {
+  return fechaHora ? new Date(fechaHora) < new Date() : false;
+}
 
 export default function ReservationsPage() {
   const [reservations, setReservations] = useState([]);
-  const [sessions, setSessions] = useState([]);
-  const [movies, setMovies] = useState([]);
-  const [detail, setDetail] = useState(null);
+  const [sessions, setSessions]         = useState([]);
+  const [movies, setMovies]             = useState([]);
+  const [selectedScreeningId, setSelectedScreeningId] = useState('');
+  const [loading, setLoading]           = useState(false);
+  const [detail, setDetail]             = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const { toast } = useApp();
 
+  // Load sessions and movies on mount for lookups and the screening selector
   useEffect(() => {
-    reservationsService.getAll().then(setReservations).catch(() => {});
     sessionsService.getAll().then(setSessions).catch(() => {});
     moviesService.getAll().then(setMovies).catch(() => {});
   }, []);
 
-  const filtered = filterStatus === 'all' ? reservations : reservations.filter(r => r.status === filterStatus);
+  // Load purchases for the selected screening
+  useEffect(() => {
+    if (!selectedScreeningId) { setReservations([]); return; }
+    setLoading(true);
+    reservationsService.getByScreening(selectedScreeningId)
+      .then(data => setReservations(Array.isArray(data) ? data : []))
+      .catch(() => { toast('Error al cargar reservas.', 'error'); setReservations([]); })
+      .finally(() => setLoading(false));
+  }, [selectedScreeningId]);
 
-  const handleCancel = () => {
-    setReservations(p => p.map(r => r.id === cancelTarget.id ? { ...r, status: 'cancelled' } : r));
-    toast(`Reserva ${cancelTarget.id} cancelada.`, 'warning');
-    reservationsService.update(cancelTarget.id, { ...cancelTarget, status: 'cancelled' }).catch(() => {});
+  const filtered = filterStatus === 'all'
+    ? reservations
+    : reservations.filter(r => r.status === filterStatus);
+
+  const handleCancel = async () => {
+    const target = cancelTarget;
     setCancelTarget(null);
+    try {
+      await reservationsService.cancel(target.id);
+      setReservations(prev => prev.map(r =>
+        r.id === target.id ? { ...r, status: 'CANCELLED' } : r
+      ));
+      toast(`Compra #${target.id} cancelada.`, 'warning');
+    } catch (err) {
+      toast(err.message ?? 'Error al cancelar la reserva.', 'error');
+    }
   };
 
-  const totalRevenue = reservations.filter(r => r.status === 'confirmed').reduce((s, r) => s + r.amount, 0);
+  const paidCount    = reservations.filter(r => r.status === 'PAID').length;
+  const pendingCount = reservations.filter(r => r.status === 'PENDING').length;
+
+  // Helper: find the screening for a purchase (uses screeningId field)
+  const getScreening = (r) => sessions.find(s => s.id === (r.screeningId ?? r.sesionId ?? r.session_id));
+  const getMovie     = (s) => s ? movies.find(m => m.id === (s.peliculaId ?? s.movieId ?? s.movie_id)) : null;
 
   const columns = [
-    { key: 'id', label: 'Ref.', width: 140, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-2)' }}>{v}</span> },
-    { key: 'client', label: 'Cliente', render: (v, row) => (
-      <div><div style={{ fontWeight: 500 }}>{v}</div><div style={{ fontSize: 11, color: 'var(--text-3)' }}>{row.email}</div></div>
-    )},
-    { key: 'session_id', label: 'Sesión', render: v => {
-      const s = sessions.find(s => s.id === v);
-      const m = s ? movies.find(m => m.id === s.movie_id) : null;
-      return <span style={{ fontSize: 11 }}>{m?.title || '—'} <span style={{ color: 'var(--text-3)' }}>{s?.date} {s?.time}</span></span>;
+    { key: 'id',     label: 'Ref.',    width: 80,
+      render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-2)' }}>#{v}</span> },
+    { key: 'userId', label: 'Usuario', width: 90,
+      render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v}</span> },
+    { key: 'screeningId', label: 'Sesión', render: (v, row) => {
+      const s = getScreening(row);
+      const m = getMovie(s);
+      const title = m?.titulo ?? m?.title ?? '—';
+      const time  = s?.fechaHora?.slice(11, 16) ?? s?.time ?? '';
+      return <span style={{ fontSize: 11 }}>{title} <span style={{ color: 'var(--text-3)' }}>{time}</span></span>;
     }},
-    { key: 'seats', label: 'Asientos', width: 120, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v.join(', ')}</span> },
-    { key: 'amount', label: 'Importe', width: 90, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600 }}>€{v.toFixed(2)}</span> },
-    { key: 'payment', label: 'Pago', width: 100, render: v => <Badge variant={PAYMENT_COLOR[v]}>{PAYMENT_LABEL[v]}</Badge> },
-    { key: 'status', label: 'Estado', width: 130, render: v => <Badge variant={STATUS_MAP[v]?.v} dot>{STATUS_MAP[v]?.label}</Badge> },
-    { key: 'created_at', label: 'Creada', width: 130, sortable: false, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{v}</span> },
+    { key: 'tickets', label: 'Entradas', width: 80,
+      render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{Array.isArray(v) ? v.length : '—'}</span> },
+    { key: 'totalPrice', label: 'Importe', width: 90,
+      render: v => v != null ? <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600 }}>€{Number(v).toFixed(2)}</span> : '—' },
+    { key: 'status', label: 'Estado', width: 130,
+      render: v => <Badge variant={STATUS_MAP[v]?.v ?? 'default'} dot>{STATUS_MAP[v]?.label ?? v}</Badge> },
+    { key: 'createdAt', label: 'Creada', width: 130, sortable: false,
+      render: v => v ? <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{v.slice(0, 16).replace('T', ' ')}</span> : '—' },
   ];
 
   return (
     <div className={styles.page}>
       <PageHeader
         title="Reservas"
-        subtitle={`${reservations.filter(r => r.status === 'confirmed').length} confirmadas · €${totalRevenue.toFixed(2)} en ingresos`}
+        subtitle={`${paidCount} confirmadas · ${pendingCount} pendientes`}
       />
 
       <div className={styles.kpiRow}>
-        <KPICard label="Total reservas" value={reservations.length} icon={Ticket} color="accent" />
-        <KPICard label="Confirmadas" value={reservations.filter(r => r.status === 'confirmed').length} icon={Ticket} color="green" />
-        <KPICard label="Pendientes" value={reservations.filter(r => r.status === 'pending').length} icon={Ticket} color="yellow" />
-        <KPICard label="Ingresos confirmados" value={`€${totalRevenue.toFixed(0)}`} icon={Euro} color="green" />
+        <KPICard label="Total reservas"  value={reservations.length} icon={Ticket} color="accent" />
+        <KPICard label="Confirmadas"     value={paidCount}           icon={Ticket} color="green"  />
+        <KPICard label="Pendientes"      value={pendingCount}        icon={Ticket} color="yellow" />
+        <KPICard label="Canceladas"      value={reservations.filter(r => r.status === 'CANCELLED').length} icon={Euro} color="default" />
       </div>
 
-      <div className={styles.filterRow}>
-        {[['all', 'Todas'], ...Object.entries(STATUS_MAP).map(([k, { label }]) => [k, label])].map(([k, label]) => (
-          <button key={k} className={`${styles.filterBtn} ${filterStatus === k ? styles.filterActive : ''}`}
-            onClick={() => setFilterStatus(k)}>{label}
-            <span className={styles.filterCount}>{k === 'all' ? reservations.length : reservations.filter(r => r.status === k).length}</span>
-          </button>
-        ))}
-      </div>
+      {/* Screening selector — no GET /api/purchases general exists; filter by screening */}
+      <div className={styles.filterRow} style={{ gap: 12, flexWrap: 'wrap' }}>
+        <select
+          style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-1)', cursor: 'pointer' }}
+          value={selectedScreeningId}
+          onChange={e => { setSelectedScreeningId(e.target.value); setFilterStatus('all'); }}
+        >
+          <option value="">— Selecciona una sesión —</option>
+          {sessions.map(s => {
+            const m    = getMovie(s);
+            const title = m?.titulo ?? m?.title ?? `Sesión #${s.id}`;
+            const time  = s.fechaHora?.slice(0, 16).replace('T', ' ') ?? '';
+            return <option key={s.id} value={s.id}>{title} · {time}</option>;
+          })}
+        </select>
 
-      <DataTable
-        columns={columns}
-        data={filtered}
-        searchKeys={['id', 'client', 'email']}
-        onRowClick={setDetail}
-        rowKey="id"
-        rowActions={(row) => (
-          <div style={{ display: 'flex', gap: 2 }}>
-            <Button variant="ghost" size="sm" icon={Eye} onClick={() => setDetail(row)} title="Ver detalle" />
-            {(row.status === 'confirmed' || row.status === 'pending') && (
-              <Button variant="ghost" size="sm" icon={XCircle} onClick={() => setCancelTarget(row)} title="Cancelar" />
-            )}
+        {selectedScreeningId && (
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[['all', 'Todas'], ...Object.entries(STATUS_MAP).map(([k, { label }]) => [k, label])].map(([k, label]) => (
+              <button key={k} className={`${styles.filterBtn} ${filterStatus === k ? styles.filterActive : ''}`}
+                onClick={() => setFilterStatus(k)}>{label}
+                <span className={styles.filterCount}>
+                  {k === 'all' ? reservations.length : reservations.filter(r => r.status === k).length}
+                </span>
+              </button>
+            ))}
           </div>
         )}
-      />
+      </div>
 
-      <Modal open={!!detail} onClose={() => setDetail(null)} title={`Reserva ${detail?.id}`} size="sm">
+      {!selectedScreeningId && (
+        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-3)', fontSize: 13 }}>
+          Selecciona una sesión arriba para ver sus reservas.
+        </div>
+      )}
+
+      {selectedScreeningId && (
+        <DataTable
+          columns={columns}
+          data={filtered}
+          searchKeys={['id', 'userId']}
+          onRowClick={setDetail}
+          rowKey="id"
+          rowActions={(row) => {
+            const screening = getScreening(row);
+            const past      = isPastSession(screening?.fechaHora);
+            const canCancel = row.status === 'PENDING' && !past;
+            return (
+              <div style={{ display: 'flex', gap: 2 }}>
+                <Button variant="ghost" size="sm" icon={Eye}     onClick={() => setDetail(row)} title="Ver detalle" />
+                {canCancel && (
+                  <Button variant="ghost" size="sm" icon={XCircle} onClick={() => setCancelTarget(row)} title="Cancelar" />
+                )}
+              </div>
+            );
+          }}
+        />
+      )}
+
+      {/* Detail modal */}
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={`Compra #${detail?.id}`} size="sm">
         {detail && (() => {
-          const s = sessions.find(s => s.id === detail.session_id);
-          const m = s ? movies.find(m => m.id === s.movie_id) : null;
+          const s = getScreening(detail);
+          const m = getMovie(s);
+          const title = m?.titulo ?? m?.title ?? '—';
+          const time  = s?.fechaHora?.slice(11, 16) ?? '';
+          const date  = s?.fechaHora?.slice(0, 10)  ?? '';
           return (
             <div className={styles.detail}>
               <div className={styles.detailSection}>
-                <p className={styles.detailLbl}>Cliente</p>
-                <p className={styles.detailVal}>{detail.client}</p>
-                <p style={{ fontSize: 11, color: 'var(--text-3)' }}>{detail.email}</p>
+                <p className={styles.detailLbl}>Usuario ID</p>
+                <p className={styles.detailVal}>{detail.userId}</p>
               </div>
               <div className={styles.detailSection}>
                 <p className={styles.detailLbl}>Sesión</p>
-                <p className={styles.detailVal}>{m?.title}</p>
-                <p style={{ fontSize: 11, color: 'var(--text-3)' }}>{s?.date} — {s?.time} h</p>
+                <p className={styles.detailVal}>{title}</p>
+                <p style={{ fontSize: 11, color: 'var(--text-3)' }}>{date} — {time} h</p>
               </div>
               <div className={styles.detailRow}>
-                <div><p className={styles.detailLbl}>Asientos</p><p className={styles.detailVal} style={{ fontFamily: 'var(--mono)' }}>{detail.seats.join(', ')}</p></div>
-                <div><p className={styles.detailLbl}>Pago</p><Badge variant={PAYMENT_COLOR[detail.payment]}>{PAYMENT_LABEL[detail.payment]}</Badge></div>
-                <div><p className={styles.detailLbl}>Importe</p><p className={styles.detailVal}>€{detail.amount.toFixed(2)}</p></div>
-                <div><p className={styles.detailLbl}>Estado</p><Badge variant={STATUS_MAP[detail.status]?.v} dot>{STATUS_MAP[detail.status]?.label}</Badge></div>
+                <div>
+                  <p className={styles.detailLbl}>Entradas</p>
+                  <p className={styles.detailVal} style={{ fontFamily: 'var(--mono)' }}>
+                    {Array.isArray(detail.tickets) ? detail.tickets.length : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className={styles.detailLbl}>Importe</p>
+                  <p className={styles.detailVal}>
+                    {detail.totalPrice != null ? `€${Number(detail.totalPrice).toFixed(2)}` : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className={styles.detailLbl}>Estado</p>
+                  <Badge variant={STATUS_MAP[detail.status]?.v ?? 'default'} dot>
+                    {STATUS_MAP[detail.status]?.label ?? detail.status}
+                  </Badge>
+                </div>
               </div>
-              <div><p className={styles.detailLbl}>Fecha creación</p><p style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-3)', marginTop: 3 }}>{detail.created_at}</p></div>
+              {Array.isArray(detail.tickets) && detail.tickets.length > 0 && (
+                <div>
+                  <p className={styles.detailLbl}>Tickets</p>
+                  {detail.tickets.map(t => (
+                    <p key={t.id ?? t.seatId} style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-2)', marginTop: 2 }}>
+                      Asiento #{t.seatId} · {t.ticketType}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })()}
       </Modal>
 
-      <ConfirmModal open={!!cancelTarget} onClose={() => setCancelTarget(null)} onConfirm={handleCancel}
-        title="Cancelar reserva" danger
-        message={`¿Cancelar la reserva ${cancelTarget?.id} de ${cancelTarget?.client}?`}
-        confirmLabel="Cancelar reserva" />
+      <ConfirmModal
+        open={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={handleCancel}
+        title="Cancelar compra"
+        danger
+        message={`¿Cancelar la compra #${cancelTarget?.id}? Se liberarán los asientos reservados.`}
+        confirmLabel="Cancelar compra"
+      />
     </div>
   );
 }

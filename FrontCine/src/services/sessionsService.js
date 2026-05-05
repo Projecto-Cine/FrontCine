@@ -12,4 +12,5 @@ export const sessionsService = {
   reserveSeat:  (screeningId, seatId) => api.post(`/screenings/${screeningId}/reserve/${seatId}`),
   releaseSeat:  (screeningId, seatId) => api.post(`/screenings/${screeningId}/release/${seatId}`),
   getPurchases: (screeningId)         => api.get(`/screenings/${screeningId}/purchases`),
+  getSeats:     (screeningId)         => api.get(`/screenings/${screeningId}/seats`),
 };

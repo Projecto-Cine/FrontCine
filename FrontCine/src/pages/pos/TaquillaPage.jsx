@@ -1,46 +1,41 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  Film, ChevronRight, Minus, Plus,
-  CreditCard, Banknote, Smartphone, Printer,
-  CheckCircle, X, Ticket, ArrowLeft, Search,
-  LayoutGrid, List
+  Film, ChevronRight, CreditCard, Banknote, Smartphone, Printer,
+  CheckCircle, X, Ticket, ArrowLeft, Search, LayoutGrid, List
 } from 'lucide-react';
-import { sessionsService } from '../../services/sessionsService';
-import { moviesService } from '../../services/moviesService';
-import { roomsService } from '../../services/roomsService';
-import { useApp } from '../../contexts/AppContext';
-import Badge from '../../components/ui/Badge';
-import SeatMap from '../../components/shared/SeatMap';
-import styles from './TaquillaPage.module.css';
+import { sessionsService }     from '../../services/sessionsService';
+import { moviesService }       from '../../services/moviesService';
+import { roomsService }        from '../../services/roomsService';
+import { reservationsService } from '../../services/reservationsService';
+import { useApp }  from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
+import Badge    from '../../components/ui/Badge';
+import SeatMap  from '../../components/shared/SeatMap';
+import styles   from './TaquillaPage.module.css';
 
+// Frontend display types → backend ticketType
 const TICKET_TYPES = [
-  { id: 'adulto',     label: 'Adulto',        price: 13.50, color: 'accent' },
-  { id: 'reducida',   label: 'Reducida',       price: 9.00,  color: 'cyan'   },
-  { id: 'estudiante', label: 'Estudiante',      price: 8.00,  color: 'purple' },
-  { id: 'infantil',   label: 'Infantil (<12)', price: 7.00,  color: 'green'  },
-  { id: 'imax',       label: 'IMAX +',         price: 5.00,  color: 'yellow', extra: true },
-  { id: '4dx',        label: '4DX +',          price: 6.50,  color: 'red',    extra: true },
-  { id: 'vip',        label: 'VIP +',          price: 8.00,  color: 'purple', extra: true },
+  { id: 'adulto',     label: 'Adulto',        price: 13.50, backendType: 'ADULT'  },
+  { id: 'reducida',   label: 'Reducida',       price: 9.00,  backendType: 'SENIOR' },
+  { id: 'estudiante', label: 'Estudiante',      price: 8.00,  backendType: 'ADULT'  },
+  { id: 'infantil',   label: 'Infantil (<12)', price: 7.00,  backendType: 'CHILD'  },
+  { id: 'imax',       label: 'IMAX +',         price: 5.00,  backendType: null, extra: true },
+  { id: '4dx',        label: '4DX +',          price: 6.50,  backendType: null, extra: true },
+  { id: 'vip',        label: 'VIP +',          price: 8.00,  backendType: null, extra: true },
 ];
 
-const FORMAT_BADGE = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', VIP: 'yellow', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
-const OCC_COLOR = (pct) => pct >= 95 ? 'var(--red)' : pct >= 80 ? 'var(--yellow)' : 'var(--green)';
-
+const FORMAT_BADGE  = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', VIP: 'yellow', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
+const OCC_COLOR     = (pct) => pct >= 95 ? 'var(--red)' : pct >= 80 ? 'var(--yellow)' : 'var(--green)';
 const GENRE_GRADIENT = {
-  'Ciencia ficción': 'linear-gradient(145deg, #071828 0%, #0e3252 100%)',
-  'Drama':           'linear-gradient(145deg, #150d22 0%, #321860 100%)',
-  'Drama/Historia':  'linear-gradient(145deg, #120d1e 0%, #2e1a55 100%)',
-  'Drama/Thriller':  'linear-gradient(145deg, #12100a 0%, #30260e 100%)',
-  'Animación':       'linear-gradient(145deg, #0a1e0c 0%, #173d1a 100%)',
-  'Terror':          'linear-gradient(145deg, #1a0606 0%, #3d0d0d 100%)',
-  'Terror/Sci-Fi':   'linear-gradient(145deg, #100a18 0%, #280d30 100%)',
-  'Terror/Drama':    'linear-gradient(145deg, #180606 0%, #350f0f 100%)',
-  'Thriller':        'linear-gradient(145deg, #141008 0%, #32260a 100%)',
-  'Acción':          'linear-gradient(145deg, #180c04 0%, #3d1a06 100%)',
-  'Fantasía':        'linear-gradient(145deg, #0a0818 0%, #1e1440 100%)',
+  'Ciencia ficción': 'linear-gradient(145deg,#071828 0%,#0e3252 100%)',
+  'Drama':           'linear-gradient(145deg,#150d22 0%,#321860 100%)',
+  'Animación':       'linear-gradient(145deg,#0a1e0c 0%,#173d1a 100%)',
+  'Terror':          'linear-gradient(145deg,#1a0606 0%,#3d0d0d 100%)',
+  'Thriller':        'linear-gradient(145deg,#141008 0%,#32260a 100%)',
+  'Acción':          'linear-gradient(145deg,#180c04 0%,#3d1a06 100%)',
 };
-const DEFAULT_GRADIENT = 'linear-gradient(145deg, #161008 0%, #2a1e10 100%)';
+const DEFAULT_GRADIENT = 'linear-gradient(145deg,#161008 0%,#2a1e10 100%)';
 
 function getInitials(title = '') {
   const words = title.split(' ').filter(w => w.length > 2);
@@ -51,21 +46,44 @@ function generateTicketId() {
   return 'TKT-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
 }
 
+function isPastSession(fechaHora) {
+  return fechaHora ? new Date(fechaHora) < new Date() : false;
+}
+
+// Reads common Spanish/English field name variants from a backend object
+const get = {
+  movieId:  (s) => s.peliculaId   ?? s.movieId    ?? s.movie_id,
+  roomId:   (s) => s.salaId       ?? s.theaterId  ?? s.room_id,
+  title:    (m) => m?.titulo      ?? m?.title      ?? '—',
+  genre:    (m) => m?.genero      ?? m?.genre,
+  format:   (m) => m?.formato     ?? m?.format,
+  language: (m) => m?.idioma      ?? m?.language,
+  roomName: (r) => r?.nombre      ?? r?.name       ?? '—',
+  capacity: (r) => r?.aforo       ?? r?.capacity   ?? 100,
+  sold:     (s) => s?.butacasOcupadas ?? s?.sold   ?? 0,
+  price:    (s) => s?.precio      ?? s?.price,
+  time:     (s) => s?.fechaHora   ? s.fechaHora.slice(11, 16) : (s?.time ?? ''),
+  date:     (s) => s?.fechaHora   ? s.fechaHora.slice(0, 10)  : (s?.date ?? ''),
+};
+
 export default function TaquillaPage() {
-  // step: sessions | seats | payment | done
-  const [step, setStep] = useState('sessions');
+  const { user }   = useAuth();
+  const { toast }  = useApp();
+
+  const [step, setStep]                   = useState('sessions');
   const [selectedSession, setSelectedSession] = useState(null);
-  const [selectedSeats, setSelectedSeats] = useState([]);
-  const [ticketType, setTicketType] = useState('adulto');
-  const [payMethod, setPayMethod] = useState('card');
-  const [cashGiven, setCashGiven] = useState('');
-  const [tickets, setTickets] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState('grid'); // grid | list
-  const [sessions, setSessions] = useState([]);
-  const [movies, setMovies] = useState([]);
-  const [rooms, setRooms] = useState([]);
-  const { toast } = useApp();
+  const [selectedSeatIds, setSelectedSeatIds] = useState([]);   // number[] — backend seat IDs
+  const [seats, setSeats]                 = useState([]);        // ScreeningSeatResponseDTO[]
+  const [ticketType, setTicketType]       = useState('adulto');
+  const [payMethod, setPayMethod]         = useState('card');
+  const [cashGiven, setCashGiven]         = useState('');
+  const [tickets, setTickets]             = useState([]);
+  const [searchQuery, setSearchQuery]     = useState('');
+  const [viewMode, setViewMode]           = useState('grid');
+  const [sessions, setSessions]           = useState([]);
+  const [movies, setMovies]               = useState([]);
+  const [rooms, setRooms]                 = useState([]);
+  const [submitting, setSubmitting]       = useState(false);
 
   useEffect(() => {
     sessionsService.getAll().then(setSessions).catch(() => {});
@@ -74,59 +92,129 @@ export default function TaquillaPage() {
   }, []);
 
   const today = new Date().toISOString().slice(0, 10);
-  const todaySessions = sessions.filter(s => s.date === today && s.status !== 'cancelled');
+
+  const todaySessions = sessions.filter(s => {
+    const dateStr = s.fechaHora?.slice(0, 10) ?? s.date;
+    return dateStr === today;
+  });
 
   const filteredSessions = todaySessions.filter(s => {
     if (!searchQuery) return true;
-    const movie = movies.find(m => m.id === s.movie_id);
-    return movie?.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const mv = movies.find(m => m.id === get.movieId(s));
+    return get.title(mv).toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  const selectSession = (session) => {
+  const selectSession = async (session) => {
+    if (isPastSession(session.fechaHora)) {
+      toast('Esta sesión ya ha comenzado o ha finalizado.', 'error');
+      return;
+    }
     setSelectedSession(session);
-    setSelectedSeats([]);
+    setSelectedSeatIds([]);
+    setSeats([]);
     setStep('seats');
+    try {
+      const data = await sessionsService.getSeats(session.id);
+      setSeats(Array.isArray(data) ? data : []);
+    } catch {
+      toast('Error al cargar el mapa de asientos.', 'error');
+    }
   };
 
-  const movie = selectedSession ? movies.find(m => m.id === selectedSession.movie_id) : null;
-  const room  = selectedSession ? rooms.find(r => r.id === selectedSession.room_id) : null;
+  // Derived from selected session
+  const movie = selectedSession
+    ? (selectedSession.pelicula ?? movies.find(m => m.id === get.movieId(selectedSession)))
+    : null;
+  const room = selectedSession
+    ? (selectedSession.sala ?? selectedSession.theater ?? rooms.find(r => r.id === get.roomId(selectedSession)))
+    : null;
 
-  const baseType  = TICKET_TYPES.find(t => t.id === ticketType) || TICKET_TYPES[0];
-  const basePrice = baseType.price;
-
-  // Extras aplicables a este formato de sala
-  const extra = TICKET_TYPES.filter(t => t.extra).find(t => {
+  const baseType       = TICKET_TYPES.find(t => t.id === ticketType) ?? TICKET_TYPES[0];
+  const basePrice      = baseType.price;
+  const roomName       = get.roomName(room);
+  const extra          = TICKET_TYPES.filter(t => t.extra).find(t => {
     if (!room) return false;
-    if (t.id === 'imax')  return room.format.includes('IMAX');
-    if (t.id === '4dx')   return room.format.includes('4DX');
-    if (t.id === 'vip')   return room.name.toLowerCase().includes('vip');
+    const n = roomName.toLowerCase();
+    const f = get.format(room) ?? '';
+    if (t.id === 'imax') return f.includes('IMAX') || n.includes('imax');
+    if (t.id === '4dx')  return f.includes('4DX')  || n.includes('4dx');
+    if (t.id === 'vip')  return n.includes('vip');
     return false;
   });
-  const totalPerTicket = basePrice + (extra?.price || 0);
-  const total = totalPerTicket * selectedSeats.length;
+  const totalPerTicket = basePrice + (extra?.price ?? 0);
+  const total          = totalPerTicket * selectedSeatIds.length;
 
-  const handlePay = () => {
-    if (!selectedSeats.length) { toast('Selecciona al menos una butaca.', 'error'); return; }
-    const generated = selectedSeats.map((seat, i) => ({
-      id: generateTicketId(),
-      movie: movie?.title,
-      room: room?.name,
-      date: selectedSession.date,
-      time: selectedSession.time,
-      format: movie?.format,
-      language: movie?.language,
-      seat,
-      sessionId: selectedSession.id,
-      idx: i + 1,
-    }));
-    setTickets(generated);
-    setStep('done');
+  const handlePay = async () => {
+    if (!selectedSeatIds.length) {
+      toast('Selecciona al menos una butaca.', 'error');
+      return;
+    }
+
+    // Past session check
+    if (isPastSession(selectedSession?.fechaHora)) {
+      toast('No se pueden comprar entradas para sesiones ya finalizadas.', 'error');
+      return;
+    }
+
+    // CHILD ticket requires at least one ADULT in the same order
+    if (baseType.backendType === 'CHILD') {
+      toast('Las entradas infantiles requieren al menos una entrada de adulto en el mismo pedido.', 'error');
+      return;
+    }
+
+    if (payMethod === 'cash' && cashGiven && parseFloat(cashGiven) < total) {
+      toast('El importe entregado es insuficiente.', 'error');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const purchase = await reservationsService.create({
+        userId:      user.id,
+        screeningId: selectedSession.id,
+        tickets:     selectedSeatIds.map(seatId => ({
+          seatId,
+          ticketType: baseType.backendType,
+        })),
+      });
+      await reservationsService.confirm(purchase.id);
+
+      const sessionTime  = get.time(selectedSession);
+      const sessionDate  = get.date(selectedSession);
+      const movieTitle   = get.title(movie);
+      const movieFormat  = get.format(movie) ?? '';
+      const movieLang    = get.language(movie) ?? '';
+
+      const generated = selectedSeatIds.map((seatId, i) => {
+        const seat     = seats.find(s => s.id === seatId);
+        const seatLabel = seat ? `${seat.fila}${String(seat.numero).padStart(2, '0')}` : `#${seatId}`;
+        return {
+          id: generateTicketId(),
+          movie:    movieTitle,
+          room:     roomName,
+          date:     sessionDate,
+          time:     sessionTime,
+          format:   movieFormat,
+          language: movieLang,
+          seat:     seatLabel,
+          sessionId: selectedSession.id,
+          idx:      i + 1,
+        };
+      });
+      setTickets(generated);
+      setStep('done');
+    } catch (err) {
+      toast(err.message ?? 'Error al procesar la compra.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const reset = () => {
     setStep('sessions');
     setSelectedSession(null);
-    setSelectedSeats([]);
+    setSelectedSeatIds([]);
+    setSeats([]);
     setPayMethod('card');
     setCashGiven('');
     setTickets([]);
@@ -164,72 +252,87 @@ export default function TaquillaPage() {
 
             <div className={`${styles.sessionGrid} ${viewMode === 'list' ? styles.sessionList : ''}`}>
               {filteredSessions.map(s => {
-                const mv = MOVIES.find(m => m.id === s.movie_id);
-                const rm = ROOMS.find(r => r.id === s.room_id);
-                const occPct = Math.round((s.sold / s.capacity) * 100);
-                const avail = s.capacity - s.sold;
+                const mv      = movies.find(m => m.id === get.movieId(s));
+                const rm      = rooms.find(r => r.id === get.roomId(s));
+                const cap     = get.capacity(rm);
+                const sold    = get.sold(s);
+                const occPct  = cap > 0 ? Math.round((sold / cap) * 100) : 0;
+                const avail   = cap - sold;
+                const isFull  = avail <= 0;
+                const isPast  = isPastSession(s.fechaHora);
+                const title   = get.title(mv);
+                const genre   = get.genre(mv);
+                const format  = get.format(mv);
+                const lang    = get.language(mv);
+                const time    = get.time(s);
+                const price   = get.price(s);
+                const rmName  = get.roomName(rm);
+
                 return (
                   <button
                     key={s.id}
-                    className={`${styles.sessionCard} ${s.status === 'full' ? styles.sessionFull : ''} ${viewMode === 'list' ? styles.sessionCardList : ''}`}
-                    onClick={() => s.status !== 'full' && selectSession(s)}
-                    disabled={s.status === 'full'}
+                    className={`${styles.sessionCard} ${(isFull || isPast) ? styles.sessionFull : ''} ${viewMode === 'list' ? styles.sessionCardList : ''}`}
+                    onClick={() => !isFull && !isPast && selectSession(s)}
+                    disabled={isFull || isPast}
                   >
                     {viewMode === 'grid' ? (
                       <>
-                        <div className={styles.sessionPoster} style={{ background: GENRE_GRADIENT[mv?.genre] || DEFAULT_GRADIENT }}>
-                          <span className={styles.sessionPosterInitials}>{getInitials(mv?.title)}</span>
+                        <div className={styles.sessionPoster} style={{ background: GENRE_GRADIENT[genre] || DEFAULT_GRADIENT }}>
+                          <span className={styles.sessionPosterInitials}>{getInitials(title)}</span>
                           <div className={styles.sessionPosterBadges}>
-                            <Badge variant={FORMAT_BADGE[mv?.format] || 'default'}>{mv?.format}</Badge>
-                            <Badge variant="default">{mv?.language}</Badge>
+                            {format   && <Badge variant={FORMAT_BADGE[format] || 'default'}>{format}</Badge>}
+                            {lang     && <Badge variant="default">{lang}</Badge>}
                           </div>
-                          {s.status === 'full' && <div className={styles.posterFullOverlay}>LLENA</div>}
+                          {isFull  && <div className={styles.posterFullOverlay}>LLENA</div>}
+                          {isPast  && <div className={styles.posterFullOverlay}>FINALIZADA</div>}
                         </div>
                         <div className={styles.sessionCardBody}>
-                          <div className={styles.sessionTime}>{s.time}</div>
-                          <div className={styles.sessionMovie}>{mv?.title}</div>
-                          <div className={styles.sessionRoom}>{rm?.name.split('—')[0].trim()}</div>
+                          <div className={styles.sessionTime}>{time}</div>
+                          <div className={styles.sessionMovie}>{title}</div>
+                          <div className={styles.sessionRoom}>{rmName.split('—')[0].trim()}</div>
                           <div className={styles.sessionOcc}>
                             <div className={styles.occBar}>
                               <div className={styles.occFill} style={{ width: `${occPct}%`, background: OCC_COLOR(occPct) }} />
                             </div>
                             <span className={styles.occText} style={{ color: OCC_COLOR(occPct) }}>
-                              {s.status === 'full' ? 'LLENA' : `${avail} libres`}
+                              {isFull ? 'LLENA' : `${avail} libres`}
                             </span>
                           </div>
-                          <div className={styles.sessionPrice}>Desde €{s.price.toFixed(2)}</div>
+                          {price != null && <div className={styles.sessionPrice}>Desde €{price.toFixed(2)}</div>}
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className={styles.sessionListThumb} style={{ background: GENRE_GRADIENT[mv?.genre] || DEFAULT_GRADIENT }}>
-                          <span className={styles.sessionListInitials}>{getInitials(mv?.title)}</span>
+                        <div className={styles.sessionListThumb} style={{ background: GENRE_GRADIENT[genre] || DEFAULT_GRADIENT }}>
+                          <span className={styles.sessionListInitials}>{getInitials(title)}</span>
                         </div>
                         <div className={styles.sessionCardTop}>
-                          <div className={styles.sessionTime}>{s.time}</div>
+                          <div className={styles.sessionTime}>{time}</div>
                           <div style={{ display: 'flex', gap: 4 }}>
-                            <Badge variant={FORMAT_BADGE[mv?.format] || 'default'}>{mv?.format}</Badge>
-                            <Badge variant="default">{mv?.language}</Badge>
+                            {format && <Badge variant={FORMAT_BADGE[format] || 'default'}>{format}</Badge>}
+                            {lang   && <Badge variant="default">{lang}</Badge>}
                           </div>
                         </div>
-                        <div className={styles.sessionMovie}>{mv?.title}</div>
-                        <div className={styles.sessionRoom}>{rm?.name.split('—')[0].trim()}</div>
+                        <div className={styles.sessionMovie}>{title}</div>
+                        <div className={styles.sessionRoom}>{rmName.split('—')[0].trim()}</div>
                         <div className={styles.sessionOcc}>
                           <div className={styles.occBar}>
                             <div className={styles.occFill} style={{ width: `${occPct}%`, background: OCC_COLOR(occPct) }} />
                           </div>
                           <span className={styles.occText} style={{ color: OCC_COLOR(occPct) }}>
-                            {s.status === 'full' ? 'LLENA' : `${avail} libres`}
+                            {isFull ? 'LLENA' : `${avail} libres`}
                           </span>
                         </div>
-                        <div className={styles.sessionPrice}>Desde €{s.price.toFixed(2)}</div>
-                        {s.status !== 'full' && <ChevronRight size={14} className={styles.sessionArrow} />}
+                        {price != null && <div className={styles.sessionPrice}>Desde €{price.toFixed(2)}</div>}
+                        {!isFull && !isPast && <ChevronRight size={14} className={styles.sessionArrow} />}
                       </>
                     )}
                   </button>
                 );
               })}
-              {filteredSessions.length === 0 && <div className={styles.emptyMsg}>No hay sesiones disponibles</div>}
+              {filteredSessions.length === 0 && (
+                <div className={styles.emptyMsg}>No hay sesiones disponibles hoy</div>
+              )}
             </div>
           </>
         )}
@@ -242,13 +345,12 @@ export default function TaquillaPage() {
                 <ArrowLeft size={13} /> Cambiar sesión
               </button>
               <div className={styles.sessionPill}>
-                <span className={styles.sessionPillTime}>{selectedSession.time}</span>
-                <span className={styles.sessionPillMovie}>{movie?.title}</span>
-                <Badge variant={FORMAT_BADGE[movie?.format] || 'default'}>{movie?.format}</Badge>
+                <span className={styles.sessionPillTime}>{get.time(selectedSession)}</span>
+                <span className={styles.sessionPillMovie}>{get.title(movie)}</span>
+                {get.format(movie) && <Badge variant={FORMAT_BADGE[get.format(movie)] || 'default'}>{get.format(movie)}</Badge>}
               </div>
             </div>
 
-            {/* Tipo de entrada */}
             <div className={styles.typeSelector}>
               <span className={styles.typeSelectorLabel}>Tipo de entrada</span>
               <div className={styles.typeButtons}>
@@ -264,22 +366,25 @@ export default function TaquillaPage() {
               {extra && (
                 <p className={styles.extraNote}>+ suplemento {extra.label}: €{extra.price.toFixed(2)} / entrada</p>
               )}
+              {baseType.backendType === 'CHILD' && (
+                <p style={{ fontSize: 11, color: 'var(--yellow)', marginTop: 6 }}>
+                  ⚠ Las entradas infantiles requieren al menos una entrada de adulto en el pedido.
+                </p>
+              )}
             </div>
 
-            {/* Mapa de asientos */}
             <div className={styles.seatMapWrap}>
               <SeatMap
-                session={selectedSession}
-                room={room}
-                selectedSeats={selectedSeats}
-                onToggle={setSelectedSeats}
+                seats={seats}
+                selectedIds={selectedSeatIds}
+                onToggle={setSelectedSeatIds}
                 maxSelect={20}
               />
             </div>
 
-            {selectedSeats.length > 0 && (
+            {selectedSeatIds.length > 0 && (
               <button className={styles.proceedBtn} onClick={() => setStep('payment')}>
-                {selectedSeats.length} butaca{selectedSeats.length !== 1 ? 's' : ''} · Ir al cobro ·
+                {selectedSeatIds.length} butaca{selectedSeatIds.length !== 1 ? 's' : ''} · Ir al cobro ·
                 <strong> €{total.toFixed(2)}</strong>
                 <ChevronRight size={15} />
               </button>
@@ -299,9 +404,9 @@ export default function TaquillaPage() {
               <p className={styles.paySectionLabel}>Método de pago</p>
               <div className={styles.payMethods}>
                 {[
-                  { id: 'card',   label: 'Tarjeta',    Icon: CreditCard },
-                  { id: 'cash',   label: 'Efectivo',   Icon: Banknote },
-                  { id: 'online', label: 'Online/QR',  Icon: Smartphone },
+                  { id: 'card',   label: 'Tarjeta',   Icon: CreditCard },
+                  { id: 'cash',   label: 'Efectivo',  Icon: Banknote   },
+                  { id: 'online', label: 'Online/QR', Icon: Smartphone },
                 ].map(({ id, label, Icon }) => (
                   <button key={id} className={`${styles.payMethod} ${payMethod === id ? styles.payActive : ''}`}
                     onClick={() => setPayMethod(id)}>
@@ -343,8 +448,8 @@ export default function TaquillaPage() {
         <div className={styles.cartHeader}>
           <Ticket size={14} />
           <span>Resumen</span>
-          {selectedSeats.length > 0 && (
-            <button className={styles.clearCart} onClick={() => setSelectedSeats([])} title="Vaciar selección">
+          {selectedSeatIds.length > 0 && (
+            <button className={styles.clearCart} onClick={() => setSelectedSeatIds([])} title="Vaciar selección">
               <X size={12} />
             </button>
           )}
@@ -354,15 +459,15 @@ export default function TaquillaPage() {
           <div className={styles.cartSession}>
             <Film size={12} />
             <div>
-              <div className={styles.cartSessionTitle}>{movie?.title}</div>
-              <div className={styles.cartSessionMeta}>{selectedSession.time} · {room?.name.split('—')[0].trim()}</div>
-              <div className={styles.cartSessionMeta}>{selectedSession.date}</div>
+              <div className={styles.cartSessionTitle}>{get.title(movie)}</div>
+              <div className={styles.cartSessionMeta}>{get.time(selectedSession)} · {roomName.split('—')[0].trim()}</div>
+              <div className={styles.cartSessionMeta}>{get.date(selectedSession)}</div>
             </div>
           </div>
         )}
 
         <div className={styles.cartLines}>
-          {selectedSeats.length === 0 ? (
+          {selectedSeatIds.length === 0 ? (
             <div className={styles.cartEmpty}>
               <Ticket size={26} opacity={0.15} />
               <p>{step === 'sessions' ? 'Selecciona una sesión' : 'Haz clic en una butaca libre'}</p>
@@ -380,16 +485,19 @@ export default function TaquillaPage() {
                 </div>
               )}
               <div className={styles.cartSeatsList}>
-                {selectedSeats.map(s => (
-                  <div key={s} className={styles.cartSeat}>
-                    <span className={styles.cartSeatId}>{s}</span>
-                    <span className={styles.cartSeatPrice}>€{totalPerTicket.toFixed(2)}</span>
-                    <button className={styles.cartSeatRemove}
-                      onClick={() => setSelectedSeats(prev => prev.filter(x => x !== s))}>
-                      <X size={10} />
-                    </button>
-                  </div>
-                ))}
+                {seats.filter(s => selectedSeatIds.includes(s.id)).map(seat => {
+                  const lbl = `${seat.fila}${String(seat.numero).padStart(2, '0')}`;
+                  return (
+                    <div key={seat.id} className={styles.cartSeat}>
+                      <span className={styles.cartSeatId}>{lbl}</span>
+                      <span className={styles.cartSeatPrice}>€{totalPerTicket.toFixed(2)}</span>
+                      <button className={styles.cartSeatRemove}
+                        onClick={() => setSelectedSeatIds(prev => prev.filter(id => id !== seat.id))}>
+                        <X size={10} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
@@ -400,18 +508,18 @@ export default function TaquillaPage() {
             <span>TOTAL</span>
             <span className={styles.cartTotalAmount}>€{total.toFixed(2)}</span>
           </div>
-          <div className={styles.cartCount}>{selectedSeats.length} butaca{selectedSeats.length !== 1 ? 's' : ''}</div>
+          <div className={styles.cartCount}>{selectedSeatIds.length} butaca{selectedSeatIds.length !== 1 ? 's' : ''}</div>
 
           {step === 'payment' ? (
             <button className={styles.cobrarBtn}
-              disabled={!selectedSeats.length || (payMethod === 'cash' && (!cashGiven || parseFloat(cashGiven) < total))}
+              disabled={submitting || !selectedSeatIds.length || (payMethod === 'cash' && (!cashGiven || parseFloat(cashGiven) < total))}
               onClick={handlePay}>
               <CheckCircle size={17} />
-              Confirmar cobro
+              {submitting ? 'Procesando…' : 'Confirmar cobro'}
             </button>
           ) : (
             <button className={styles.cobrarBtn}
-              disabled={!selectedSeats.length || step === 'sessions'}
+              disabled={!selectedSeatIds.length || step === 'sessions'}
               onClick={() => step === 'seats' ? setStep('payment') : undefined}>
               <CreditCard size={17} />
               {step === 'sessions' ? 'Selecciona sesión' : 'Cobrar →'}
@@ -460,7 +568,9 @@ function TicketSuccess({ tickets, total, payMethod, onReset }) {
         </div>
         <div className={styles.ticketCardDivider} />
         <h3 className={styles.ticketCardMovie}>{ticket.movie}</h3>
-        <p className={styles.ticketCardFormat}>{ticket.format} · {ticket.language === 'ES' ? 'Doblada' : ticket.language === 'VO' ? 'V. Original' : 'V. Subtitulada'}</p>
+        <p className={styles.ticketCardFormat}>
+          {ticket.format} · {ticket.language === 'ES' ? 'Doblada' : ticket.language === 'VO' ? 'V. Original' : ticket.language ? 'V. Subtitulada' : ''}
+        </p>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketCardInfo}>
           <div><span className={styles.tcLabel}>FECHA</span><span className={styles.tcVal}>{ticket.date}</span></div>
@@ -477,10 +587,7 @@ function TicketSuccess({ tickets, total, payMethod, onReset }) {
         <div className={styles.ticketQRWrap}>
           <QRCodeSVG
             value={`LUMEN:${ticket.id}:${ticket.seat}:SES${ticket.sessionId}:${ticket.date}:${ticket.time}`}
-            size={110}
-            bgColor="transparent"
-            fgColor="var(--text-1)"
-            level="M"
+            size={110} bgColor="transparent" fgColor="var(--text-1)" level="M"
           />
           <div className={styles.ticketQRInfo}>
             <span className={styles.ticketQRLabel}>Escanear en entrada</span>

@@ -1,131 +1,111 @@
 import { useMemo } from 'react';
 import styles from './SeatMap.module.css';
 
-// Fisher-Yates partial shuffle — O(n), deterministic per sessionId
-function generateOccupied(sessionId, capacity, sold) {
-  let seed = (sessionId * 1664525 + 1013904223) & 0x7fffffff;
-  const rand = () => {
-    seed = (seed * 1664525 + 1013904223) & 0x7fffffff;
-    return seed / 0x7fffffff;
-  };
-  const indices = Array.from({ length: capacity }, (_, i) => i);
-  const toOccupy = Math.min(sold, capacity);
-  for (let i = 0; i < toOccupy; i++) {
-    const j = i + Math.floor(rand() * (capacity - i));
-    [indices[i], indices[j]] = [indices[j], indices[i]];
-  }
-  return new Set(indices.slice(0, toOccupy));
-}
+// seats: ScreeningSeatResponseDTO[] — { id, fila, numero, ocupado }
+// fila = row letter (A, B, …), numero = 1-based seat number within the row
+export default function SeatMap({ seats = [], selectedIds = [], onToggle, maxSelect = 20 }) {
+  const rows = useMemo(() => {
+    const map = {};
+    for (const seat of seats) {
+      if (!map[seat.fila]) map[seat.fila] = [];
+      map[seat.fila].push(seat);
+    }
+    for (const f of Object.keys(map)) {
+      map[f].sort((a, b) => a.numero - b.numero);
+    }
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
+  }, [seats]);
 
-const ROW_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const maxCols   = useMemo(() => Math.max(...rows.map(([, r]) => r.length), 1), [rows]);
+  const AISLE     = maxCols > 10 ? Math.floor(maxCols / 2) : -1;
 
-export default function SeatMap({ session, room, selectedSeats, onToggle, maxSelect = 20 }) {
-  if (!session || !room) return null;
+  const occupied  = useMemo(() => seats.filter(s => s.ocupado).length, [seats]);
+  const available = seats.length - occupied;
+  const occPct    = seats.length ? Math.round((occupied / seats.length) * 100) : 0;
 
-  const COLS = room.capacity <= 80 ? 8 : room.capacity <= 150 ? 12 : room.capacity <= 220 ? 16 : 20;
-  const ROWS = Math.ceil(room.capacity / COLS);
-  const AISLE = COLS > 10 ? Math.floor(COLS / 2) : -1;
+  const label = (s) => `${s.fila}${String(s.numero).padStart(2, '0')}`;
 
-  const occupied = useMemo(
-    () => generateOccupied(session.id, room.capacity, session.sold),
-    [session.id, room.capacity, session.sold]
+  const selectedSeats = useMemo(
+    () => seats.filter(s => selectedIds.includes(s.id)),
+    [seats, selectedIds]
   );
 
-  const handleSeat = (id, isOcc) => {
-    if (isOcc) return;
-    if (selectedSeats.includes(id)) {
-      onToggle(selectedSeats.filter(s => s !== id));
+  const handleSeat = (seat) => {
+    if (seat.ocupado) return;
+    if (selectedIds.includes(seat.id)) {
+      onToggle(selectedIds.filter(id => id !== seat.id));
     } else {
-      if (selectedSeats.length >= maxSelect) return;
-      onToggle([...selectedSeats, id]);
+      if (selectedIds.length >= maxSelect) return;
+      onToggle([...selectedIds, seat.id]);
     }
   };
 
-  const available = room.capacity - session.sold;
-  const occPct = Math.round((session.sold / room.capacity) * 100);
+  if (!seats.length) {
+    return (
+      <div className={styles.cinema}>
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-3)', fontSize: 13 }}>
+          Cargando mapa de asientos…
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.cinema}>
-      {/* Screen */}
       <div className={styles.screenArea}>
         <div className={styles.screenArc} />
         <span className={styles.screenLabel}>Pantalla</span>
       </div>
 
-      {/* Legend */}
       <div className={styles.legend}>
-        <span className={styles.legendItem}>
-          <span className={`${styles.legendSeat} ${styles.lFree}`} />Libre
-        </span>
-        <span className={styles.legendItem}>
-          <span className={`${styles.legendSeat} ${styles.lOcc}`} />Ocupada
-        </span>
-        <span className={styles.legendItem}>
-          <span className={`${styles.legendSeat} ${styles.lSel}`} />Seleccionada
-        </span>
+        <span className={styles.legendItem}><span className={`${styles.legendSeat} ${styles.lFree}`} />Libre</span>
+        <span className={styles.legendItem}><span className={`${styles.legendSeat} ${styles.lOcc}`} />Ocupada</span>
+        <span className={styles.legendItem}><span className={`${styles.legendSeat} ${styles.lSel}`} />Seleccionada</span>
         <span className={styles.legendSep} />
         <span className={styles.legendInfo}>{available} libres · {occPct}% ocupación</span>
       </div>
 
-      {/* Seat grid */}
       <div className={styles.mapScroll}>
         <div className={styles.grid}>
-          {Array.from({ length: ROWS }, (_, r) => {
-            const letter = ROW_LETTERS[r] ?? String(r + 1);
-            return (
-              <div key={letter} className={styles.row}>
-                <span className={styles.rowLbl}>{letter}</span>
-
-                <div className={styles.seats}>
-                  {Array.from({ length: COLS }, (_, c) => {
-                    const idx = r * COLS + c;
-                    if (idx >= room.capacity) return <span key={c} className={styles.ghost} />;
-
-                    const id = `${letter}${String(c + 1).padStart(2, '0')}`;
-                    const isOcc = occupied.has(idx);
-                    const isSel = selectedSeats.includes(id);
-
-                    return (
-                      <div key={c} className={styles.seatWrap}>
-                        {c === AISLE && <span className={styles.aisle} />}
-                        <button
-                          className={`${styles.seat} ${isOcc ? styles.occ : isSel ? styles.sel : styles.free}`}
-                          onClick={() => handleSeat(id, isOcc)}
-                          disabled={isOcc}
-                          title={
-                            isOcc ? `${id} — ocupada`
-                            : isSel ? `${id} — seleccionada`
-                            : `${id} — libre`
-                          }
-                          aria-label={`Butaca ${id}${isOcc ? ' ocupada' : isSel ? ' seleccionada' : ' libre'}`}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <span className={styles.rowLbl}>{letter}</span>
+          {rows.map(([fila, rowSeats]) => (
+            <div key={fila} className={styles.row}>
+              <span className={styles.rowLbl}>{fila}</span>
+              <div className={styles.seats}>
+                {rowSeats.map((seat, c) => {
+                  const isOcc = seat.ocupado;
+                  const isSel = selectedIds.includes(seat.id);
+                  const lbl   = label(seat);
+                  return (
+                    <div key={seat.id} className={styles.seatWrap}>
+                      {c === AISLE && <span className={styles.aisle} />}
+                      <button
+                        className={`${styles.seat} ${isOcc ? styles.occ : isSel ? styles.sel : styles.free}`}
+                        onClick={() => handleSeat(seat)}
+                        disabled={isOcc}
+                        title={isOcc ? `${lbl} — ocupada` : isSel ? `${lbl} — seleccionada` : `${lbl} — libre`}
+                        aria-label={`Butaca ${lbl}${isOcc ? ' ocupada' : isSel ? ' seleccionada' : ' libre'}`}
+                      />
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+              <span className={styles.rowLbl}>{fila}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Selection summary */}
-      {selectedSeats.length > 0 && (
+      {selectedIds.length > 0 && (
         <div className={styles.selSummary}>
           <span className={styles.selLabel}>
-            {selectedSeats.length} butaca{selectedSeats.length !== 1 ? 's' : ''} seleccionada{selectedSeats.length !== 1 ? 's' : ''}:
+            {selectedIds.length} butaca{selectedIds.length !== 1 ? 's' : ''} seleccionada{selectedIds.length !== 1 ? 's' : ''}:
           </span>
           <div className={styles.selBadges}>
-            {selectedSeats.map(s => (
-              <button
-                key={s}
-                className={styles.selBadge}
-                onClick={() => onToggle(selectedSeats.filter(x => x !== s))}
-                title={`Deseleccionar ${s}`}
-              >
-                {s} ×
+            {selectedSeats.map(seat => (
+              <button key={seat.id} className={styles.selBadge}
+                onClick={() => onToggle(selectedIds.filter(id => id !== seat.id))}
+                title={`Deseleccionar ${label(seat)}`}>
+                {label(seat)} ×
               </button>
             ))}
           </div>

@@ -127,19 +127,19 @@ export default function UsersPage() {
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
-            <label className={styles.label}>Email *</label>
-            <input className={styles.input} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+            <label className={styles.label} htmlFor="usr-email">Email *</label>
+            <input id="usr-email" className={styles.input} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label}>Rol</label>
-            <select className={styles.input} value={form.role} onChange={e => set('role', e.target.value)}>
+            <label className={styles.label} htmlFor="usr-role">Rol</label>
+            <select id="usr-role" className={styles.input} value={form.role} onChange={e => set('role', e.target.value)}>
               <option value="ADMIN">Administrador</option>
               <option value="CLIENT">Cliente</option>
             </select>
           </div>
           <div>
-            <label className={styles.label}>Fecha nacimiento</label>
-            <input className={styles.input} type="date" value={form.dateOfBirth || ''} onChange={e => set('dateOfBirth', e.target.value)} />
+            <label className={styles.label} htmlFor="usr-dob">Fecha nacimiento</label>
+            <input id="usr-dob" className={styles.input} type="date" value={form.dateOfBirth || ''} onChange={e => set('dateOfBirth', e.target.value)} />
           </div>
         </div>
       </Modal>

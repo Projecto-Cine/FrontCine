@@ -1,9 +1,38 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Accessibility, X, SunMoon, ALargeSmall, Underline, Volume2, VolumeX,
-  ChevronUp, ChevronDown, RotateCcw,
+  X, SunMoon, ALargeSmall, Underline, Volume2, VolumeX,
+  RotateCcw, Sun, Moon,
 } from 'lucide-react';
 import styles from './AccessibilityWidget.module.css';
+
+/* ── Icono personalizado: símbolo universal de accesibilidad ── */
+function A11yIcon({ size = 22 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      fill="none"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Círculo exterior */}
+      <circle cx="16" cy="16" r="15" fill="currentColor" />
+      {/* Cabeza */}
+      <circle cx="16" cy="7" r="3" fill="var(--bg-0, #120E08)" />
+      {/* Cuerpo (torso) */}
+      <line x1="16" y1="10.5" x2="16" y2="18" stroke="var(--bg-0, #120E08)" strokeWidth="2.4" strokeLinecap="round" />
+      {/* Brazos horizontales */}
+      <line x1="9"  y1="14"   x2="23" y2="14" stroke="var(--bg-0, #120E08)" strokeWidth="2.4" strokeLinecap="round" />
+      {/* Pierna izquierda */}
+      <line x1="16" y1="18"   x2="12" y2="25" stroke="var(--bg-0, #120E08)" strokeWidth="2.4" strokeLinecap="round" />
+      {/* Pierna derecha */}
+      <line x1="16" y1="18"   x2="20" y2="25" stroke="var(--bg-0, #120E08)" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────── */
 
 const STORAGE_KEY = 'lumen_a11y';
 
@@ -12,6 +41,7 @@ const DEFAULTS = {
   fontSize:       'normal',   // 'normal' | 'large' | 'xlarge'
   underlineLinks: false,
   ttsEnabled:     false,
+  theme:          'dark',     // 'dark' | 'light'
 };
 
 function loadPrefs() {
@@ -27,6 +57,7 @@ function applyToHtml(prefs) {
   const html = document.documentElement;
   html.classList.toggle('a11y-high-contrast',   prefs.highContrast);
   html.classList.toggle('a11y-underline-links',  prefs.underlineLinks);
+  html.classList.toggle('a11y-light-mode',       prefs.theme === 'light');
   html.classList.remove('a11y-font-large', 'a11y-font-xlarge');
   if (prefs.fontSize === 'large')  html.classList.add('a11y-font-large');
   if (prefs.fontSize === 'xlarge') html.classList.add('a11y-font-xlarge');
@@ -37,17 +68,15 @@ const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:n
 export default function AccessibilityWidget() {
   const [open, setOpen]   = useState(false);
   const [prefs, setPrefs] = useState(loadPrefs);
-  const panelRef  = useRef(null);
+  const panelRef   = useRef(null);
   const triggerRef = useRef(null);
-  const synthRef  = useRef(null);
+  const synthRef   = useRef(null);
 
-  // Aplicar preferencias al DOM y guardar
   useEffect(() => {
     applyToHtml(prefs);
     savePrefs(prefs);
   }, [prefs]);
 
-  // Focus trap + Escape en el panel
   useEffect(() => {
     if (!open) return;
     const panel = panelRef.current;
@@ -76,12 +105,9 @@ export default function AccessibilityWidget() {
     };
   }, [open]);
 
-  // Limpiar TTS al desmontar
   useEffect(() => () => { window.speechSynthesis?.cancel(); }, []);
 
-  const update = useCallback((key, value) => {
-    setPrefs(prev => ({ ...prev, [key]: value }));
-  }, []);
+  const update = useCallback((key, value) => setPrefs(prev => ({ ...prev, [key]: value })), []);
 
   const reset = useCallback(() => {
     window.speechSynthesis?.cancel();
@@ -105,21 +131,19 @@ export default function AccessibilityWidget() {
     window.speechSynthesis?.speak(utt);
   }, []);
 
-  const stopReading = useCallback(() => {
-    window.speechSynthesis?.cancel();
-  }, []);
+  const stopReading = useCallback(() => { window.speechSynthesis?.cancel(); }, []);
 
   const fontSizeOptions = [
-    { value: 'normal', label: 'Normal',  shortLabel: 'A',  desc: '14px — tamaño base' },
-    { value: 'large',  label: 'Grande',  shortLabel: 'A+', desc: '17px — tamaño aumentado' },
-    { value: 'xlarge', label: 'X-Grande',shortLabel: 'A++',desc: '20px — tamaño máximo' },
+    { value: 'normal', label: 'Normal',   shortLabel: 'A',   desc: '14px — tamaño base' },
+    { value: 'large',  label: 'Grande',   shortLabel: 'A+',  desc: '17px — aumentado' },
+    { value: 'xlarge', label: 'X-Grande', shortLabel: 'A++', desc: '20px — máximo' },
   ];
 
+  const isLight      = prefs.theme === 'light';
   const ttsAvailable = typeof window !== 'undefined' && 'speechSynthesis' in window;
 
   return (
     <div className={styles.widget}>
-      {/* Panel desplegable */}
       {open && (
         <div
           ref={panelRef}
@@ -131,7 +155,7 @@ export default function AccessibilityWidget() {
         >
           <div className={styles.panelHeader}>
             <span className={styles.panelTitle}>
-              <Accessibility size={14} aria-hidden="true" />
+              <A11yIcon size={15} />
               Accesibilidad
             </span>
             <button
@@ -144,7 +168,36 @@ export default function AccessibilityWidget() {
           </div>
 
           <div className={styles.panelBody}>
-            {/* 1 — Alto contraste */}
+
+            {/* ── Modo claro / oscuro ─────────────────── */}
+            <div className={styles.control}>
+              <div className={styles.controlInfo}>
+                {isLight
+                  ? <Moon size={15} aria-hidden="true" className={styles.controlIcon} />
+                  : <Sun  size={15} aria-hidden="true" className={styles.controlIcon} />
+                }
+                <div>
+                  <span className={styles.controlLabel}>
+                    Modo {isLight ? 'oscuro' : 'claro'}
+                  </span>
+                  <span className={styles.controlDesc}>
+                    Actualmente: {isLight ? 'pantalla clara' : 'pantalla oscura'}
+                  </span>
+                </div>
+              </div>
+              <button
+                className={`${styles.toggle} ${isLight ? styles.toggleOn : ''}`}
+                onClick={() => update('theme', isLight ? 'dark' : 'light')}
+                role="switch"
+                aria-checked={isLight}
+                aria-label={`Modo claro: ${isLight ? 'activado' : 'desactivado'}`}
+              >
+                <span className={styles.toggleThumb} aria-hidden="true" />
+                <span className="sr-only">{isLight ? 'Activado' : 'Desactivado'}</span>
+              </button>
+            </div>
+
+            {/* ── Alto contraste ──────────────────────── */}
             <div className={styles.control}>
               <div className={styles.controlInfo}>
                 <SunMoon size={15} aria-hidden="true" className={styles.controlIcon} />
@@ -165,7 +218,7 @@ export default function AccessibilityWidget() {
               </button>
             </div>
 
-            {/* 2 — Tamaño de texto */}
+            {/* ── Tamaño de texto ─────────────────────── */}
             <div className={styles.control}>
               <div className={styles.controlInfo}>
                 <ALargeSmall size={15} aria-hidden="true" className={styles.controlIcon} />
@@ -190,7 +243,7 @@ export default function AccessibilityWidget() {
               </div>
             </div>
 
-            {/* 3 — Subrayar enlaces */}
+            {/* ── Subrayar enlaces ────────────────────── */}
             <div className={styles.control}>
               <div className={styles.controlInfo}>
                 <Underline size={15} aria-hidden="true" className={styles.controlIcon} />
@@ -211,10 +264,13 @@ export default function AccessibilityWidget() {
               </button>
             </div>
 
-            {/* 4 — Lector de texto */}
+            {/* ── Lector de texto ─────────────────────── */}
             <div className={styles.control}>
               <div className={styles.controlInfo}>
-                {prefs.ttsEnabled ? <Volume2 size={15} aria-hidden="true" className={styles.controlIcon} /> : <VolumeX size={15} aria-hidden="true" className={styles.controlIcon} />}
+                {prefs.ttsEnabled
+                  ? <Volume2 size={15} aria-hidden="true" className={styles.controlIcon} />
+                  : <VolumeX size={15} aria-hidden="true" className={styles.controlIcon} />
+                }
                 <div>
                   <span className={styles.controlLabel}>Lector de texto</span>
                   <span className={styles.controlDesc}>
@@ -229,7 +285,6 @@ export default function AccessibilityWidget() {
                   role="switch"
                   aria-checked={prefs.ttsEnabled}
                   aria-label={`Lector de texto: ${prefs.ttsEnabled ? 'activado' : 'desactivado'}`}
-                  disabled={!ttsAvailable}
                 >
                   <span className={styles.toggleThumb} aria-hidden="true" />
                   <span className="sr-only">{prefs.ttsEnabled ? 'Activado' : 'Desactivado'}</span>
@@ -237,7 +292,7 @@ export default function AccessibilityWidget() {
               )}
             </div>
 
-            {/* Acciones de lectura — solo visible si TTS activo */}
+            {/* Acciones TTS */}
             {prefs.ttsEnabled && ttsAvailable && (
               <div className={styles.ttsActions}>
                 <button className={styles.ttsBtn} onClick={readSelection} aria-label="Leer texto seleccionado o contenido principal">
@@ -252,7 +307,11 @@ export default function AccessibilityWidget() {
             )}
 
             {/* Reset */}
-            <button className={styles.resetBtn} onClick={reset} aria-label="Restablecer todas las opciones de accesibilidad a sus valores predeterminados">
+            <button
+              className={styles.resetBtn}
+              onClick={reset}
+              aria-label="Restablecer todas las opciones de accesibilidad a sus valores predeterminados"
+            >
               <RotateCcw size={12} aria-hidden="true" />
               Restablecer todo
             </button>
@@ -260,7 +319,7 @@ export default function AccessibilityWidget() {
         </div>
       )}
 
-      {/* Botón flotante */}
+      {/* ── Botón flotante ──────────────────────────── */}
       <button
         ref={triggerRef}
         className={`${styles.trigger} ${open ? styles.triggerOpen : ''}`}
@@ -269,11 +328,7 @@ export default function AccessibilityWidget() {
         aria-expanded={open}
         aria-haspopup="dialog"
       >
-        <Accessibility size={18} aria-hidden="true" />
-        {open
-          ? <ChevronDown size={12} aria-hidden="true" />
-          : <ChevronUp size={12} aria-hidden="true" />
-        }
+        <A11yIcon size={22} />
       </button>
     </div>
   );

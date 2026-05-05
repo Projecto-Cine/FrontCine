@@ -15,9 +15,9 @@ import styles from './ReservationsPage.module.css';
 
 // Status values from the backend
 const STATUS_MAP = {
-  PENDING:   { label: 'Pendiente',   v: 'yellow'  },
-  CONFIRMED: { label: 'Confirmada',  v: 'green'   },
-  CANCELLED: { label: 'Cancelada',   v: 'default' },
+  PENDING:   { label: 'Pendiente',  v: 'yellow'  },
+  PAID:      { label: 'Pagada',     v: 'green'   },
+  CANCELLED: { label: 'Cancelada',  v: 'default' },
 };
 
 function isPastSession(fechaHora) {
@@ -35,25 +35,22 @@ export default function ReservationsPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const { toast } = useApp();
 
-  // Load sessions and movies on mount for lookups and the screening selector
+  // Carga inicial: todas las reservas + sesiones y películas para los selectores
   useEffect(() => {
+    setLoading(true);
+    reservationsService.getAll()
+      .then(data => setReservations(Array.isArray(data) ? data : []))
+      .catch(() => setReservations([]))
+      .finally(() => setLoading(false));
     sessionsService.getAll().then(setSessions).catch(() => {});
     moviesService.getAll().then(setMovies).catch(() => {});
   }, []);
 
-  // Load purchases for the selected screening
-  useEffect(() => {
-    if (!selectedScreeningId) { setReservations([]); return; }
-    setLoading(true);
-    reservationsService.getByScreening(selectedScreeningId)
-      .then(data => setReservations(Array.isArray(data) ? data : []))
-      .catch(() => { toast('Error al cargar reservas.', 'error'); setReservations([]); })
-      .finally(() => setLoading(false));
-  }, [selectedScreeningId]);
-
-  const filtered = filterStatus === 'all'
-    ? reservations
-    : reservations.filter(r => r.status === filterStatus);
+  const filtered = reservations.filter(r => {
+    const matchesScreening = !selectedScreeningId || String(r.screeningId) === String(selectedScreeningId);
+    const matchesStatus    = filterStatus === 'all' || r.status === filterStatus;
+    return matchesScreening && matchesStatus;
+  });
 
   const handleCancel = async () => {
     const target = cancelTarget;
@@ -69,7 +66,7 @@ export default function ReservationsPage() {
     }
   };
 
-  const paidCount    = reservations.filter(r => r.status === 'CONFIRMED').length;
+  const paidCount    = reservations.filter(r => r.status === 'PAID').length;
   const pendingCount = reservations.filter(r => r.status === 'PENDING').length;
 
   // Helper: find the screening for a purchase (uses screeningId field)
@@ -111,14 +108,13 @@ export default function ReservationsPage() {
         <KPICard label="Canceladas"      value={reservations.filter(r => r.status === 'CANCELLED').length} icon={Euro} color="default" />
       </div>
 
-      {/* Screening selector — no GET /api/purchases general exists; filter by screening */}
       <div className={styles.filterRow} style={{ gap: 12, flexWrap: 'wrap' }}>
         <select
           style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-1)', cursor: 'pointer' }}
           value={selectedScreeningId}
           onChange={e => { setSelectedScreeningId(e.target.value); setFilterStatus('all'); }}
         >
-          <option value="">— Selecciona una sesión —</option>
+          <option value="">— Todas las sesiones —</option>
           {sessions.map(s => {
             const title = s.movie?.titulo ?? getMovie(s)?.titulo ?? `Sesión #${s.id}`;
             const time  = s.fechaHora?.slice(0, 16).replace('T', ' ') ?? '';
@@ -126,27 +122,25 @@ export default function ReservationsPage() {
           })}
         </select>
 
-        {selectedScreeningId && (
-          <div style={{ display: 'flex', gap: 4 }}>
-            {[['all', 'Todas'], ...Object.entries(STATUS_MAP).map(([k, { label }]) => [k, label])].map(([k, label]) => (
-              <button key={k} className={`${styles.filterBtn} ${filterStatus === k ? styles.filterActive : ''}`}
-                onClick={() => setFilterStatus(k)}>{label}
-                <span className={styles.filterCount}>
-                  {k === 'all' ? reservations.length : reservations.filter(r => r.status === k).length}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[['all', 'Todas'], ...Object.entries(STATUS_MAP).map(([k, { label }]) => [k, label])].map(([k, label]) => (
+            <button key={k} className={`${styles.filterBtn} ${filterStatus === k ? styles.filterActive : ''}`}
+              onClick={() => setFilterStatus(k)}>{label}
+              <span className={styles.filterCount}>
+                {k === 'all' ? reservations.length : reservations.filter(r => r.status === k).length}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {!selectedScreeningId && (
+      {reservations.length === 0 && !loading && (
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-3)', fontSize: 13 }}>
-          Selecciona una sesión arriba para ver sus reservas.
+          No hay reservas registradas.
         </div>
       )}
 
-      {selectedScreeningId && (
+      {(reservations.length > 0 || loading) && (
         <DataTable
           columns={columns}
           data={filtered}
@@ -154,8 +148,7 @@ export default function ReservationsPage() {
           onRowClick={setDetail}
           rowKey="id"
           rowActions={(row) => {
-            const screening = getScreening(row);
-            const past      = isPastSession(screening?.fechaHora);
+            const past      = isPastSession(row.fechaHora ?? getScreening(row)?.fechaHora);
             const canCancel = row.status === 'PENDING' && !past;
             return (
               <div style={{ display: 'flex', gap: 2 }}>

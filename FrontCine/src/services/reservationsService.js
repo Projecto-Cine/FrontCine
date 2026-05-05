@@ -2,6 +2,7 @@ import { api } from './api';
 
 // Purchase create body: { userId, screeningId, tickets: [{ seatId, ticketType: "STANDARD"|"STUDENT"|"SENIOR" }] }
 export const reservationsService = {
+  getAll:         ()            => api.get('/purchases'),
   getById:        (id)          => api.get(`/purchases/${id}`),
   getByUser:      (userId)      => api.get(`/purchases/user/${userId}`),
   getByScreening: (screeningId) => api.get(`/purchases/screening/${screeningId}`),

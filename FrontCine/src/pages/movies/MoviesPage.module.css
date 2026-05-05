@@ -53,3 +53,4 @@
 .detailGrid > div { display: flex; flex-direction: column; gap: 3px; padding: 10px; background: var(--bg-3); border-radius: var(--r-sm); }
 .detailLbl { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 .detailGrid > div > span:last-child { font-size: 13px; color: var(--text-1); }
+.imagePreview { display: block; margin-top: 8px; max-height: 120px; max-width: 100%; border-radius: var(--r); border: 1px solid var(--border); object-fit: cover; }

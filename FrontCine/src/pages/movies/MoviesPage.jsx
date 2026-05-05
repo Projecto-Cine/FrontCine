@@ -15,6 +15,31 @@ const RATING_COLOR = { 'PG': 'green', 'PG-13': 'yellow', 'R': 'red' };
 
 const EMPTY_MOVIE = { title: '', duration: '', genre: '', language: 'ES', format: '2D', rating: 'PG-13', status: 'active', director: '', year: new Date().getFullYear() };
 
+// Backend devuelve: titulo, genero, duracionMin, clasificacionEdad, active, language, schedule
+function normalizeBackendMovie(m) {
+  return {
+    ...m,
+    title:    m.titulo            ?? m.title    ?? '',
+    genre:    m.genero            ?? m.genre    ?? '',
+    duration: m.duracionMin       ?? m.duration ?? 0,
+    rating:   m.clasificacionEdad ?? m.rating   ?? '',
+    format:   m.schedule          ?? m.format   ?? '2D',
+    status:   m.active === false  ? 'inactive'  : (m.status ?? 'active'),
+  };
+}
+
+// Mapea los campos del formulario (frontend) al formato que espera el backend
+function toBackendMovie(form) {
+  return {
+    titulo:            form.title,
+    duracionMin:       Number(form.duration),
+    genero:            form.genre,
+    clasificacionEdad: form.rating,
+    language:          form.language,
+    schedule:          form.format,
+  };
+}
+
 export default function MoviesPage() {
   const [movies, setMovies] = useState([]);
   const [modal, setModal] = useState(null);
@@ -24,7 +49,9 @@ export default function MoviesPage() {
   const { toast } = useApp();
 
   useEffect(() => {
-    moviesService.getAll().then(setMovies).catch(() => {});
+    moviesService.getAll()
+      .then(data => setMovies((Array.isArray(data) ? data : []).map(normalizeBackendMovie)))
+      .catch(() => {});
   }, []);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_MOVIE); setModal('form'); };
@@ -36,12 +63,12 @@ export default function MoviesPage() {
     if (editing) {
       setMovies(prev => prev.map(m => m.id === editing.id ? { ...m, ...form } : m));
       toast(`"${form.title}" actualizada.`, 'success');
-      moviesService.update(editing.id, form).catch(() => toast('Error al guardar en el servidor.', 'error'));
+      moviesService.update(editing.id, toBackendMovie(form)).catch(() => toast('Error al guardar en el servidor.', 'error'));
     } else {
       const newMovie = { ...form, id: Date.now(), duration: Number(form.duration) };
       setMovies(prev => [...prev, newMovie]);
       toast(`"${form.title}" añadida.`, 'success');
-      moviesService.create({ ...form, duration: Number(form.duration) }).catch(() => toast('Error al guardar en el servidor.', 'error'));
+      moviesService.create(toBackendMovie(form)).catch(() => toast('Error al guardar en el servidor.', 'error'));
     }
     setModal(null);
   };

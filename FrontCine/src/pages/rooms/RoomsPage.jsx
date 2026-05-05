@@ -14,6 +14,16 @@ import styles from './RoomsPage.module.css';
 const STATUS_MAP = { active: { label: 'Operativa', v: 'green' }, maintenance: { label: 'Mantenimiento', v: 'yellow' }, blocked: { label: 'Bloqueada', v: 'red' } };
 const EMPTY = { name: '', capacity: '', format: '2D', status: 'active', screen: '', audio: '', last_maintenance: '' };
 
+// Backend devuelve: nombre, capacidad, numRows, numColumns, totalSeats
+function normalizeBackendRoom(r) {
+  return {
+    ...r,
+    name:     r.nombre    ?? r.name     ?? '',
+    capacity: r.capacidad ?? r.totalSeats ?? r.capacity ?? 0,
+    status:   r.status    ?? 'active',
+  };
+}
+
 export default function RoomsPage() {
   const [rooms, setRooms] = useState([]);
   const [modal, setModal] = useState(null);
@@ -23,7 +33,9 @@ export default function RoomsPage() {
   const { toast } = useApp();
 
   useEffect(() => {
-    roomsService.getAll().then(setRooms).catch(() => {});
+    roomsService.getAll()
+      .then(data => setRooms((Array.isArray(data) ? data : []).map(normalizeBackendRoom)))
+      .catch(() => {});
   }, []);
 
   const openEdit = (r) => { setEditing(r); setForm({ ...r }); setModal('form'); };
@@ -32,14 +44,18 @@ export default function RoomsPage() {
 
   const handleSave = () => {
     if (!form.name.trim() || !form.capacity) { toast('Nombre y capacidad son obligatorios.', 'error'); return; }
+    const backendPayload = { nombre: form.name, capacidad: Number(form.capacity) };
     if (editing) {
       setRooms(p => p.map(r => r.id === editing.id ? { ...r, ...form, capacity: Number(form.capacity) } : r));
       toast('Sala actualizada.', 'success');
-      roomsService.update(editing.id, { ...form, capacity: Number(form.capacity) }).catch(() => toast('Error al guardar en el servidor.', 'error'));
+      roomsService.update(editing.id, backendPayload).catch(() => toast('Error al guardar en el servidor.', 'error'));
     } else {
-      setRooms(p => [...p, { ...form, id: Date.now(), capacity: Number(form.capacity), seats_available: Number(form.capacity) }]);
-      toast('Sala creada.', 'success');
-      roomsService.create({ ...form, capacity: Number(form.capacity) }).catch(() => toast('Error al guardar en el servidor.', 'error'));
+      roomsService.create(backendPayload)
+        .then(created => {
+          setRooms(p => [...p, normalizeBackendRoom(created)]);
+          toast('Sala creada.', 'success');
+        })
+        .catch(() => toast('Error al guardar en el servidor.', 'error'));
     }
     setModal(null);
   };

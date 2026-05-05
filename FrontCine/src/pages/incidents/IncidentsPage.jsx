@@ -18,6 +18,26 @@ const CATEGORY_COLOR = { Técnico: 'accent', Infraestructura: 'purple', Mobiliar
 
 const EMPTY = { title: '', category: 'Técnico', priority: 'medium', status: 'open', room: '', description: '', assigned_to: '' };
 
+// Backend devuelve: title, description, severity, resolved (bool), createdAt, updatedAt
+function normalizeBackendIncident(i) {
+  return {
+    ...i,
+    priority:   i.severity   ?? i.priority   ?? 'medium',
+    status:     i.resolved === true ? 'resolved' : (i.status ?? 'open'),
+    created_at: i.createdAt  ?? i.created_at ?? '',
+    updated_at: i.updatedAt  ?? i.updated_at ?? '',
+  };
+}
+
+function toBackendIncident(form) {
+  return {
+    title:       form.title,
+    description: form.description || '',
+    severity:    form.priority,
+    resolved:    form.status === 'resolved',
+  };
+}
+
 export default function IncidentsPage() {
   const [incidents, setIncidents] = useState([]);
   const [users, setUsers] = useState([]);
@@ -29,8 +49,16 @@ export default function IncidentsPage() {
   const { toast } = useApp();
 
   useEffect(() => {
-    incidentsService.getAll().then(setIncidents).catch(() => {});
-    usersService.getAll().then(setUsers).catch(() => {});
+    incidentsService.getAll()
+      .then(data => setIncidents((Array.isArray(data) ? data : []).map(normalizeBackendIncident)))
+      .catch(() => {});
+    usersService.getAll()
+      .then(data => setUsers((Array.isArray(data) ? data : []).map(u => ({
+        ...u,
+        name: u.nombre ?? u.name ?? '',
+        role: u.rol === 'ADMIN' ? 'admin' : (u.role ?? 'operator'),
+      }))))
+      .catch(() => {});
   }, []);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setModal('form'); };
@@ -41,25 +69,25 @@ export default function IncidentsPage() {
 
   const handleSave = () => {
     if (!form.title.trim()) { toast('El título es obligatorio.', 'error'); return; }
-    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
     if (editing) {
-      setIncidents(p => p.map(i => i.id === editing.id ? { ...i, ...form, updated_at: now } : i));
+      setIncidents(p => p.map(i => i.id === editing.id ? { ...i, ...form } : i));
       toast('Incidencia actualizada.', 'success');
-      incidentsService.update(editing.id, { ...form, updated_at: now }).catch(() => toast('Error al guardar en el servidor.', 'error'));
+      incidentsService.update(editing.id, toBackendIncident(form)).catch(() => toast('Error al guardar en el servidor.', 'error'));
     } else {
-      const id = `INC-${String(incidents.length + 1).padStart(3, '0')}`;
-      setIncidents(p => [...p, { ...form, id, reported_by: 'operador1', created_at: now, updated_at: now }]);
-      toast('Incidencia registrada.', 'success');
-      incidentsService.create({ ...form, created_at: now, updated_at: now }).catch(() => toast('Error al guardar en el servidor.', 'error'));
+      incidentsService.create(toBackendIncident(form))
+        .then(created => {
+          setIncidents(p => [...p, normalizeBackendIncident(created)]);
+          toast('Incidencia registrada.', 'success');
+        })
+        .catch(() => toast('Error al guardar en el servidor.', 'error'));
     }
     setModal(null);
   };
 
   const resolve = (inc) => {
-    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    setIncidents(p => p.map(i => i.id === inc.id ? { ...i, status: 'resolved', updated_at: now } : i));
-    toast(`Incidencia ${inc.id} resuelta.`, 'success');
-    incidentsService.update(inc.id, { ...inc, status: 'resolved', updated_at: now }).catch(() => {});
+    setIncidents(p => p.map(i => i.id === inc.id ? { ...i, status: 'resolved' } : i));
+    toast(`Incidencia #${inc.id} resuelta.`, 'success');
+    incidentsService.update(inc.id, { resolved: true }).catch(() => {});
   };
 
   const columns = [

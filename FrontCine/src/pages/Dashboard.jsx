@@ -38,23 +38,44 @@ export default function Dashboard() {
 
   useEffect(() => {
     reportsService.salesWeek()
-      .then(data => setSalesWeek(data.map(d => ({ day: d.day, revenue: d.ventas ?? d.revenue ?? 0, tickets: d.entradas ?? d.tickets ?? 0 }))))
+      .then(data => setSalesWeek(data.map(d => ({
+        day:     d.date     ?? d.day,
+        revenue: d.revenue  ?? d.ventas   ?? 0,
+        tickets: d.totalPurchases ?? d.entradas ?? d.tickets ?? 0,
+      }))))
       .catch(() => {});
     reportsService.occupancy()
-      .then(data => setOccupancy(data.map(d => ({ room: d.sala ?? d.room, pct: d.pct }))))
+      .then(data => setOccupancy(data.map(d => ({
+        room: d.theaterName ?? d.sala ?? d.room ?? '—',
+        pct:  d.occupancyPercentage ?? d.pct ?? 0,
+      }))))
       .catch(() => {});
     sessionsService.getAll().then(setSessions).catch(() => {});
-    incidentsService.getAll().then(setIncidents).catch(() => {});
+    incidentsService.getAll()
+      .then(data => setIncidents((Array.isArray(data) ? data : []).map(i => ({
+        ...i,
+        priority: i.severity ?? i.priority ?? 'medium',
+        status:   i.resolved === true ? 'resolved' : (i.status ?? 'open'),
+      }))))
+      .catch(() => {});
     roomsService.getAll().then(setRooms).catch(() => {});
     moviesService.getAll().then(setMovies).catch(() => {});
   }, []);
 
   const today = new Date().toISOString().slice(0, 10);
   const todaySessions = sessions.filter(s => (s.fechaHora?.slice(0, 10) ?? s.date) === today);
-  const openIncidents = incidents.filter(i => i.status === 'open' || i.status === 'in_progress');
-  const todayRevenue = todaySessions.reduce((sum, s) => sum + (s.sold ?? 0) * (s.price ?? 0), 0);
-  const avgOccupancy = Math.round(todaySessions.reduce((sum, s) => sum + ((s.sold ?? 0) / (s.capacity || 1)) * 100, 0) / (todaySessions.length || 1));
-  const operativeRooms = rooms.filter(r => r.status === 'active').length;
+  const openIncidents = incidents.filter(i => i.status !== 'resolved');
+  const todayRevenue = todaySessions.reduce((sum, s) => {
+    const cap   = s.theater?.totalSeats ?? s.theater?.capacidad ?? 0;
+    const avail = s.asientosDisponibles ?? cap;
+    return sum + (cap - avail) * (s.precioBase ?? s.price ?? 0);
+  }, 0);
+  const avgOccupancy = Math.round(todaySessions.reduce((sum, s) => {
+    const cap   = s.theater?.totalSeats ?? s.theater?.capacidad ?? 1;
+    const avail = s.asientosDisponibles ?? cap;
+    return sum + ((cap - avail) / cap) * 100;
+  }, 0) / (todaySessions.length || 1));
+  const operativeRooms = rooms.filter(r => r.status == null || r.status === 'active').length;
 
   return (
     <div className={styles.page}>
@@ -65,7 +86,7 @@ export default function Dashboard() {
 
       <div className={styles.kpiGrid}>
         <KPICard label="Ingresos hoy" value={`€${todayRevenue.toLocaleString('es-ES', { minimumFractionDigits: 0 })}`} icon={Euro} color="green" trend={12} sub="vs. ayer" />
-        <KPICard label="Sesiones activas" value={todaySessions.length} icon={Film} color="accent" sub={`${todaySessions.filter(s => s.status === 'active').length} en marcha`} />
+        <KPICard label="Sesiones activas" value={todaySessions.length} icon={Film} color="accent" sub={`${todaySessions.filter(s => !s.completo).length} con butacas libres`} />
         <KPICard label="Ocupación media" value={`${avgOccupancy}%`} icon={Building2} color="cyan" trend={-3} sub="sesiones de hoy" />
         <KPICard label="Reservas totales" value={reservations.length} icon={Ticket} color="purple" sub="15 última hora" trend={8} />
         <KPICard label="Incidencias abiertas" value={openIncidents.length} icon={AlertTriangle} color={openIncidents.some(i => i.priority === 'critical') ? 'red' : 'yellow'} sub={`${openIncidents.filter(i => i.priority === 'critical').length} crítica(s)`} />
@@ -118,23 +139,26 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {todaySessions.map(s => {
-                const movieId = s.peliculaId ?? s.movieId ?? s.movie_id;
-                const roomId  = s.salaId     ?? s.theaterId ?? s.room_id;
-                const movie   = movies.find(m => m.id === movieId);
-                const room    = rooms.find(r => r.id === roomId);
-                const title   = movie?.titulo ?? movie?.title ?? '—';
-                const rmName  = room?.nombre  ?? room?.name  ?? '—';
-                const time    = s.fechaHora?.slice(11, 16) ?? s.time ?? '';
+                const movie  = s.movie   ?? movies.find(m => m.id === (s.peliculaId ?? s.movieId ?? s.movie_id));
+                const room   = s.theater ?? rooms.find(r => r.id  === (s.salaId     ?? s.theaterId ?? s.room_id));
+                const title  = movie?.titulo ?? movie?.title ?? '—';
+                const rmName = room?.nombre  ?? room?.name   ?? '—';
+                const time   = s.fechaHora?.slice(11, 16) ?? s.time ?? '';
+                const cap    = room?.totalSeats ?? room?.capacidad ?? room?.capacity ?? 0;
+                const avail  = s.asientosDisponibles ?? cap;
+                const sold   = cap - avail;
+                const isFull = s.completo ?? (avail <= 0);
+                const statusKey = isFull ? 'full' : 'active';
                 return (
                   <tr key={s.id}>
                     <td className={styles.tdMovie}>{title}</td>
                     <td>{rmName.split('—')[0].trim()}</td>
                     <td className={styles.mono}>{time}</td>
                     <td>
-                      <span className={styles.sold}>{s.sold}/{s.capacity}</span>
-                      <div className={styles.bar}><div className={styles.barFill} style={{ width: `${((s.sold ?? 0) / (s.capacity || 1)) * 100}%`, background: s.sold >= s.capacity ? 'var(--green)' : 'var(--accent)' }} /></div>
+                      <span className={styles.sold}>{sold}/{cap}</span>
+                      <div className={styles.bar}><div className={styles.barFill} style={{ width: `${cap > 0 ? (sold / cap) * 100 : 0}%`, background: isFull ? 'var(--green)' : 'var(--accent)' }} /></div>
                     </td>
-                    <td><Badge variant={SESSION_STATUS[s.status]} dot>{SESSION_STATUS_LABEL[s.status]}</Badge></td>
+                    <td><Badge variant={SESSION_STATUS[statusKey]} dot>{SESSION_STATUS_LABEL[statusKey]}</Badge></td>
                   </tr>
                 );
               })}
@@ -147,17 +171,20 @@ export default function Dashboard() {
           <div className={styles.tableCard}>
             <h3 className={styles.sectionTitle}>Incidencias abiertas</h3>
             <div className={styles.incList}>
-              {openIncidents.slice(0, 4).map(inc => (
-                <div key={inc.id} className={styles.incItem}>
-                  <div className={styles.incTop}>
-                    <span className={styles.incId}>{inc.id}</span>
-                    <Badge variant={PRIORITY_COLOR[inc.priority]}>{inc.priority}</Badge>
-                    <Badge variant={STATUS_COLOR[inc.status]}>{STATUS_LABEL[inc.status]}</Badge>
+              {openIncidents.slice(0, 4).map(inc => {
+                const prio = inc.priority ?? inc.severity ?? 'medium';
+                return (
+                  <div key={inc.id} className={styles.incItem}>
+                    <div className={styles.incTop}>
+                      <span className={styles.incId}>#{inc.id}</span>
+                      <Badge variant={PRIORITY_COLOR[prio]}>{prio}</Badge>
+                      <Badge variant={STATUS_COLOR[inc.status]}>{STATUS_LABEL[inc.status]}</Badge>
+                    </div>
+                    <p className={styles.incTitle}>{inc.title}</p>
+                    {inc.room && <p className={styles.incRoom}>{inc.room}</p>}
                   </div>
-                  <p className={styles.incTitle}>{inc.title}</p>
-                  <p className={styles.incRoom}>{inc.room}</p>
-                </div>
-              ))}
+                );
+              })}
               {openIncidents.length === 0 && <p className={styles.empty}>Sin incidencias activas</p>}
             </div>
           </div>

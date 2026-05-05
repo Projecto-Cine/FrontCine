@@ -36,6 +36,7 @@ export default function MoviesPage() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_MOVIE);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [bulkDeleteIds, setBulkDeleteIds] = useState(null);
   const { toast } = useApp();
 
   useEffect(() => {
@@ -112,10 +113,9 @@ export default function MoviesPage() {
           </div>
         )}
         bulkActions={(ids, clear) => (
-          <Button variant="danger" size="sm" onClick={() => {
-            setMovies(prev => prev.filter(m => !ids.includes(m.id)));
-            toast(`${ids.length} película(s) eliminadas.`, 'warning'); clear();
-          }}>Eliminar selección ({ids.length})</Button>
+          <Button variant="danger" size="sm" onClick={() => setBulkDeleteIds({ ids, clear })}>
+            Eliminar selección ({ids.length})
+          </Button>
         )}
       />
 
@@ -214,6 +214,19 @@ export default function MoviesPage() {
         title="Eliminar película" danger
         message={`¿Seguro que quieres eliminar "${deleteTarget?.title}"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar" />
+
+      <ConfirmModal
+        open={!!bulkDeleteIds}
+        onClose={() => setBulkDeleteIds(null)}
+        onConfirm={() => {
+          setMovies(prev => prev.filter(m => !bulkDeleteIds.ids.includes(m.id)));
+          toast(`${bulkDeleteIds.ids.length} película(s) eliminadas.`, 'warning');
+          bulkDeleteIds.clear();
+          setBulkDeleteIds(null);
+        }}
+        title="Eliminar selección" danger
+        message={`¿Eliminar ${bulkDeleteIds?.ids.length} película(s)? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar todas" />
     </div>
   );
 }

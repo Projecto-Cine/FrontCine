@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Search, Inbox } from 'lucide-react';
 import styles from './DataTable.module.css';
 
 export default function DataTable({
@@ -95,7 +95,10 @@ export default function DataTable({
           </thead>
           <tbody>
             {pageData.length === 0 ? (
-              <tr><td colSpan={columns.length + (bulkActions ? 1 : 0) + (rowActions ? 1 : 0)} className={styles.empty}>{emptyText}</td></tr>
+              <tr><td colSpan={columns.length + (bulkActions ? 1 : 0) + (rowActions ? 1 : 0)} className={styles.empty}>
+                <Inbox size={28} className={styles.emptyIcon} />
+                {emptyText}
+              </td></tr>
             ) : pageData.map(row => (
               <tr key={row[rowKey]} className={`${styles.tr} ${onRowClick ? styles.clickable : ''} ${selected.has(row[rowKey]) ? styles.selectedRow : ''}`}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}>

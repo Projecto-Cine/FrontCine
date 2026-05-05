@@ -68,8 +68,8 @@ export default function InventoryPage() {
     { key: 'location', label: 'Ubicación', render: v => <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v}</span> },
     { key: 'supplier', label: 'Proveedor', render: v => <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{v}</span> },
     { key: 'price_unit', label: 'P/ud.', width: 80, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>€{Number(v).toFixed(2)}</span> },
-    { key: 'quantity', label: 'Estado', width: 100, sortable: false, render: (v, row) => {
-      const s = stockStatus(v, row.min_stock);
+    { key: 'stock_status', label: 'Estado', width: 100, sortable: false, render: (_, row) => {
+      const s = stockStatus(row.quantity, row.min_stock);
       return <Badge variant={s.v} dot>{s.label}</Badge>;
     }},
   ];

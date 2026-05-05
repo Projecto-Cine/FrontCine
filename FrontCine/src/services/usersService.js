@@ -1,9 +1,10 @@
 import { api } from './api';
 
 export const usersService = {
-  getAll:  ()         => api.get('/users'),
-  getById: (id)       => api.get(`/users/${id}`),
-  create:  (data)     => api.post('/users', data),
-  update:  (id, data) => api.put(`/users/${id}`, data),
-  remove:  (id)       => api.delete(`/users/${id}`),
+  getAll:      ()              => api.get('/users'),
+  getById:     (id)            => api.get(`/users/${id}`),
+  create:      (data)          => api.post('/users', data),
+  update:      (id, data)      => api.put(`/users/${id}`, data),
+  remove:      (id)            => api.delete(`/users/${id}`),
+  uploadImage: (id, file)      => api.upload(`/users/${id}/image`, file),
 };

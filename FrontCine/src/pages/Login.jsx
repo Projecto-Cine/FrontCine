@@ -7,7 +7,7 @@ import logoSrc from '../assets/logoLumen.png';
 import styles from './Login.module.css';
 
 export default function Login() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -17,7 +17,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const ok = await login(username.trim(), password);
+    const ok = await login(email.trim(), password);
     if (ok) navigate('/', { replace: true });
     setLoading(false);
   };
@@ -35,12 +35,12 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.field}>
-            <label className={styles.label}>Usuario</label>
+            <label className={styles.label}>Email</label>
             <input
               className={`${styles.input} ${error ? styles.inputError : ''}`}
-              type="text" autoComplete="username" autoFocus
-              placeholder="nombre.usuario"
-              value={username} onChange={e => { setUsername(e.target.value); setError(''); }}
+              type="email" autoComplete="email" autoFocus
+              placeholder="usuario@lumen.com"
+              value={email} onChange={e => { setEmail(e.target.value); setError(''); }}
             />
           </div>
           <div className={styles.field}>
@@ -68,21 +68,19 @@ export default function Login() {
 
         <div className={styles.hint}>
           <ShieldCheck size={12} />
-          <span>Acceso restringido a personal autorizado. Demo: <strong>admin1</strong> / <strong>lumen2024</strong></span>
+          <span>Acceso restringido a personal autorizado. Demo: <strong>admin@lumen.com</strong> / <strong>lumen2024</strong></span>
         </div>
 
         <div className={styles.demoAccounts}>
           <p className={styles.demoTitle}>Cuentas de demo</p>
           <div className={styles.demoGrid}>
             {[
-              { u: 'admin1', r: 'Administrador' },
-              { u: 'supervisor1', r: 'Supervisor' },
-              { u: 'operador1', r: 'Operador' },
-              { u: 'taquilla1', r: 'Taquilla' },
-            ].map(({ u, r }) => (
-              <button key={u} className={styles.demoBtn} type="button"
-                onClick={() => { setUsername(u); setPassword('lumen2024'); setError(''); }}>
-                <span className={styles.demoUser}>{u}</span>
+              { e: 'admin@lumen.com',   r: 'Administrador' },
+              { e: 'cliente@lumen.com', r: 'Cliente' },
+            ].map(({ e, r }) => (
+              <button key={e} className={styles.demoBtn} type="button"
+                onClick={() => { setEmail(e); setPassword('lumen2024'); setError(''); }}>
+                <span className={styles.demoUser}>{e}</span>
                 <span className={styles.demoRole}>{r}</span>
               </button>
             ))}

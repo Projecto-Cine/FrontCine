@@ -1,9 +1,11 @@
 import { api } from './api';
 
+// Purchase create body: { userId, screeningId, tickets: [{ seatId, ticketType: "ADULT"|"CHILD"|"SENIOR" }] }
 export const reservationsService = {
-  getAll:  ()         => api.get('/reservations'),
-  getById: (id)       => api.get(`/reservations/${id}`),
-  create:  (data)     => api.post('/reservations', data),
-  update:  (id, data) => api.put(`/reservations/${id}`, data),
-  remove:  (id)       => api.delete(`/reservations/${id}`),
+  getById:        (id)          => api.get(`/purchases/${id}`),
+  getByUser:      (userId)      => api.get(`/purchases/user/${userId}`),
+  getByScreening: (screeningId) => api.get(`/purchases/screening/${screeningId}`),
+  create:         (data)        => api.post('/purchases/create', data),
+  confirm:        (id)          => api.post(`/purchases/${id}/confirm`),
+  cancel:         (id)          => api.post(`/purchases/${id}/cancel`),
 };

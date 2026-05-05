@@ -3,21 +3,26 @@ import { authService } from '../services/authService';
 
 const AuthContext = createContext(null);
 
-// Fallback para desarrollo mientras el backend no esté disponible
+// Normaliza la respuesta del backend al formato interno del frontend
+function normalizeUser(apiUser) {
+  return {
+    ...apiUser,
+    name: apiUser.nombre,
+    role: apiUser.rol === 'ADMIN' ? 'admin' : 'cliente',
+  };
+}
+
+// Fallback para desarrollo cuando el backend no está disponible
 const DEV_USERS = [
-  { id: 1,  username: 'admin1',       name: 'Ana Admin',     role: 'admin',       status: 'active' },
-  { id: 2,  username: 'supervisor1',  name: 'Sara Supervisora', role: 'supervisor', status: 'active' },
-  { id: 3,  username: 'operador1',    name: 'Omar Operador', role: 'operator',    status: 'active' },
-  { id: 4,  username: 'taquilla1',    name: 'Tania Taquilla', role: 'ticket',     status: 'active' },
-  { id: 5,  username: 'mantenim1',    name: 'Miguel Mantenimiento', role: 'maintenance', status: 'active' },
-  { id: 6,  username: 'consulta1',    name: 'Carmen Consulta', role: 'readonly',  status: 'active' },
+  { id: 1, nombre: 'Ana Admin',      email: 'admin@lumen.com',    rol: 'ADMIN'   },
+  { id: 2, nombre: 'Carlos Cliente', email: 'cliente@lumen.com',  rol: 'CLIENTE' },
 ];
 const DEV_PASSWORD = 'lumen2024';
 
-function devLogin(username, password) {
-  const found = DEV_USERS.find(u => u.username === username && u.status === 'active');
+function devLogin(email, password) {
+  const found = DEV_USERS.find(u => u.email === email);
   if (!found || password !== DEV_PASSWORD) return null;
-  return found;
+  return normalizeUser(found);
 }
 
 export function AuthProvider({ children }) {
@@ -26,29 +31,25 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('lumen_token');
-    if (token) {
-      authService.me()
-        .then(({ user }) => setUser(user))
-        .catch(() => localStorage.removeItem('lumen_token'))
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
+    const stored = localStorage.getItem('lumen_user');
+    if (stored) {
+      try { setUser(JSON.parse(stored)); } catch { localStorage.removeItem('lumen_user'); }
     }
+    setLoading(false);
   }, []);
 
-
-  const login = useCallback(async (username, password) => {
+  const login = useCallback(async (email, password) => {
     setError('');
     try {
-      const { user, token } = await authService.login({ username, password });
-      localStorage.setItem('lumen_token', token);
-      setUser(user);
+      const apiUser = await authService.login({ email, password });
+      const normalized = normalizeUser(apiUser);
+      localStorage.setItem('lumen_user', JSON.stringify(normalized));
+      setUser(normalized);
       return true;
     } catch {
-      // Backend no disponible — usar credenciales de desarrollo
-      const devUser = devLogin(username, password);
+      const devUser = devLogin(email, password);
       if (devUser) {
+        localStorage.setItem('lumen_user', JSON.stringify(devUser));
         setUser(devUser);
         return true;
       }
@@ -57,24 +58,15 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const logout = useCallback(async () => {
-    authService.logout().catch(() => {});
-    localStorage.removeItem('lumen_token');
+  const logout = useCallback(() => {
+    localStorage.removeItem('lumen_user');
     setUser(null);
   }, []);
 
   const can = useCallback((action) => {
     if (!user) return false;
-    const perms = {
-      admin: true,
-      supervisor: ['read', 'create', 'update', 'approve'],
-      operator: ['read', 'create', 'update'],
-      ticket: ['read', 'create_reservation'],
-      maintenance: ['read', 'create_incident', 'update_incident'],
-      readonly: ['read'],
-    };
-    const p = perms[user.role];
-    return p === true || (Array.isArray(p) && (p.includes('*') || p.includes(action)));
+    if (user.role === 'admin') return true;
+    return ['read', 'create_reservation'].includes(action);
   }, [user]);
 
   return (

@@ -16,18 +16,14 @@ function A11yIcon({ size = 22 }) {
       aria-hidden="true"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* Círculo exterior */}
-      <circle cx="16" cy="16" r="15" fill="currentColor" />
-      {/* Cabeza */}
-      <circle cx="16" cy="7" r="3" fill="var(--bg-0, #120E08)" />
-      {/* Cuerpo (torso) */}
-      <line x1="16" y1="10.5" x2="16" y2="18" stroke="var(--bg-0, #120E08)" strokeWidth="2.4" strokeLinecap="round" />
-      {/* Brazos horizontales */}
-      <line x1="9"  y1="14"   x2="23" y2="14" stroke="var(--bg-0, #120E08)" strokeWidth="2.4" strokeLinecap="round" />
-      {/* Pierna izquierda */}
-      <line x1="16" y1="18"   x2="12" y2="25" stroke="var(--bg-0, #120E08)" strokeWidth="2.4" strokeLinecap="round" />
-      {/* Pierna derecha */}
-      <line x1="16" y1="18"   x2="20" y2="25" stroke="var(--bg-0, #120E08)" strokeWidth="2.4" strokeLinecap="round" />
+      {/* Círculo relleno — hereda color del botón (oscuro sobre dorado) */}
+      <circle cx="16" cy="16" r="15.5" fill="currentColor" />
+      {/* Figura en blanco — contrasta sobre el círculo oscuro */}
+      <circle cx="16" cy="7.5" r="2.8" fill="white" />
+      <line x1="16" y1="10.8" x2="16" y2="18.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="8.5" y1="14.2" x2="23.5" y2="14.2" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="16" y1="18.5" x2="11.5" y2="25.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="16" y1="18.5" x2="20.5" y2="25.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }

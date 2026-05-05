@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, Eye } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
@@ -6,40 +6,65 @@ import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useApp } from '../../contexts/AppContext';
-import { MOVIES } from '../../data/mockData';
+import { moviesService } from '../../services/moviesService';
 import styles from './MoviesPage.module.css';
 
-const STATUS_MAP = { active: { label: 'Activa', v: 'green' }, upcoming: { label: 'Próximamente', v: 'cyan' }, inactive: { label: 'Baja', v: 'default' } };
+const STATUS_MAP = { active: { label: 'Activa', v: 'green' }, inactive: { label: 'Baja', v: 'default' } };
 const FORMAT_COLOR = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
 const RATING_COLOR = { 'PG': 'green', 'PG-13': 'yellow', 'R': 'red' };
 
-const EMPTY_MOVIE = { title: '', duration: '', genre: '', language: 'ES', format: '2D', rating: 'PG-13', status: 'active', director: '', year: new Date().getFullYear() };
+const EMPTY_MOVIE = { title: '', durationMin: '', genre: '', language: 'ES', format: '2D', ageRating: 'PG-13', active: true, director: '', year: new Date().getFullYear(), description: '', imageUrl: '' };
+
+const normalizeMovie = (movie) => ({
+  ...movie,
+  durationMin: movie.durationMin ?? movie.duration ?? '',
+  ageRating: movie.ageRating ?? movie.rating ?? '',
+  imageUrl: movie.imageUrl ?? movie.poster ?? '',
+  active: movie.active ?? movie.status === 'active',
+});
+
+const toPayload = (movie) => ({
+  ...movie,
+  durationMin: Number(movie.durationMin),
+  year: movie.year ? Number(movie.year) : undefined,
+  active: Boolean(movie.active),
+});
 
 export default function MoviesPage() {
-  const [movies, setMovies] = useState(MOVIES);
+  const [movies, setMovies] = useState([]);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_MOVIE);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { toast } = useApp();
 
+  useEffect(() => {
+    moviesService.getAll()
+      .then(data => setMovies((data ?? []).map(normalizeMovie)))
+      .catch(() => toast('No se pudieron cargar las peliculas del backend.', 'error'));
+  }, [toast]);
+
   const openCreate = () => { setEditing(null); setForm(EMPTY_MOVIE); setModal('form'); };
   const openEdit = (movie) => { setEditing(movie); setForm({ ...movie }); setModal('form'); };
   const openDetail = (movie) => { setEditing(movie); setModal('detail'); };
 
-  const handleSave = () => {
-    if (!form.title.trim() || !form.duration) { toast('Título y duración son obligatorios.', 'error'); return; }
+  const handleSave = async () => {
+    if (!form.title.trim() || !form.durationMin) { toast('Titulo y duracion son obligatorios.', 'error'); return; }
+    const payload = toPayload(form);
     if (editing) {
-      setMovies(prev => prev.map(m => m.id === editing.id ? { ...m, ...form } : m));
+      const saved = normalizeMovie(await moviesService.update(editing.id, payload));
+      setMovies(prev => prev.map(m => m.id === editing.id ? saved : m));
       toast(`"${form.title}" actualizada.`, 'success');
     } else {
-      setMovies(prev => [...prev, { ...form, id: Date.now(), duration: Number(form.duration) }]);
-      toast(`"${form.title}" añadida.`, 'success');
+      const saved = normalizeMovie(await moviesService.create(payload));
+      setMovies(prev => [...prev, saved]);
+      toast(`"${form.title}" anadida.`, 'success');
     }
     setModal(null);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    await moviesService.remove(deleteTarget.id);
     setMovies(prev => prev.filter(m => m.id !== deleteTarget.id));
     toast(`"${deleteTarget.title}" eliminada.`, 'warning');
     setDeleteTarget(null);
@@ -48,20 +73,20 @@ export default function MoviesPage() {
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
   const columns = [
-    { key: 'title', label: 'Título', render: (v, row) => <span className={styles.title}>{v}</span> },
+    { key: 'title', label: 'Título', render: (v) => <span className={styles.title}>{v}</span> },
     { key: 'genre', label: 'Género' },
-    { key: 'duration', label: 'Duración', render: v => <span className={styles.mono}>{v} min</span>, width: 90 },
+    { key: 'durationMin', label: 'Duración', render: v => <span className={styles.mono}>{v} min</span>, width: 90 },
     { key: 'language', label: 'Idioma', width: 80, render: v => <Badge variant="default">{v}</Badge> },
     { key: 'format', label: 'Formato', width: 90, render: v => <Badge variant={FORMAT_COLOR[v] || 'default'}>{v}</Badge> },
-    { key: 'rating', label: 'Clasificación', width: 100, render: v => <Badge variant={RATING_COLOR[v] || 'default'}>{v}</Badge> },
-    { key: 'status', label: 'Estado', width: 120, render: v => <Badge variant={STATUS_MAP[v]?.v || 'default'} dot>{STATUS_MAP[v]?.label || v}</Badge> },
+    { key: 'ageRating', label: 'Clasificación', width: 100, render: v => <Badge variant={RATING_COLOR[v] || 'default'}>{v}</Badge> },
+    { key: 'active', label: 'Estado', width: 120, render: v => <Badge variant={v ? STATUS_MAP.active.v : STATUS_MAP.inactive.v} dot>{v ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</Badge> },
   ];
 
   return (
     <div className={styles.page}>
       <PageHeader
         title="Películas"
-        subtitle={`${movies.filter(m => m.status === 'active').length} activas · ${movies.filter(m => m.status === 'upcoming').length} próximamente`}
+        subtitle={`${movies.filter(m => m.active).length} activas · ${movies.filter(m => !m.active).length} inactivas`}
         actions={<Button icon={Plus} onClick={openCreate}>Nueva película</Button>}
       />
 
@@ -69,7 +94,7 @@ export default function MoviesPage() {
         {Object.entries(STATUS_MAP).map(([k, { label, v }]) => (
           <span key={k} className={styles.filterChip}>
             <Badge variant={v}>{label}</Badge>
-            <span className={styles.filterCount}>{movies.filter(m => m.status === k).length}</span>
+            <span className={styles.filterCount}>{movies.filter(m => k === 'active' ? m.active : !m.active).length}</span>
           </span>
         ))}
       </div>
@@ -121,7 +146,7 @@ export default function MoviesPage() {
           </div>
           <div>
             <label className={styles.label}>Duración (min) *</label>
-            <input className={styles.input} type="number" value={form.duration} onChange={e => set('duration', e.target.value)} />
+            <input className={styles.input} type="number" value={form.durationMin} onChange={e => set('durationMin', e.target.value)} />
           </div>
           <div>
             <label className={styles.label}>Idioma</label>
@@ -139,17 +164,24 @@ export default function MoviesPage() {
           </div>
           <div>
             <label className={styles.label}>Clasificación</label>
-            <select className={styles.input} value={form.rating} onChange={e => set('rating', e.target.value)}>
+            <select className={styles.input} value={form.ageRating} onChange={e => set('ageRating', e.target.value)}>
               {['G', 'PG', 'PG-13', 'R', 'NC-17'].map(r => <option key={r}>{r}</option>)}
             </select>
           </div>
           <div>
             <label className={styles.label}>Estado</label>
-            <select className={styles.input} value={form.status} onChange={e => set('status', e.target.value)}>
+            <select className={styles.input} value={form.active ? 'active' : 'inactive'} onChange={e => set('active', e.target.value === 'active')}>
               <option value="active">Activa</option>
-              <option value="upcoming">Próximamente</option>
               <option value="inactive">Baja</option>
             </select>
+          </div>
+          <div>
+            <label className={styles.label}>Imagen URL</label>
+            <input className={styles.input} value={form.imageUrl} onChange={e => set('imageUrl', e.target.value)} />
+          </div>
+          <div className={styles.fieldFull}>
+            <label className={styles.label}>Descripcion</label>
+            <textarea className={styles.input} rows={3} value={form.description} onChange={e => set('description', e.target.value)} />
           </div>
         </div>
       </Modal>
@@ -161,15 +193,16 @@ export default function MoviesPage() {
             <p className={styles.detailDir}>{editing.director} · {editing.year}</p>
             <div className={styles.detailBadges}>
               <Badge variant={FORMAT_COLOR[editing.format] || 'default'}>{editing.format}</Badge>
-              <Badge variant={RATING_COLOR[editing.rating] || 'default'}>{editing.rating}</Badge>
-              <Badge variant={STATUS_MAP[editing.status]?.v} dot>{STATUS_MAP[editing.status]?.label}</Badge>
+              <Badge variant={RATING_COLOR[editing.ageRating] || 'default'}>{editing.ageRating}</Badge>
+              <Badge variant={editing.active ? STATUS_MAP.active.v : STATUS_MAP.inactive.v} dot>{editing.active ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</Badge>
             </div>
             <div className={styles.detailGrid}>
               <div><span className={styles.detailLbl}>Género</span><span>{editing.genre}</span></div>
-              <div><span className={styles.detailLbl}>Duración</span><span>{editing.duration} min</span></div>
+              <div><span className={styles.detailLbl}>Duración</span><span>{editing.durationMin} min</span></div>
               <div><span className={styles.detailLbl}>Idioma</span><span>{editing.language}</span></div>
-              <div><span className={styles.detailLbl}>Estado</span><span>{STATUS_MAP[editing.status]?.label}</span></div>
+              <div><span className={styles.detailLbl}>Estado</span><span>{editing.active ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</span></div>
             </div>
+            {editing.description && <p style={{ marginTop: 12, color: 'var(--text-2)', fontSize: 12 }}>{editing.description}</p>}
           </div>
         )}
       </Modal>

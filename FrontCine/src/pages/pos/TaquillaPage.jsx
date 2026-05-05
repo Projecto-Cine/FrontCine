@@ -1,19 +1,30 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Film, ChevronRight, Minus, Plus,
   CreditCard, Banknote, Smartphone, Printer,
   CheckCircle, X, Ticket, ArrowLeft, Search,
-  LayoutGrid, List
+  LayoutGrid, List, Loader
 } from 'lucide-react';
-import { SESSIONS, MOVIES, ROOMS, TICKET_TYPES } from '../../data/mockData';
-import { useApp } from '../../contexts/AppContext';
-import Badge from '../../components/ui/Badge';
-import SeatMap from '../../components/shared/SeatMap';
-import styles from './TaquillaPage.module.css';
+import { sessionsService } from '../../services/sessionsService';
+import { seatsService }    from '../../services/seatsService';
+import { salesService }    from '../../services/salesService';
+import { useApp }  from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
+import Badge    from '../../components/ui/Badge';
+import SeatMap  from '../../components/shared/SeatMap';
+import styles   from './TaquillaPage.module.css';
 
-const TODAY = '2024-04-30';
-const todaySessions = SESSIONS.filter(s => s.date === TODAY && s.status !== 'cancelled');
+// Tipos de entrada — configuración de precios frontend (no viene del backend)
+const TICKET_TYPES = [
+  { id: 'adulto',     label: 'Adulto',     price: 13.50 },
+  { id: 'reducida',   label: 'Reducida',   price: 9.00  },
+  { id: 'estudiante', label: 'Estudiante', price: 8.00  },
+  { id: 'infantil',   label: 'Infantil',   price: 7.00  },
+  { id: 'imax',       label: 'IMAX',       price: 5.00, extra: true },
+  { id: '4dx',        label: '4DX',        price: 6.50, extra: true },
+  { id: 'vip',        label: 'VIP',        price: 8.00, extra: true },
+];
 
 const FORMAT_BADGE = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', VIP: 'yellow', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
 const OCC_COLOR = (pct) => pct >= 95 ? 'var(--red)' : pct >= 80 ? 'var(--yellow)' : 'var(--green)';
@@ -21,13 +32,8 @@ const OCC_COLOR = (pct) => pct >= 95 ? 'var(--red)' : pct >= 80 ? 'var(--yellow)
 const GENRE_GRADIENT = {
   'Ciencia ficción': 'linear-gradient(145deg, #071828 0%, #0e3252 100%)',
   'Drama':           'linear-gradient(145deg, #150d22 0%, #321860 100%)',
-  'Drama/Historia':  'linear-gradient(145deg, #120d1e 0%, #2e1a55 100%)',
-  'Drama/Thriller':  'linear-gradient(145deg, #12100a 0%, #30260e 100%)',
   'Animación':       'linear-gradient(145deg, #0a1e0c 0%, #173d1a 100%)',
   'Terror':          'linear-gradient(145deg, #1a0606 0%, #3d0d0d 100%)',
-  'Terror/Sci-Fi':   'linear-gradient(145deg, #100a18 0%, #280d30 100%)',
-  'Terror/Drama':    'linear-gradient(145deg, #180606 0%, #350f0f 100%)',
-  'Thriller':        'linear-gradient(145deg, #141008 0%, #32260a 100%)',
   'Acción':          'linear-gradient(145deg, #180c04 0%, #3d1a06 100%)',
   'Fantasía':        'linear-gradient(145deg, #0a0818 0%, #1e1440 100%)',
 };
@@ -43,76 +49,135 @@ function generateTicketId() {
 }
 
 export default function TaquillaPage() {
-  // step: sessions | seats | payment | done
-  const [step, setStep] = useState('sessions');
-  const [selectedSession, setSelectedSession] = useState(null);
-  const [selectedSeats, setSelectedSeats] = useState([]);
-  const [ticketType, setTicketType] = useState('adulto');
-  const [payMethod, setPayMethod] = useState('card');
-  const [cashGiven, setCashGiven] = useState('');
-  const [tickets, setTickets] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState('grid'); // grid | list
   const { toast } = useApp();
+  const { user }  = useAuth();
 
-  const filteredSessions = todaySessions.filter(s => {
+  const [step, setStep]                   = useState('sessions');
+  const [sessions, setSessions]           = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [realSeats, setRealSeats]         = useState(null);
+  const [loadingSeats, setLoadingSeats]   = useState(false);
+  const [selectedSeats, setSelectedSeats] = useState([]);
+  const [ticketType, setTicketType]       = useState('adulto');
+  const [payMethod, setPayMethod]         = useState('card');
+  const [cashGiven, setCashGiven]         = useState('');
+  const [tickets, setTickets]             = useState([]);
+  const [paying, setPaying]               = useState(false);
+  const [searchQuery, setSearchQuery]     = useState('');
+  const [viewMode, setViewMode]           = useState('grid');
+
+  // Cargar sesiones de hoy al montar
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    sessionsService.getAll({ date: today })
+      .then(data => setSessions(Array.isArray(data) ? data.filter(s => s.status !== 'CANCELLED') : []))
+      .catch(() => toast('Error al cargar sesiones.', 'error'))
+      .finally(() => setLoadingSessions(false));
+  }, []);
+
+  const filteredSessions = sessions.filter(s => {
     if (!searchQuery) return true;
-    const movie = MOVIES.find(m => m.id === s.movie_id);
-    return movie?.title.toLowerCase().includes(searchQuery.toLowerCase());
+    return s.movie?.title?.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  const selectSession = (session) => {
+  const selectSession = async (session) => {
     setSelectedSession(session);
     setSelectedSeats([]);
+    setRealSeats(null);
     setStep('seats');
+    setLoadingSeats(true);
+    try {
+      const seats = await seatsService.getByScreening(session.id);
+      setRealSeats(Array.isArray(seats) ? seats : null);
+    } catch {
+      setRealSeats(null); // fallback to generated map
+    } finally {
+      setLoadingSeats(false);
+    }
   };
 
-  const movie = selectedSession ? MOVIES.find(m => m.id === selectedSession.movie_id) : null;
-  const room  = selectedSession ? ROOMS.find(r => r.id === selectedSession.room_id) : null;
+  const movie   = selectedSession?.movie ?? null;
+  const theater = selectedSession?.theater ?? null;
 
-  const baseType  = TICKET_TYPES.find(t => t.id === ticketType) || TICKET_TYPES[0];
-  const basePrice = baseType.price;
+  // Adapta el screening al formato que espera SeatMap (legacy)
+  const seatMapSession = selectedSession ? {
+    id:   selectedSession.id,
+    sold: realSeats
+      ? realSeats.filter(s => s.status === 'occupied' || s.status === 'reserved').length
+      : 0,
+  } : null;
+  const seatMapRoom = theater ? {
+    capacity: theater.capacity ?? 100,
+    format:   movie?.format ?? '',
+    name:     theater.name ?? '',
+  } : null;
 
-  // Extras aplicables a este formato de sala
-  const extra = TICKET_TYPES.filter(t => t.extra).find(t => {
-    if (!room) return false;
-    if (t.id === 'imax')  return room.format.includes('IMAX');
-    if (t.id === '4dx')   return room.format.includes('4DX');
-    if (t.id === 'vip')   return room.name.toLowerCase().includes('vip');
+  const baseType       = TICKET_TYPES.find(t => t.id === ticketType) || TICKET_TYPES[0];
+  const basePrice      = baseType.price;
+  const extra          = TICKET_TYPES.filter(t => t.extra).find(t => {
+    if (!theater) return false;
+    const fmt = (movie?.format ?? theater?.name ?? '').toUpperCase();
+    if (t.id === 'imax') return fmt.includes('IMAX');
+    if (t.id === '4dx')  return fmt.includes('4DX');
+    if (t.id === 'vip')  return (theater?.name ?? '').toLowerCase().includes('vip');
     return false;
   });
-  const totalPerTicket = basePrice + (extra?.price || 0);
-  const total = totalPerTicket * selectedSeats.length;
+  const totalPerTicket = basePrice + (extra?.price ?? 0);
+  const total          = totalPerTicket * selectedSeats.length;
+  const change         = cashGiven && payMethod === 'cash' ? (parseFloat(cashGiven) - total).toFixed(2) : null;
 
-  const handlePay = () => {
+  const handlePay = useCallback(async () => {
     if (!selectedSeats.length) { toast('Selecciona al menos una butaca.', 'error'); return; }
-    const generated = selectedSeats.map((seat, i) => ({
-      id: generateTicketId(),
-      movie: movie?.title,
-      room: room?.name,
-      date: selectedSession.date,
-      time: selectedSession.time,
-      format: movie?.format,
-      language: movie?.language,
-      seat,
-      sessionId: selectedSession.id,
-      idx: i + 1,
-    }));
-    setTickets(generated);
-    setStep('done');
-  };
+    setPaying(true);
+    try {
+      const res = await salesService.createTicketSale({
+        session_id:     selectedSession.id,
+        seats:          selectedSeats,
+        ticket_type:    ticketType,
+        format_extra:   extra?.id ?? null,
+        unit_price:     basePrice,
+        surcharge:      extra?.price ?? 0,
+        total,
+        payment_method: payMethod.toUpperCase(),
+        cashier_id:     user?.id ?? null,
+      });
+
+      const time = selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
+      const date = selectedSession.dateTime?.split('T')[0] ?? '';
+
+      const generated = selectedSeats.map((seat, i) => ({
+        id:        res?.qr_codes?.[i] ? res.qr_codes[i].split(':')[1] : generateTicketId(),
+        movie:     movie?.title,
+        room:      theater?.name,
+        date,
+        time,
+        format:    movie?.format,
+        language:  movie?.language,
+        seat,
+        sessionId: selectedSession.id,
+        idx:       i + 1,
+        qrValue:   res?.qr_codes?.[i] ?? `LUMEN:${generateTicketId()}:${seat}:SES${selectedSession.id}:${date}:${time}`,
+      }));
+      setTickets(generated);
+      setStep('done');
+    } catch {
+      toast('Error al procesar el cobro. Inténtalo de nuevo.', 'error');
+    } finally {
+      setPaying(false);
+    }
+  }, [selectedSeats, selectedSession, ticketType, extra, basePrice, total, payMethod, user, movie, theater, toast]);
 
   const reset = () => {
     setStep('sessions');
     setSelectedSession(null);
+    setRealSeats(null);
     setSelectedSeats([]);
     setPayMethod('card');
     setCashGiven('');
     setTickets([]);
     setSearchQuery('');
   };
-
-  const change = cashGiven && payMethod === 'cash' ? (parseFloat(cashGiven) - total).toFixed(2) : null;
 
   if (step === 'done') {
     return <TicketSuccess tickets={tickets} total={total} payMethod={payMethod} onReset={reset} />;
@@ -141,75 +206,78 @@ export default function TaquillaPage() {
               </div>
             </div>
 
-            <div className={`${styles.sessionGrid} ${viewMode === 'list' ? styles.sessionList : ''}`}>
-              {filteredSessions.map(s => {
-                const mv = MOVIES.find(m => m.id === s.movie_id);
-                const rm = ROOMS.find(r => r.id === s.room_id);
-                const occPct = Math.round((s.sold / s.capacity) * 100);
-                const avail = s.capacity - s.sold;
-                return (
-                  <button
-                    key={s.id}
-                    className={`${styles.sessionCard} ${s.status === 'full' ? styles.sessionFull : ''} ${viewMode === 'list' ? styles.sessionCardList : ''}`}
-                    onClick={() => s.status !== 'full' && selectSession(s)}
-                    disabled={s.status === 'full'}
-                  >
-                    {viewMode === 'grid' ? (
-                      <>
-                        <div className={styles.sessionPoster} style={{ background: GENRE_GRADIENT[mv?.genre] || DEFAULT_GRADIENT }}>
-                          <span className={styles.sessionPosterInitials}>{getInitials(mv?.title)}</span>
-                          <div className={styles.sessionPosterBadges}>
-                            <Badge variant={FORMAT_BADGE[mv?.format] || 'default'}>{mv?.format}</Badge>
-                            <Badge variant="default">{mv?.language}</Badge>
-                          </div>
-                          {s.status === 'full' && <div className={styles.posterFullOverlay}>LLENA</div>}
-                        </div>
-                        <div className={styles.sessionCardBody}>
-                          <div className={styles.sessionTime}>{s.time}</div>
-                          <div className={styles.sessionMovie}>{mv?.title}</div>
-                          <div className={styles.sessionRoom}>{rm?.name.split('—')[0].trim()}</div>
-                          <div className={styles.sessionOcc}>
-                            <div className={styles.occBar}>
-                              <div className={styles.occFill} style={{ width: `${occPct}%`, background: OCC_COLOR(occPct) }} />
+            {loadingSessions ? (
+              <div className={styles.emptyMsg}><Loader size={16} /> Cargando sesiones...</div>
+            ) : (
+              <div className={`${styles.sessionGrid} ${viewMode === 'list' ? styles.sessionList : ''}`}>
+                {filteredSessions.map(s => {
+                  const mv      = s.movie   ?? {};
+                  const rm      = s.theater ?? {};
+                  const isFull  = s.status === 'FULL';
+                  const soldCnt = s.soldCount ?? s.sold ?? 0;
+                  const cap     = rm.capacity ?? 1;
+                  const occPct  = Math.round((soldCnt / cap) * 100);
+                  const avail   = cap - soldCnt;
+                  const time    = s.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
+
+                  return (
+                    <button
+                      key={s.id}
+                      className={`${styles.sessionCard} ${isFull ? styles.sessionFull : ''} ${viewMode === 'list' ? styles.sessionCardList : ''}`}
+                      onClick={() => !isFull && selectSession(s)}
+                      disabled={isFull}
+                    >
+                      {viewMode === 'grid' ? (
+                        <>
+                          <div className={styles.sessionPoster} style={{ background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
+                            <span className={styles.sessionPosterInitials}>{getInitials(mv.title)}</span>
+                            <div className={styles.sessionPosterBadges}>
+                              <Badge variant={FORMAT_BADGE[mv.format] || 'default'}>{mv.format}</Badge>
+                              <Badge variant="default">{mv.language}</Badge>
                             </div>
-                            <span className={styles.occText} style={{ color: OCC_COLOR(occPct) }}>
-                              {s.status === 'full' ? 'LLENA' : `${avail} libres`}
-                            </span>
+                            {isFull && <div className={styles.posterFullOverlay}>LLENA</div>}
                           </div>
-                          <div className={styles.sessionPrice}>Desde €{s.price.toFixed(2)}</div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className={styles.sessionListThumb} style={{ background: GENRE_GRADIENT[mv?.genre] || DEFAULT_GRADIENT }}>
-                          <span className={styles.sessionListInitials}>{getInitials(mv?.title)}</span>
-                        </div>
-                        <div className={styles.sessionCardTop}>
-                          <div className={styles.sessionTime}>{s.time}</div>
-                          <div style={{ display: 'flex', gap: 4 }}>
-                            <Badge variant={FORMAT_BADGE[mv?.format] || 'default'}>{mv?.format}</Badge>
-                            <Badge variant="default">{mv?.language}</Badge>
+                          <div className={styles.sessionCardBody}>
+                            <div className={styles.sessionTime}>{time}</div>
+                            <div className={styles.sessionMovie}>{mv.title}</div>
+                            <div className={styles.sessionRoom}>{rm.name?.split('—')[0]?.trim()}</div>
+                            {soldCnt > 0 && (
+                              <div className={styles.sessionOcc}>
+                                <div className={styles.occBar}>
+                                  <div className={styles.occFill} style={{ width: `${occPct}%`, background: OCC_COLOR(occPct) }} />
+                                </div>
+                                <span className={styles.occText} style={{ color: OCC_COLOR(occPct) }}>
+                                  {isFull ? 'LLENA' : `${avail} libres`}
+                                </span>
+                              </div>
+                            )}
+                            <div className={styles.sessionPrice}>Desde €{(s.price ?? 0).toFixed(2)}</div>
                           </div>
-                        </div>
-                        <div className={styles.sessionMovie}>{mv?.title}</div>
-                        <div className={styles.sessionRoom}>{rm?.name.split('—')[0].trim()}</div>
-                        <div className={styles.sessionOcc}>
-                          <div className={styles.occBar}>
-                            <div className={styles.occFill} style={{ width: `${occPct}%`, background: OCC_COLOR(occPct) }} />
+                        </>
+                      ) : (
+                        <>
+                          <div className={styles.sessionListThumb} style={{ background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
+                            <span className={styles.sessionListInitials}>{getInitials(mv.title)}</span>
                           </div>
-                          <span className={styles.occText} style={{ color: OCC_COLOR(occPct) }}>
-                            {s.status === 'full' ? 'LLENA' : `${avail} libres`}
-                          </span>
-                        </div>
-                        <div className={styles.sessionPrice}>Desde €{s.price.toFixed(2)}</div>
-                        {s.status !== 'full' && <ChevronRight size={14} className={styles.sessionArrow} />}
-                      </>
-                    )}
-                  </button>
-                );
-              })}
-              {filteredSessions.length === 0 && <div className={styles.emptyMsg}>No hay sesiones disponibles</div>}
-            </div>
+                          <div className={styles.sessionCardTop}>
+                            <div className={styles.sessionTime}>{time}</div>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <Badge variant={FORMAT_BADGE[mv.format] || 'default'}>{mv.format}</Badge>
+                              <Badge variant="default">{mv.language}</Badge>
+                            </div>
+                          </div>
+                          <div className={styles.sessionMovie}>{mv.title}</div>
+                          <div className={styles.sessionRoom}>{rm.name?.split('—')[0]?.trim()}</div>
+                          <div className={styles.sessionPrice}>Desde €{(s.price ?? 0).toFixed(2)}</div>
+                          {!isFull && <ChevronRight size={14} className={styles.sessionArrow} />}
+                        </>
+                      )}
+                    </button>
+                  );
+                })}
+                {filteredSessions.length === 0 && <div className={styles.emptyMsg}>No hay sesiones disponibles</div>}
+              </div>
+            )}
           </>
         )}
 
@@ -221,13 +289,12 @@ export default function TaquillaPage() {
                 <ArrowLeft size={13} /> Cambiar sesión
               </button>
               <div className={styles.sessionPill}>
-                <span className={styles.sessionPillTime}>{selectedSession.time}</span>
+                <span className={styles.sessionPillTime}>{selectedSession.dateTime?.split('T')[1]?.substring(0, 5)}</span>
                 <span className={styles.sessionPillMovie}>{movie?.title}</span>
                 <Badge variant={FORMAT_BADGE[movie?.format] || 'default'}>{movie?.format}</Badge>
               </div>
             </div>
 
-            {/* Tipo de entrada */}
             <div className={styles.typeSelector}>
               <span className={styles.typeSelectorLabel}>Tipo de entrada</span>
               <div className={styles.typeButtons}>
@@ -240,20 +307,24 @@ export default function TaquillaPage() {
                   </button>
                 ))}
               </div>
-              {extra && (
-                <p className={styles.extraNote}>+ suplemento {extra.label}: €{extra.price.toFixed(2)} / entrada</p>
-              )}
+              {extra && <p className={styles.extraNote}>+ suplemento {extra.label}: €{extra.price.toFixed(2)} / entrada</p>}
             </div>
 
-            {/* Mapa de asientos */}
             <div className={styles.seatMapWrap}>
-              <SeatMap
-                session={selectedSession}
-                room={room}
-                selectedSeats={selectedSeats}
-                onToggle={setSelectedSeats}
-                maxSelect={20}
-              />
+              {loadingSeats ? (
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)' }}>
+                  <Loader size={20} /> Cargando mapa de asientos...
+                </div>
+              ) : (
+                <SeatMap
+                  session={seatMapSession}
+                  room={seatMapRoom}
+                  seats={realSeats}
+                  selectedSeats={selectedSeats}
+                  onToggle={setSelectedSeats}
+                  maxSelect={20}
+                />
+              )}
             </div>
 
             {selectedSeats.length > 0 && (
@@ -278,14 +349,13 @@ export default function TaquillaPage() {
               <p className={styles.paySectionLabel}>Método de pago</p>
               <div className={styles.payMethods}>
                 {[
-                  { id: 'card',   label: 'Tarjeta',    Icon: CreditCard },
-                  { id: 'cash',   label: 'Efectivo',   Icon: Banknote },
-                  { id: 'online', label: 'Online/QR',  Icon: Smartphone },
+                  { id: 'card',   label: 'Tarjeta',   Icon: CreditCard },
+                  { id: 'cash',   label: 'Efectivo',  Icon: Banknote   },
+                  { id: 'online', label: 'Online/QR', Icon: Smartphone },
                 ].map(({ id, label, Icon }) => (
                   <button key={id} className={`${styles.payMethod} ${payMethod === id ? styles.payActive : ''}`}
                     onClick={() => setPayMethod(id)}>
-                    <Icon size={22} />
-                    <span>{label}</span>
+                    <Icon size={22} /><span>{label}</span>
                   </button>
                 ))}
               </div>
@@ -334,8 +404,8 @@ export default function TaquillaPage() {
             <Film size={12} />
             <div>
               <div className={styles.cartSessionTitle}>{movie?.title}</div>
-              <div className={styles.cartSessionMeta}>{selectedSession.time} · {room?.name.split('—')[0].trim()}</div>
-              <div className={styles.cartSessionMeta}>{selectedSession.date}</div>
+              <div className={styles.cartSessionMeta}>{selectedSession.dateTime?.split('T')[1]?.substring(0, 5)} · {theater?.name?.split('—')[0]?.trim()}</div>
+              <div className={styles.cartSessionMeta}>{selectedSession.dateTime?.split('T')[0]}</div>
             </div>
           </div>
         )}
@@ -383,10 +453,10 @@ export default function TaquillaPage() {
 
           {step === 'payment' ? (
             <button className={styles.cobrarBtn}
-              disabled={!selectedSeats.length || (payMethod === 'cash' && (!cashGiven || parseFloat(cashGiven) < total))}
+              disabled={paying || !selectedSeats.length || (payMethod === 'cash' && (!cashGiven || parseFloat(cashGiven) < total))}
               onClick={handlePay}>
-              <CheckCircle size={17} />
-              Confirmar cobro
+              {paying ? <Loader size={17} /> : <CheckCircle size={17} />}
+              {paying ? 'Procesando...' : 'Confirmar cobro'}
             </button>
           ) : (
             <button className={styles.cobrarBtn}
@@ -405,7 +475,7 @@ export default function TaquillaPage() {
 /* ── Ticket success screen ───────────────────────── */
 function TicketSuccess({ tickets, total, payMethod, onReset }) {
   const [current, setCurrent] = useState(0);
-  const ticket = tickets[current];
+  const ticket    = tickets[current];
   const PAY_LABEL = { card: 'Tarjeta', cash: 'Efectivo', online: 'Online/QR' };
 
   return (
@@ -454,13 +524,7 @@ function TicketSuccess({ tickets, total, payMethod, onReset }) {
         </div>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketQRWrap}>
-          <QRCodeSVG
-            value={`LUMEN:${ticket.id}:${ticket.seat}:SES${ticket.sessionId}:${ticket.date}:${ticket.time}`}
-            size={110}
-            bgColor="transparent"
-            fgColor="var(--text-1)"
-            level="M"
-          />
+          <QRCodeSVG value={ticket.qrValue} size={110} bgColor="transparent" fgColor="var(--text-1)" level="M" />
           <div className={styles.ticketQRInfo}>
             <span className={styles.ticketQRLabel}>Escanear en entrada</span>
             <span className={styles.ticketId}>{ticket.id}</span>

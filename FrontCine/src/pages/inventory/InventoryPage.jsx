@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, AlertTriangle, Package } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
@@ -7,19 +7,27 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import KPICard from '../../components/shared/KPICard';
 import { useApp } from '../../contexts/AppContext';
-import { INVENTORY } from '../../data/mockData';
+import { inventoryService } from '../../services/inventoryService';
 import styles from './InventoryPage.module.css';
 
 const CAT_COLOR = { Técnico: 'accent', Concesión: 'yellow', Oficina: 'default', Limpieza: 'green', Comercial: 'purple' };
 const EMPTY = { name: '', category: 'Técnico', quantity: '', min_stock: '', unit: 'ud', location: '', supplier: '', price_unit: '' };
 
 export default function InventoryPage() {
-  const [items, setItems] = useState(INVENTORY);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [filterCat, setFilterCat] = useState('all');
   const { toast } = useApp();
+
+  useEffect(() => {
+    inventoryService.getAll()
+      .then(data => setItems(Array.isArray(data) ? data : []))
+      .catch(() => toast('Error al cargar inventario.', 'error'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setModal('form'); };
   const openEdit = (item) => { setEditing(item); setForm({ ...item }); setModal('form'); };
@@ -29,14 +37,21 @@ export default function InventoryPage() {
   const categories = [...new Set(items.map(i => i.category))];
   const filtered = filterCat === 'all' ? items : items.filter(i => i.category === filterCat);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) { toast('El nombre es obligatorio.', 'error'); return; }
-    if (editing) {
-      setItems(p => p.map(i => i.id === editing.id ? { ...i, ...form, quantity: Number(form.quantity), min_stock: Number(form.min_stock), price_unit: Number(form.price_unit) } : i));
-      toast('Artículo actualizado.', 'success');
-    } else {
-      setItems(p => [...p, { ...form, id: Date.now(), quantity: Number(form.quantity), min_stock: Number(form.min_stock), price_unit: Number(form.price_unit), last_order: '' }]);
-      toast('Artículo añadido.', 'success');
+    const payload = { ...form, quantity: Number(form.quantity), min_stock: Number(form.min_stock), price_unit: Number(form.price_unit) };
+    try {
+      if (editing) {
+        const updated = await inventoryService.update(editing.id, payload);
+        setItems(p => p.map(i => i.id === editing.id ? (updated ?? { ...i, ...payload }) : i));
+        toast('Artículo actualizado.', 'success');
+      } else {
+        const created = await inventoryService.create(payload);
+        setItems(p => [...p, created]);
+        toast('Artículo añadido.', 'success');
+      }
+    } catch {
+      toast('Error al guardar el artículo.', 'error');
     }
     setModal(null);
   };
@@ -67,6 +82,8 @@ export default function InventoryPage() {
       return <Badge variant={s.v} dot>{s.label}</Badge>;
     }},
   ];
+
+  if (loading) return <div style={{ padding: 40, color: 'var(--text-3)', fontSize: 13 }}>Cargando inventario...</div>;
 
   return (
     <div className={styles.page}>

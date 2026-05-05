@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Users, RefreshCw, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
-import { USERS } from '../../data/mockData';
+import { usersService } from '../../services/usersService';
 import { useApp } from '../../contexts/AppContext';
 import styles from './CuadrantePage.module.css';
 
@@ -224,11 +224,20 @@ export default function CuadrantePage() {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
-  // scheduleMap guarda los cuadrantes ya generados/editados, clave = weekKey
+  const [allUsers, setAllUsers] = useState([]);
   const [scheduleMap, setScheduleMap] = useState({});
-  const [editCell, setEditCell] = useState(null); // { empId, dayIdx }
+  const [editCell, setEditCell] = useState(null);
 
-  const activeEmployees = useMemo(() => USERS.filter(u => u.status === 'active'), []);
+  useEffect(() => {
+    usersService.getAll().then(data => {
+      setAllUsers(Array.isArray(data) ? data : []);
+    }).catch(() => {});
+  }, []);
+
+  const activeEmployees = useMemo(
+    () => allUsers.filter(u => u.status === 'active'),
+    [allUsers]
+  );
 
   // Cuadrante de la semana actual (auto-generado si no existe)
   const currentKey = weekKey(weekStart);

@@ -1,9 +1,11 @@
 import { api } from './api';
 
 export const roomsService = {
-  getAll:  ()         => api.get('/rooms'),
-  getById: (id)       => api.get(`/rooms/${id}`),
-  create:  (data)     => api.post('/rooms', data),
-  update:  (id, data) => api.put(`/rooms/${id}`, data),
-  remove:  (id)       => api.delete(`/rooms/${id}`),
+  getAll:  ()         => api.get('/theaters'),
+  getById: (id)       => api.get(`/theaters/${id}`),
+  create:  (data)     => api.post('/theaters', data),
+  update:  (id, data) => api.put(`/theaters/${id}`, data),
+  remove:  (id)       => api.delete(`/theaters/${id}`),
 };
+
+export const theatersService = roomsService;

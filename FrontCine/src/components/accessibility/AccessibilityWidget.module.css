@@ -1,0 +1,262 @@
+.widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* ── Botón flotante — icono circular ────── */
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  background: var(--accent);
+  color: var(--bg-0);
+  border-radius: 50%;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.55);
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+  border: 2px solid transparent;
+}
+
+.trigger:hover {
+  background: var(--accent-h);
+  transform: translateY(-3px) scale(1.06);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.65);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--accent-h);
+  outline-offset: 3px;
+  box-shadow: var(--focus-ring);
+}
+
+.triggerOpen {
+  background: var(--accent-h);
+  border-color: rgba(0,0,0,0.25);
+  transform: translateY(-1px);
+}
+
+/* ── Panel ──────────────────────────────── */
+.panel {
+  width: 300px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-l);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: slideUp 0.18s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.panelTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-sm);
+  color: var(--text-2);
+  transition: color 0.1s, background 0.1s;
+}
+
+.closeBtn:hover  { color: var(--text-1); background: var(--bg-4); }
+.closeBtn:focus-visible { outline: var(--focus-outline); outline-offset: 2px; }
+
+/* ── Cuerpo del panel ───────────────────── */
+.panelBody {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Control individual ─────────────────── */
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-3);
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+}
+
+.controlInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.controlIcon { color: var(--accent); flex-shrink: 0; }
+
+.controlLabel {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.controlDesc {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-2);
+  margin-top: 1px;
+}
+
+/* ── Toggle switch ──────────────────────── */
+.toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 99px;
+  background: var(--bg-4);
+  border: 1.5px solid var(--border-l);
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.toggleOn {
+  background: var(--accent);
+  border-color: var(--accent-h);
+}
+
+.toggleThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-2);
+  transition: transform 0.2s, background 0.2s;
+}
+
+.toggleOn .toggleThumb {
+  transform: translateX(18px);
+  background: var(--bg-0);
+}
+
+.toggle:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
+}
+
+/* ── Botones tamaño de fuente ───────────── */
+.fontBtns {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.fontBtn {
+  width: 30px;
+  height: 26px;
+  border-radius: var(--r-sm);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-2);
+  background: var(--bg-4);
+  border: 1.5px solid var(--border-l);
+  transition: color 0.1s, background 0.1s, border-color 0.1s;
+}
+
+.fontBtn:hover { color: var(--text-1); background: var(--bg-3); }
+
+.fontBtnActive {
+  color: var(--bg-0);
+  background: var(--accent);
+  border-color: var(--accent-h);
+}
+
+.fontBtn:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+/* ── Acciones TTS ───────────────────────── */
+.ttsActions {
+  display: flex;
+  gap: 6px;
+  padding: 0 2px;
+}
+
+.ttsBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  justify-content: center;
+  padding: 7px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-1);
+  background: var(--bg-3);
+  border: 1px solid var(--border-l);
+  border-radius: var(--r);
+  transition: background 0.1s, color 0.1s;
+}
+
+.ttsBtn:hover { background: var(--accent-dim2); color: var(--accent-h); }
+.ttsBtn:focus-visible { outline: var(--focus-outline); outline-offset: 2px; }
+
+/* ── Reset ──────────────────────────────── */
+.resetBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--text-3);
+  border: 1px dashed var(--border-l);
+  border-radius: var(--r);
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+}
+
+.resetBtn:hover {
+  color: var(--red);
+  border-color: var(--red);
+  background: var(--red-dim);
+}
+
+.resetBtn:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}

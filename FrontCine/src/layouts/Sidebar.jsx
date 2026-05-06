@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Film, Building2, CalendarDays, Ticket,
-  AlertTriangle, Package, BarChart2, Users, ShieldCheck,
+  AlertTriangle, Package, Users, ShieldCheck,
   ChevronDown, ChevronRight, LogOut, ShoppingCart, TicketCheck, ClipboardList
 } from 'lucide-react';
 import { useState } from 'react';
@@ -33,7 +33,6 @@ const NAV = [
     items: [
       { label: 'Incidencias', icon: AlertTriangle, to: '/incidencias' },
       { label: 'Inventario',  icon: Package,       to: '/inventario' },
-      { label: 'Informes',    icon: BarChart2,      to: '/informes' },
       { label: 'Cuadrante',   icon: ClipboardList,  to: '/cuadrante' },
     ],
   },

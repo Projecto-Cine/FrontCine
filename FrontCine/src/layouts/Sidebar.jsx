@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Film, Building2, CalendarDays, Ticket,
-  AlertTriangle, Package, BarChart2, Users, ShieldCheck,
+  AlertTriangle, Package, Users, UserSearch,
   ChevronDown, ChevronRight, LogOut, ShoppingCart, TicketCheck, ClipboardList
 } from 'lucide-react';
 import { useState } from 'react';
@@ -15,33 +15,32 @@ const NAV = [
   {
     section: 'PUNTO DE VENTA',
     items: [
-      { label: 'Taquilla', icon: TicketCheck, to: '/taquilla', highlight: true },
-      { label: 'Caja / Concesión', icon: ShoppingCart, to: '/caja', highlight: true },
+      { label: 'Taquilla', icon: TicketCheck, to: '/box-office', highlight: true },
+      { label: 'Caja / Concesión', icon: ShoppingCart, to: '/concession', highlight: true },
     ],
   },
   {
     section: 'OPERACIONES',
     items: [
-      { label: 'Películas', icon: Film, to: '/peliculas' },
-      { label: 'Salas', icon: Building2, to: '/salas' },
-      { label: 'Horarios', icon: CalendarDays, to: '/horarios' },
-      { label: 'Reservas', icon: Ticket, to: '/reservas' },
+      { label: 'Películas', icon: Film, to: '/movies' },
+      { label: 'Salas', icon: Building2, to: '/rooms' },
+      { label: 'Horarios', icon: CalendarDays, to: '/schedules' },
+      { label: 'Reservas', icon: Ticket, to: '/reservations' },
     ],
   },
   {
     section: 'GESTIÓN',
     items: [
-      { label: 'Incidencias', icon: AlertTriangle, to: '/incidencias' },
-      { label: 'Inventario', icon: Package, to: '/inventario' },
-      { label: 'Informes', icon: BarChart2, to: '/informes' },
-      { label: 'Cuadrante', icon: ClipboardList, to: '/cuadrante' },
+      { label: 'Incidencias', icon: AlertTriangle, to: '/incidents' },
+      { label: 'Inventario', icon: Package, to: '/inventory' },
+      { label: 'Cuadrante', icon: ClipboardList, to: '/shifts' },
     ],
   },
   {
     section: 'ADMINISTRACIÓN',
     items: [
-      { label: 'Trabajadores', icon: Users, to: '/usuarios' },
-      { label: 'Auditoría', icon: ShieldCheck, to: '/auditoria' },
+      { label: 'Trabajadores', icon: Users, to: '/employees' },
+      { label: 'Clientes', icon: UserSearch, to: '/clients' },
     ],
   },
 ];

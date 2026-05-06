@@ -4,7 +4,6 @@ import { USERS } from '../data/mockData';
 
 const AuthContext = createContext(null);
 
-// Fallback mock: activo cuando el backend no tiene /auth/login implementado
 function mockLogin(username, password) {
   const found = USERS.find(u => u.username === username);
   if (!found || found.status === 'inactive') return null;
@@ -22,7 +21,6 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('lumen_token');
     if (!token) { setLoading(false); return; }
 
-    // Token de mock → restaurar directamente desde localStorage
     if (token.startsWith('mock-token-')) {
       const saved = localStorage.getItem('lumen_user');
       if (saved) { try { setUser(JSON.parse(saved)); } catch {} }
@@ -30,7 +28,6 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    // Token real → verificar con el backend
     authService.me()
       .then(res => setUser(res?.user ?? null))
       .catch(() => localStorage.removeItem('lumen_token'))
@@ -51,7 +48,7 @@ export function AuthProvider({ children }) {
       setUser(res?.user ?? null);
       return true;
     } catch {
-      // Backend no disponible o endpoint no implementado → usar mock
+      // Fallback: backend no disponible o endpoint pendiente → usar mock
       const mock = mockLogin(username, password);
       if (!mock) {
         setError('Credenciales inválidas o cuenta desactivada.');

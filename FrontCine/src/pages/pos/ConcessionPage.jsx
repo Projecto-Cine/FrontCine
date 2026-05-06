@@ -8,7 +8,7 @@ import { inventoryService } from '../../services/inventoryService';
 import { salesService }     from '../../services/salesService';
 import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
-import styles from './CajaPage.module.css';
+import styles from './ConcessionPage.module.css';
 
 const CATEGORY_EMOJI = { Palomitas: '🍿', Bebidas: '🥤', Snacks: '🌮', Combos: '🎁', Concesión: '🛒' };
 const getEmoji = (p) => p.emoji ?? CATEGORY_EMOJI[p.category] ?? '🔲';

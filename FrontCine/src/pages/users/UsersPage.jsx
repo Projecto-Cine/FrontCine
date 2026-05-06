@@ -87,7 +87,7 @@ export default function UsersPage() {
       <PageHeader
         title="Usuarios"
         subtitle={`${users.length} usuarios · ${users.filter(user => user.role === 'ADMIN').length} administradores`}
-        actions={isAdmin && <Button icon={Plus} onClick={openCreate}>Nuevo usuario</Button>}
+        actions={isAdmin && <Button icon={Plus} onClick={openCreate}>Nuevo trabajador</Button>}
       />
 
       <div className={styles.kpiRow}>
@@ -119,10 +119,10 @@ export default function UsersPage() {
         ) : null}
       />
 
-      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar usuario' : 'Nuevo usuario'}
+      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar trabajador' : 'Nuevo trabajador'}
         footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
-          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Crear usuario'}</Button>
+          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Crear trabajador'}</Button>
         </div>}
       >
         <div className={styles.formGrid}>

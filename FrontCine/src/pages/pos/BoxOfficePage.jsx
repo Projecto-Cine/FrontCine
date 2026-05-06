@@ -1,30 +1,33 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Film, ChevronRight, Minus, Plus,
   CreditCard, Banknote, Smartphone, Printer,
   CheckCircle, X, Ticket, ArrowLeft, Search,
-  LayoutGrid, List, Loader
+  LayoutGrid, List, Loader, Star, UserX
 } from 'lucide-react';
 import { sessionsService } from '../../services/sessionsService';
 import { seatsService }    from '../../services/seatsService';
 import { salesService }    from '../../services/salesService';
+import { clientsService }  from '../../services/clientsService';
 import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import Badge    from '../../components/ui/Badge';
 import SeatMap  from '../../components/shared/SeatMap';
-import styles   from './TaquillaPage.module.css';
+import styles   from './BoxOfficePage.module.css';
 
-// Tipos de entrada — configuración de precios frontend (no viene del backend)
+// Ticket types — frontend prices; backendType = backend enum
 const TICKET_TYPES = [
-  { id: 'adulto',     label: 'Adulto',     price: 13.50 },
-  { id: 'reducida',   label: 'Reducida',   price: 9.00  },
-  { id: 'estudiante', label: 'Estudiante', price: 8.00  },
-  { id: 'infantil',   label: 'Infantil',   price: 7.00  },
-  { id: 'imax',       label: 'IMAX',       price: 5.00, extra: true },
-  { id: '4dx',        label: '4DX',        price: 6.50, extra: true },
-  { id: 'vip',        label: 'VIP',        price: 8.00, extra: true },
+  { id: 'adult',    label: 'Adulto',     price: 13.50, backendType: 'ADULT'   },
+  { id: 'senior',   label: 'Reducida',   price: 9.00,  backendType: 'SENIOR'  },
+  { id: 'student',  label: 'Estudiante', price: 6.00,  backendType: 'STUDENT' },
+  { id: 'child',    label: 'Infantil',   price: 6.00,  backendType: 'CHILD'   },
+  { id: 'imax',     label: 'IMAX',       price: 5.00,  extra: true },
+  { id: '4dx',      label: '4DX',        price: 6.50,  extra: true },
+  { id: 'vip',      label: 'VIP',        price: 8.00,  extra: true },
 ];
+
+const PAY_METHOD_MAP = { card: 'CARD', cash: 'CASH', online: 'QR' };
 
 const FORMAT_BADGE = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', VIP: 'yellow', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
 const OCC_COLOR = (pct) => pct >= 95 ? 'var(--red)' : pct >= 80 ? 'var(--yellow)' : 'var(--green)';
@@ -59,13 +62,18 @@ export default function TaquillaPage() {
   const [realSeats, setRealSeats]         = useState(null);
   const [loadingSeats, setLoadingSeats]   = useState(false);
   const [selectedSeats, setSelectedSeats] = useState([]);
-  const [ticketType, setTicketType]       = useState('adulto');
+  const [ticketType, setTicketType]       = useState('adult');
   const [payMethod, setPayMethod]         = useState('card');
   const [cashGiven, setCashGiven]         = useState('');
   const [tickets, setTickets]             = useState([]);
   const [paying, setPaying]               = useState(false);
   const [searchQuery, setSearchQuery]     = useState('');
   const [viewMode, setViewMode]           = useState('grid');
+  const [clientQuery, setClientQuery]     = useState('');
+  const [clientResults, setClientResults] = useState([]);
+  const [clientSearching, setClientSearching] = useState(false);
+  const [selectedClient, setSelectedClient]   = useState(null);
+  const clientDebounce = useRef(null);
 
   // Cargar sesiones de hoy al montar
   useEffect(() => {
@@ -75,6 +83,20 @@ export default function TaquillaPage() {
       .catch(() => toast('Error al cargar sesiones.', 'error'))
       .finally(() => setLoadingSessions(false));
   }, []);
+
+  useEffect(() => {
+    clearTimeout(clientDebounce.current);
+    if (!clientQuery.trim()) { setClientResults([]); return; }
+    clientDebounce.current = setTimeout(async () => {
+      setClientSearching(true);
+      try {
+        const data = await clientsService.search(clientQuery);
+        setClientResults(Array.isArray(data) ? data : (data?.content ?? []));
+      } catch { setClientResults([]); }
+      setClientSearching(false);
+    }, 350);
+    return () => clearTimeout(clientDebounce.current);
+  }, [clientQuery]);
 
   const filteredSessions = sessions.filter(s => {
     if (!searchQuery) return true;
@@ -123,42 +145,48 @@ export default function TaquillaPage() {
     if (t.id === 'vip')  return (theater?.name ?? '').toLowerCase().includes('vip');
     return false;
   });
-  const totalPerTicket = basePrice + (extra?.price ?? 0);
-  const total          = totalPerTicket * selectedSeats.length;
-  const change         = cashGiven && payMethod === 'cash' ? (parseFloat(cashGiven) - total).toFixed(2) : null;
+  const fidelityEligible = !!(selectedClient?.fidelityDiscountEligible && ticketType === 'adult');
+  const discountedBase   = fidelityEligible ? +(basePrice * 0.9).toFixed(2) : basePrice;
+  const totalPerTicket   = discountedBase + (extra?.price ?? 0);
+  const total            = totalPerTicket * selectedSeats.length;
+  const change           = cashGiven && payMethod === 'cash' ? (parseFloat(cashGiven) - total).toFixed(2) : null;
 
   const handlePay = useCallback(async () => {
     if (!selectedSeats.length) { toast('Selecciona al menos una butaca.', 'error'); return; }
     setPaying(true);
     try {
       const res = await salesService.createTicketSale({
-        session_id:     selectedSession.id,
-        seats:          selectedSeats,
-        ticket_type:    ticketType,
-        format_extra:   extra?.id ?? null,
-        unit_price:     basePrice,
-        surcharge:      extra?.price ?? 0,
+        screeningId:   selectedSession.id,
+        seats:         selectedSeats,
+        ticketType:    baseType.backendType ?? 'ADULT',
+        unitPrice:     discountedBase,
+        surcharge:     extra?.price ?? 0,
         total,
-        payment_method: payMethod.toUpperCase(),
-        cashier_id:     user?.id ?? null,
+        paymentMethod: PAY_METHOD_MAP[payMethod] ?? 'CARD',
+        cashierId:     user?.id ?? null,
+        userId:        selectedClient?.id ?? null,
       });
 
       const time = selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
       const date = selectedSession.dateTime?.split('T')[0] ?? '';
 
-      const generated = selectedSeats.map((seat, i) => ({
-        id:        res?.qr_codes?.[i] ? res.qr_codes[i].split(':')[1] : generateTicketId(),
-        movie:     movie?.title,
-        room:      theater?.name,
-        date,
-        time,
-        format:    movie?.format,
-        language:  movie?.language,
-        seat,
-        sessionId: selectedSession.id,
-        idx:       i + 1,
-        qrValue:   res?.qr_codes?.[i] ?? `LUMEN:${generateTicketId()}:${seat}:SES${selectedSession.id}:${date}:${time}`,
-      }));
+      // Parsear QR strings del backend: "LUMEN:TKT-22|Película|Sala|Fecha|Hora|Asiento|Tipo"
+      const generated = selectedSeats.map((seat, i) => {
+        const qrValue = res?.qrCodes?.[i]
+          ?? `LUMEN:${generateTicketId()}|${movie?.title}|${theater?.name}|${date}|${time}|${seat}|${baseType.backendType ?? 'ADULT'}`;
+        const parts = qrValue.replace('LUMEN:', '').split('|');
+        return {
+          id:       parts[0] ?? generateTicketId(),
+          movie:    parts[1] ?? movie?.title,
+          room:     parts[2] ?? theater?.name,
+          date:     parts[3] ?? date,
+          time:     parts[4] ?? time,
+          seat:     parts[5] ?? seat,
+          format:   movie?.format,
+          language: movie?.language,
+          qrValue,
+        };
+      });
       setTickets(generated);
       setStep('done');
     } catch {
@@ -166,7 +194,7 @@ export default function TaquillaPage() {
     } finally {
       setPaying(false);
     }
-  }, [selectedSeats, selectedSession, ticketType, extra, basePrice, total, payMethod, user, movie, theater, toast]);
+  }, [selectedSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, user, selectedClient, movie, theater, toast]);
 
   const reset = () => {
     setStep('sessions');
@@ -177,6 +205,9 @@ export default function TaquillaPage() {
     setCashGiven('');
     setTickets([]);
     setSearchQuery('');
+    setClientQuery('');
+    setClientResults([]);
+    setSelectedClient(null);
   };
 
   if (step === 'done') {
@@ -345,6 +376,51 @@ export default function TaquillaPage() {
                 <ArrowLeft size={13} /> Cambiar butacas
               </button>
             </div>
+
+            {/* Client search */}
+            <div className={styles.paySection}>
+              <p className={styles.paySectionLabel}>Cliente (opcional)</p>
+              {selectedClient ? (
+                <div className={styles.clientChip}>
+                  <div className={styles.clientChipInfo}>
+                    <span className={styles.clientChipName}>{selectedClient.name ?? selectedClient.username}</span>
+                    <span className={styles.clientChipEmail}>{selectedClient.email ?? ''}</span>
+                  </div>
+                  {selectedClient.fidelityDiscountEligible && (
+                    <span className={styles.fidelityBadge}><Star size={10} /> Socio</span>
+                  )}
+                  <button className={styles.clientChipRemove} onClick={() => { setSelectedClient(null); setClientQuery(''); setClientResults([]); }}>
+                    <UserX size={13} />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className={styles.clientSearchWrap}>
+                    <Search size={12} className={styles.searchIcon} />
+                    <input
+                      className={styles.clientSearchInput}
+                      placeholder="Buscar cliente por nombre o email…"
+                      value={clientQuery}
+                      onChange={e => setClientQuery(e.target.value)}
+                    />
+                    {clientSearching && <Loader size={12} className={styles.clientLoader} />}
+                  </div>
+                  {clientResults.length > 0 && (
+                    <div className={styles.clientDropdown}>
+                      {clientResults.slice(0, 6).map(c => (
+                        <button key={c.id} className={styles.clientDropdownItem}
+                          onClick={() => { setSelectedClient(c); setClientQuery(''); setClientResults([]); }}>
+                          <span className={styles.clientDropdownName}>{c.name ?? c.username}</span>
+                          <span className={styles.clientDropdownEmail}>{c.email ?? ''}</span>
+                          {c.fidelityDiscountEligible && <Star size={10} style={{ color: 'var(--accent)', flexShrink: 0 }} />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
             <div className={styles.paySection}>
               <p className={styles.paySectionLabel}>Método de pago</p>
               <div className={styles.payMethods}>
@@ -422,6 +498,14 @@ export default function TaquillaPage() {
                 <span className={styles.cartTypeLabel}>{baseType.label}</span>
                 <span className={styles.cartTypePrice}>€{basePrice.toFixed(2)} / ud.</span>
               </div>
+              {fidelityEligible && (
+                <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(201,168,76,0.2)' }}>
+                  <span className={styles.cartTypeLabel} style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Star size={10} /> Descuento socio −10%
+                  </span>
+                  <span className={styles.cartTypePrice} style={{ color: 'var(--accent)' }}>−€{(basePrice * 0.1).toFixed(2)} / ud.</span>
+                </div>
+              )}
               {extra && (
                 <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(201,168,76,0.2)' }}>
                   <span className={styles.cartTypeLabel} style={{ color: 'var(--accent)' }}>+ {extra.label}</span>

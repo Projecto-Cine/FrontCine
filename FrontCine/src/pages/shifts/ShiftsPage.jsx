@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Users, RefreshCw, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
 import { usersService } from '../../services/usersService';
 import { useApp } from '../../contexts/AppContext';
-import styles from './CuadrantePage.module.css';
+import styles from './ShiftsPage.module.css';
 
 // ── Turno config ─────────────────────────────────────────────
 const SHIFTS = {
@@ -216,7 +216,7 @@ function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onClo
 
 // ── Página principal ─────────────────────────────────────────
 export default function CuadrantePage() {
-  const { addToast } = useApp();
+  const { toast } = useApp();
   const [mode, setMode] = useState('week');
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [monthStart, setMonthStart] = useState(() => {
@@ -276,7 +276,7 @@ export default function CuadrantePage() {
         ...prev,
         [currentKey]: generateWeekSchedule(activeEmployees, weekStart, genKey),
       }));
-      addToast('Cuadrante semanal generado', 'success');
+      toast('Cuadrante semanal generado', 'success');
     } else {
       const updates = {};
       let cursor = getWeekStart(monthStart);
@@ -289,7 +289,7 @@ export default function CuadrantePage() {
         cursor = addDays(cursor, 7);
       }
       setScheduleMap(prev => ({ ...prev, ...updates }));
-      addToast(`Cuadrante mensual generado: ${Object.keys(updates).length} semanas`, 'success');
+      toast(`Cuadrante mensual generado: ${Object.keys(updates).length} semanas`, 'success');
     }
     setEditCell(null);
   };

@@ -52,12 +52,14 @@ export default function IncidentsPage() {
     if (!form.title.trim()) { toast('El título es obligatorio.', 'error'); return; }
     try {
       if (editing) {
-        const updated = await incidentsService.update(editing.id, form);
+        const updated = await incidentsService.update(editing.id, form).catch(() => null);
         setIncidents(p => p.map(i => i.id === editing.id ? (updated ?? { ...i, ...form }) : i));
         toast('Incidencia actualizada.', 'success');
       } else {
-        const created = await incidentsService.create(form);
-        setIncidents(p => [...p, created]);
+        const now = new Date().toLocaleString('es-ES');
+        const fallback = { ...form, id: 'INC-' + Date.now(), created_at: now, updated_at: now };
+        const created = await incidentsService.create(form).catch(() => fallback);
+        setIncidents(p => [...p, created ?? fallback]);
         toast('Incidencia registrada.', 'success');
       }
     } catch {

@@ -28,8 +28,8 @@ const getClientName = (purchase) => purchase.clientName ?? purchase.client?.name
 const getClientEmail = (purchase) => purchase.clientEmail ?? purchase.client?.email ?? purchase.user?.email ?? '';
 const getScreening = (purchase, screenings) => purchase.screening ?? screenings.find(screening => screening.id === (purchase.screeningId ?? purchase.screening_id));
 const getScreeningLabel = (screening) => {
-  if (!screening) return 'Sin proyeccion';
-  const title = screening.movie?.title ?? 'Pelicula';
+  if (!screening) return 'Sin proyección';
+  const title = screening.movie?.title ?? 'Película';
   const theater = screening.theater?.name ? ` · ${screening.theater.name}` : '';
   const date = screening.dateTime ? ` · ${screening.dateTime.slice(0, 16).replace('T', ' ')}` : '';
   return `${title}${theater}${date}`;
@@ -75,7 +75,7 @@ export default function ReservationsPage() {
     { key: 'client', label: 'Cliente', render: (_, row) => (
       <div><div style={{ fontWeight: 500 }}>{getClientName(row)}</div><div style={{ fontSize: 11, color: 'var(--text-3)' }}>{getClientEmail(row)}</div></div>
     )},
-    { key: 'screening', label: 'Proyeccion', render: (_, row) => <span style={{ fontSize: 11 }}>{getScreeningLabel(getScreening(row, screenings))}</span> },
+    { key: 'screening', label: 'Proyección', render: (_, row) => <span style={{ fontSize: 11 }}>{getScreeningLabel(getScreening(row, screenings))}</span> },
     { key: 'seats', label: 'Asientos', width: 120, render: (_, row) => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{getSeats(row).join(', ') || '-'}</span> },
     { key: 'amount', label: 'Importe', width: 90, render: (_, row) => <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600 }}>€{getAmount(row).toFixed(2)}</span> },
     { key: 'paymentMethod', label: 'Pago', width: 100, render: value => <Badge variant={PAYMENT_COLOR[value] || 'default'}>{PAYMENT_LABEL[value] || value || '-'}</Badge> },
@@ -89,7 +89,7 @@ export default function ReservationsPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Compras"
+        title="Reservas"
         subtitle={`${confirmed.length} confirmadas · €${totalRevenue.toFixed(2)} en ingresos`}
       />
 
@@ -142,7 +142,7 @@ export default function ReservationsPage() {
                 <p style={{ fontSize: 11, color: 'var(--text-3)' }}>{getClientEmail(detail)}</p>
               </div>
               <div className={styles.detailSection}>
-                <p className={styles.detailLbl}>Proyeccion</p>
+                <p className={styles.detailLbl}>Proyección</p>
                 <p className={styles.detailVal}>{getScreeningLabel(screening)}</p>
               </div>
               <div className={styles.detailRow}>

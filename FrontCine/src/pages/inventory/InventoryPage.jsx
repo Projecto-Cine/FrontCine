@@ -133,38 +133,38 @@ export default function InventoryPage() {
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
-            <label className={styles.label}>Nombre *</label>
-            <input className={styles.input} value={form.name} onChange={e => set('name', e.target.value)} />
+            <label className={styles.label} htmlFor="inv-name">Nombre *</label>
+            <input id="inv-name" className={styles.input} value={form.name} onChange={e => set('name', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label}>Categoría</label>
-            <select className={styles.input} value={form.category} onChange={e => set('category', e.target.value)}>
+            <label className={styles.label} htmlFor="inv-cat">Categoría</label>
+            <select id="inv-cat" className={styles.input} value={form.category} onChange={e => set('category', e.target.value)}>
               {['Técnico', 'Concesión', 'Oficina', 'Limpieza', 'Comercial'].map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label className={styles.label}>Unidad</label>
-            <input className={styles.input} value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="ud, saco, rollo..." />
+            <label className={styles.label} htmlFor="inv-unit">Unidad</label>
+            <input id="inv-unit" className={styles.input} value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="ud, saco, rollo..." />
           </div>
           <div>
-            <label className={styles.label}>Cantidad actual</label>
-            <input className={styles.input} type="number" value={form.quantity} onChange={e => set('quantity', e.target.value)} />
+            <label className={styles.label} htmlFor="inv-qty">Cantidad actual</label>
+            <input id="inv-qty" className={styles.input} type="number" value={form.quantity} onChange={e => set('quantity', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label}>Stock mínimo</label>
-            <input className={styles.input} type="number" value={form.min_stock} onChange={e => set('min_stock', e.target.value)} />
+            <label className={styles.label} htmlFor="inv-min">Stock mínimo</label>
+            <input id="inv-min" className={styles.input} type="number" value={form.min_stock} onChange={e => set('min_stock', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label}>Precio/unidad (€)</label>
-            <input className={styles.input} type="number" step="0.01" value={form.price_unit} onChange={e => set('price_unit', e.target.value)} />
+            <label className={styles.label} htmlFor="inv-price">Precio/unidad (€)</label>
+            <input id="inv-price" className={styles.input} type="number" step="0.01" value={form.price_unit} onChange={e => set('price_unit', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label}>Ubicación</label>
-            <input className={styles.input} value={form.location} onChange={e => set('location', e.target.value)} />
+            <label className={styles.label} htmlFor="inv-loc">Ubicación</label>
+            <input id="inv-loc" className={styles.input} value={form.location} onChange={e => set('location', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label}>Proveedor</label>
-            <input className={styles.input} value={form.supplier} onChange={e => set('supplier', e.target.value)} />
+            <label className={styles.label} htmlFor="inv-sup">Proveedor</label>
+            <input id="inv-sup" className={styles.input} value={form.supplier} onChange={e => set('supplier', e.target.value)} />
           </div>
         </div>
       </Modal>

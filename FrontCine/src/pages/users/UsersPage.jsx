@@ -85,13 +85,13 @@ export default function UsersPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Usuarios"
-        subtitle={`${users.length} usuarios · ${users.filter(user => user.role === 'ADMIN').length} administradores`}
-        actions={isAdmin && <Button icon={Plus} onClick={openCreate}>Nuevo usuario</Button>}
+        title="Trabajadores"
+        subtitle={`${users.length} registrados · ${users.filter(user => user.role === 'ADMIN').length} administradores`}
+        actions={isAdmin && <Button icon={Plus} onClick={openCreate}>Nuevo trabajador</Button>}
       />
 
       <div className={styles.kpiRow}>
-        <KPICard label="Usuarios totales" value={users.length} icon={Users} color="accent" />
+        <KPICard label="Trabajadores" value={users.length} icon={Users} color="accent" />
         <KPICard label="Administradores" value={users.filter(user => user.role === 'ADMIN').length} icon={Shield} color="red" />
         <KPICard label="Clientes" value={users.filter(user => user.role === 'CLIENT').length} icon={UserCheck} color="green" />
       </div>
@@ -119,34 +119,34 @@ export default function UsersPage() {
         ) : null}
       />
 
-      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar usuario' : 'Nuevo usuario'}
+      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar trabajador' : 'Nuevo trabajador'}
         footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
-          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Crear usuario'}</Button>
+          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Crear trabajador'}</Button>
         </div>}
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
-            <label className={styles.label}>Email *</label>
-            <input className={styles.input} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+            <label className={styles.label} htmlFor="usr-email">Email *</label>
+            <input id="usr-email" className={styles.input} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label}>Rol</label>
-            <select className={styles.input} value={form.role} onChange={e => set('role', e.target.value)}>
+            <label className={styles.label} htmlFor="usr-role">Rol</label>
+            <select id="usr-role" className={styles.input} value={form.role} onChange={e => set('role', e.target.value)}>
               <option value="ADMIN">Administrador</option>
               <option value="CLIENT">Cliente</option>
             </select>
           </div>
           <div>
-            <label className={styles.label}>Fecha nacimiento</label>
-            <input className={styles.input} type="date" value={form.dateOfBirth || ''} onChange={e => set('dateOfBirth', e.target.value)} />
+            <label className={styles.label} htmlFor="usr-dob">Fecha nacimiento</label>
+            <input id="usr-dob" className={styles.input} type="date" value={form.dateOfBirth || ''} onChange={e => set('dateOfBirth', e.target.value)} />
           </div>
         </div>
       </Modal>
 
       <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete}
-        title="Eliminar usuario" danger
-        message={`¿Eliminar ${deleteTarget?.email}?`}
+        title="Eliminar trabajador" danger
+        message={`¿Eliminar el trabajador ${deleteTarget?.email}?`}
         confirmLabel="Eliminar" />
     </div>
   );

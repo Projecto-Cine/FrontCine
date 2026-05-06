@@ -13,9 +13,10 @@ import ReportsPage from './pages/reports/ReportsPage';
 import InventoryPage from './pages/inventory/InventoryPage';
 import UsersPage from './pages/users/UsersPage';
 import AuditPage from './pages/audit/AuditPage';
-import TaquillaPage from './pages/pos/TaquillaPage';
-import CajaPage from './pages/pos/CajaPage';
-import CuadrantePage from './pages/cuadrante/CuadrantePage';
+import BoxOfficePage from './pages/pos/BoxOfficePage';
+import ConcessionPage from './pages/pos/ConcessionPage';
+import ShiftsPage from './pages/shifts/ShiftsPage';
+import ClientsPage from './pages/clients/ClientsPage';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -36,18 +37,19 @@ export default function App() {
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
               <Route index element={<Dashboard />} />
-              <Route path="taquilla" element={<TaquillaPage />} />
-              <Route path="caja" element={<CajaPage />} />
-              <Route path="peliculas" element={<MoviesPage />} />
-              <Route path="salas" element={<RoomsPage />} />
-              <Route path="horarios" element={<SchedulesPage />} />
-              <Route path="reservas" element={<ReservationsPage />} />
-              <Route path="incidencias" element={<IncidentsPage />} />
-              <Route path="informes" element={<ReportsPage />} />
-              <Route path="inventario" element={<InventoryPage />} />
-              <Route path="cuadrante" element={<CuadrantePage />} />
-              <Route path="usuarios" element={<UsersPage />} />
-              <Route path="auditoria" element={<AuditPage />} />
+              <Route path="box-office"   element={<BoxOfficePage />} />
+              <Route path="concession"   element={<ConcessionPage />} />
+              <Route path="movies"       element={<MoviesPage />} />
+              <Route path="rooms"        element={<RoomsPage />} />
+              <Route path="schedules"    element={<SchedulesPage />} />
+              <Route path="reservations" element={<ReservationsPage />} />
+              <Route path="incidents"    element={<IncidentsPage />} />
+              <Route path="reports"      element={<ReportsPage />} />
+              <Route path="inventory"    element={<InventoryPage />} />
+              <Route path="shifts"       element={<ShiftsPage />} />
+              <Route path="employees"    element={<UsersPage />} />
+              <Route path="clients"      element={<ClientsPage />} />
+              <Route path="audit"        element={<AuditPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

@@ -23,17 +23,23 @@ async function request(path, options = {}) {
   });
 
   if (res.status === 401) {
-    // Don't redirect if this IS the login request (would suppress the error)
-    if (!path.includes('/auth/login')) {
+    if (path.includes('/auth/login')) {
+      // Let the login page handle its own 401
+    } else {
       localStorage.removeItem('lumen_token');
-      window.location.href = '/login';
-      return;
+      // Throw first so callers can show a toast, then redirect after 1.5 s
+      const err = new Error('Sesión expirada. Vuelve a iniciar sesión.');
+      err.status = 401;
+      setTimeout(() => { window.location.href = '/login'; }, 1500);
+      throw err;
     }
   }
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`API ${res.status} ${path}: ${text}`);
+    const err  = new Error(`API ${res.status} ${path}: ${text}`);
+    err.status = res.status;
+    throw err;
   }
 
   if (res.status === 204) return null;

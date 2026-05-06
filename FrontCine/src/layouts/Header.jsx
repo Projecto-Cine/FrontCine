@@ -6,18 +6,19 @@ import styles from './Header.module.css';
 
 const ROUTE_LABELS = {
   '/': 'Dashboard',
-  '/taquilla': 'Taquilla — Venta de Entradas',
-  '/caja': 'Caja — Concesión',
-  '/peliculas': 'Películas',
-  '/salas': 'Salas',
-  '/horarios': 'Horarios',
-  '/reservas': 'Reservas',
-  '/incidencias': 'Incidencias',
-  '/inventario': 'Inventario',
-  '/cuadrante': 'Cuadrante de Turnos',
-  '/informes': 'Informes',
-  '/usuarios': 'Trabajadores',
-  '/auditoria': 'Auditoría y Seguridad',
+  '/box-office':   'Taquilla — Venta de Entradas',
+  '/concession':   'Caja — Concesión',
+  '/movies':       'Películas',
+  '/rooms':        'Salas',
+  '/schedules':    'Horarios',
+  '/reservations': 'Reservas',
+  '/incidents':    'Incidencias',
+  '/inventory':    'Inventario',
+  '/shifts':       'Cuadrante de Turnos',
+  '/reports':      'Informes',
+  '/employees':    'Trabajadores',
+  '/clients':      'Clientes',
+  '/audit':        'Auditoría y Seguridad',
 };
 
 const ROLE_LABELS = {

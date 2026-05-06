@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Users, RefreshCw, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
 import { usersService } from '../../services/usersService';
 import { useApp } from '../../contexts/AppContext';
-import styles from './CuadrantePage.module.css';
+import styles from './ShiftsPage.module.css';
 
 // ── Turno config ─────────────────────────────────────────────
 const SHIFTS = {

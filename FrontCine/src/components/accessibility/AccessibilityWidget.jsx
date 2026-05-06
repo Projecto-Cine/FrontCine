@@ -6,7 +6,7 @@ import {
 import styles from './AccessibilityWidget.module.css';
 
 /* ── Icono personalizado: símbolo universal de accesibilidad ── */
-function A11yIcon({ size = 22 }) {
+function A11yIcon({ size = 32 }) {
   return (
     <svg
       width={size}
@@ -16,14 +16,16 @@ function A11yIcon({ size = 22 }) {
       aria-hidden="true"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* Círculo relleno — hereda color del botón (oscuro sobre dorado) */}
-      <circle cx="16" cy="16" r="15.5" fill="currentColor" />
-      {/* Figura en blanco — contrasta sobre el círculo oscuro */}
-      <circle cx="16" cy="7.5" r="2.8" fill="white" />
-      <line x1="16" y1="10.8" x2="16" y2="18.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="8.5" y1="14.2" x2="23.5" y2="14.2" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="16" y1="18.5" x2="11.5" y2="25.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-      <line x1="16" y1="18.5" x2="20.5" y2="25.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+      {/* Cabeza */}
+      <circle cx="16" cy="5.5" r="3.8" fill="currentColor" />
+      {/* Torso */}
+      <line x1="16" y1="9.3" x2="16" y2="20.5" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
+      {/* Brazos abiertos — ocupa todo el ancho */}
+      <line x1="5.5" y1="14" x2="26.5" y2="14" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
+      {/* Pierna izquierda */}
+      <line x1="16" y1="20.5" x2="9" y2="29.5" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
+      {/* Pierna derecha */}
+      <line x1="16" y1="20.5" x2="23" y2="29.5" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -324,7 +326,7 @@ export default function AccessibilityWidget() {
         aria-expanded={open}
         aria-haspopup="dialog"
       >
-        <A11yIcon size={22} />
+        <A11yIcon size={32} />
       </button>
     </div>
   );

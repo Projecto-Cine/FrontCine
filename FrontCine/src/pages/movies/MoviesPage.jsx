@@ -36,12 +36,13 @@ export default function MoviesPage() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_MOVIE);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [bulkDeleteIds, setBulkDeleteIds] = useState(null);
   const { toast } = useApp();
 
   useEffect(() => {
     moviesService.getAll()
       .then(data => setMovies((data ?? []).map(normalizeMovie)))
-      .catch(() => toast('No se pudieron cargar las peliculas del backend.', 'error'));
+      .catch(() => toast('No se pudieron cargar las películas.', 'error'));
   }, [toast]);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_MOVIE); setModal('form'); };
@@ -49,7 +50,7 @@ export default function MoviesPage() {
   const openDetail = (movie) => { setEditing(movie); setModal('detail'); };
 
   const handleSave = async () => {
-    if (!form.title.trim() || !form.durationMin) { toast('Titulo y duracion son obligatorios.', 'error'); return; }
+    if (!form.title.trim() || !form.durationMin) { toast('Título y duración son obligatorios.', 'error'); return; }
     const payload = toPayload(form);
     if (editing) {
       const saved = normalizeMovie(await moviesService.update(editing.id, payload));
@@ -58,7 +59,7 @@ export default function MoviesPage() {
     } else {
       const saved = normalizeMovie(await moviesService.create(payload));
       setMovies(prev => [...prev, saved]);
-      toast(`"${form.title}" anadida.`, 'success');
+      toast(`"${form.title}" añadida.`, 'success');
     }
     setModal(null);
   };
@@ -112,10 +113,9 @@ export default function MoviesPage() {
           </div>
         )}
         bulkActions={(ids, clear) => (
-          <Button variant="danger" size="sm" onClick={() => {
-            setMovies(prev => prev.filter(m => !ids.includes(m.id)));
-            toast(`${ids.length} película(s) eliminadas.`, 'warning'); clear();
-          }}>Eliminar selección ({ids.length})</Button>
+          <Button variant="danger" size="sm" onClick={() => setBulkDeleteIds({ ids, clear })}>
+            Eliminar selección ({ids.length})
+          </Button>
         )}
       />
 
@@ -129,59 +129,62 @@ export default function MoviesPage() {
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
-            <label className={styles.label}>Título *</label>
-            <input className={styles.input} value={form.title} onChange={e => set('title', e.target.value)} placeholder="Título de la película" />
+            <label className={styles.label} htmlFor="mov-title">Título *</label>
+            <input id="mov-title" className={styles.input} value={form.title} onChange={e => set('title', e.target.value)} placeholder="Título de la película" />
           </div>
           <div>
-            <label className={styles.label}>Director</label>
-            <input className={styles.input} value={form.director} onChange={e => set('director', e.target.value)} />
+            <label className={styles.label} htmlFor="mov-director">Director</label>
+            <input id="mov-director" className={styles.input} value={form.director} onChange={e => set('director', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label}>Año</label>
-            <input className={styles.input} type="number" value={form.year} onChange={e => set('year', e.target.value)} />
+            <label className={styles.label} htmlFor="mov-year">Año</label>
+            <input id="mov-year" className={styles.input} type="number" value={form.year} onChange={e => set('year', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label}>Género</label>
-            <input className={styles.input} value={form.genre} onChange={e => set('genre', e.target.value)} />
+            <label className={styles.label} htmlFor="mov-genre">Género</label>
+            <input id="mov-genre" className={styles.input} value={form.genre} onChange={e => set('genre', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label}>Duración (min) *</label>
-            <input className={styles.input} type="number" value={form.durationMin} onChange={e => set('durationMin', e.target.value)} />
+            <label className={styles.label} htmlFor="mov-duration">Duración (min) *</label>
+            <input id="mov-duration" className={styles.input} type="number" value={form.durationMin} onChange={e => set('durationMin', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label}>Idioma</label>
-            <select className={styles.input} value={form.language} onChange={e => set('language', e.target.value)}>
+            <label className={styles.label} htmlFor="mov-language">Idioma</label>
+            <select id="mov-language" className={styles.input} value={form.language} onChange={e => set('language', e.target.value)}>
               <option value="ES">ES — Doblada</option>
               <option value="VO">VO — Original</option>
               <option value="VOSE">VOSE — Subtitulada</option>
             </select>
           </div>
           <div>
-            <label className={styles.label}>Formato</label>
-            <select className={styles.input} value={form.format} onChange={e => set('format', e.target.value)}>
+            <label className={styles.label} htmlFor="mov-format">Formato</label>
+            <select id="mov-format" className={styles.input} value={form.format} onChange={e => set('format', e.target.value)}>
               {['2D', '3D', 'IMAX', '4DX', 'IMAX 3D', '2D/3D'].map(f => <option key={f}>{f}</option>)}
             </select>
           </div>
           <div>
-            <label className={styles.label}>Clasificación</label>
-            <select className={styles.input} value={form.ageRating} onChange={e => set('ageRating', e.target.value)}>
+            <label className={styles.label} htmlFor="mov-rating">Clasificación</label>
+            <select id="mov-rating" className={styles.input} value={form.ageRating} onChange={e => set('ageRating', e.target.value)}>
               {['G', 'PG', 'PG-13', 'R', 'NC-17'].map(r => <option key={r}>{r}</option>)}
             </select>
           </div>
           <div>
-            <label className={styles.label}>Estado</label>
-            <select className={styles.input} value={form.active ? 'active' : 'inactive'} onChange={e => set('active', e.target.value === 'active')}>
+            <label className={styles.label} htmlFor="mov-status">Estado</label>
+            <select id="mov-status" className={styles.input} value={form.active ? 'active' : 'inactive'} onChange={e => set('active', e.target.value === 'active')}>
               <option value="active">Activa</option>
               <option value="inactive">Baja</option>
             </select>
           </div>
           <div>
-            <label className={styles.label}>Imagen URL</label>
-            <input className={styles.input} value={form.imageUrl} onChange={e => set('imageUrl', e.target.value)} />
+            <label className={styles.label} htmlFor="mov-image">Imagen URL</label>
+            <input id="mov-image" className={styles.input} value={form.imageUrl} onChange={e => set('imageUrl', e.target.value)} />
+            {form.imageUrl && (
+              <img src={form.imageUrl} alt="Vista previa" className={styles.imagePreview} onError={e => { e.target.style.display = 'none'; }} />
+            )}
           </div>
           <div className={styles.fieldFull}>
-            <label className={styles.label}>Descripcion</label>
-            <textarea className={styles.input} rows={3} value={form.description} onChange={e => set('description', e.target.value)} />
+            <label className={styles.label} htmlFor="mov-desc">Descripción</label>
+            <textarea id="mov-desc" className={styles.input} rows={3} value={form.description} onChange={e => set('description', e.target.value)} />
           </div>
         </div>
       </Modal>
@@ -211,6 +214,19 @@ export default function MoviesPage() {
         title="Eliminar película" danger
         message={`¿Seguro que quieres eliminar "${deleteTarget?.title}"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar" />
+
+      <ConfirmModal
+        open={!!bulkDeleteIds}
+        onClose={() => setBulkDeleteIds(null)}
+        onConfirm={() => {
+          setMovies(prev => prev.filter(m => !bulkDeleteIds.ids.includes(m.id)));
+          toast(`${bulkDeleteIds.ids.length} película(s) eliminadas.`, 'warning');
+          bulkDeleteIds.clear();
+          setBulkDeleteIds(null);
+        }}
+        title="Eliminar selección" danger
+        message={`¿Eliminar ${bulkDeleteIds?.ids.length} película(s)? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar todas" />
     </div>
   );
 }

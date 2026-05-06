@@ -10,6 +10,7 @@ import { AlertTriangle, Clock, CheckSquare } from 'lucide-react';
 import { useApp }  from '../../contexts/AppContext';
 import { incidentsService } from '../../services/incidentsService';
 import { usersService }     from '../../services/usersService';
+import SkeletonPage from '../../components/shared/Skeleton';
 import styles from './IncidentsPage.module.css';
 
 const PRIORITY_MAP  = { critical: { label: 'Crítica', v: 'red' }, high: { label: 'Alta', v: 'yellow' }, medium: { label: 'Media', v: 'accent' }, low: { label: 'Baja', v: 'green' } };
@@ -92,7 +93,7 @@ export default function IncidentsPage() {
   const open     = incidents.filter(i => i.status !== 'resolved');
   const critical = incidents.filter(i => i.priority === 'critical' && i.status !== 'resolved');
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-3)', fontSize: 13 }}>Cargando incidencias...</div>;
+  if (loading) return <SkeletonPage />;
 
   return (
     <div className={styles.page}>
@@ -143,28 +144,28 @@ export default function IncidentsPage() {
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
-            <label className={styles.label}>Título *</label>
-            <input className={styles.input} value={form.title} onChange={e => set('title', e.target.value)} placeholder="Descripción breve del problema" />
+            <label className={styles.label} htmlFor="inc-title">Título *</label>
+            <input id="inc-title" className={styles.input} value={form.title} onChange={e => set('title', e.target.value)} placeholder="Descripción breve del problema" />
           </div>
           <div>
-            <label className={styles.label}>Categoría</label>
-            <select className={styles.input} value={form.category} onChange={e => set('category', e.target.value)}>
+            <label className={styles.label} htmlFor="inc-cat">Categoría</label>
+            <select id="inc-cat" className={styles.input} value={form.category} onChange={e => set('category', e.target.value)}>
               {['Técnico', 'Infraestructura', 'Mobiliario', 'Software', 'Seguridad', 'Operativo'].map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label className={styles.label}>Prioridad</label>
-            <select className={styles.input} value={form.priority} onChange={e => set('priority', e.target.value)}>
+            <label className={styles.label} htmlFor="inc-priority">Prioridad</label>
+            <select id="inc-priority" className={styles.input} value={form.priority} onChange={e => set('priority', e.target.value)}>
               {Object.entries(PRIORITY_MAP).map(([k, { label }]) => <option key={k} value={k}>{label}</option>)}
             </select>
           </div>
           <div>
-            <label className={styles.label}>Ubicación</label>
-            <input className={styles.input} value={form.room} onChange={e => set('room', e.target.value)} placeholder="Sala, pasillo, área..." />
+            <label className={styles.label} htmlFor="inc-room">Ubicación</label>
+            <input id="inc-room" className={styles.input} value={form.room} onChange={e => set('room', e.target.value)} placeholder="Sala, pasillo, área..." />
           </div>
           <div>
-            <label className={styles.label}>Asignar a</label>
-            <select className={styles.input} value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)}>
+            <label className={styles.label} htmlFor="inc-assign">Asignar a</label>
+            <select id="inc-assign" className={styles.input} value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)}>
               <option value="">Sin asignar</option>
               {staffUsers.map(u => (
                 <option key={u.id ?? u.username} value={u.username ?? u.name}>{u.name} ({u.role})</option>
@@ -172,14 +173,14 @@ export default function IncidentsPage() {
             </select>
           </div>
           <div>
-            <label className={styles.label}>Estado</label>
-            <select className={styles.input} value={form.status} onChange={e => set('status', e.target.value)}>
+            <label className={styles.label} htmlFor="inc-status">Estado</label>
+            <select id="inc-status" className={styles.input} value={form.status} onChange={e => set('status', e.target.value)}>
               {Object.entries(STATUS_MAP).map(([k, { label }]) => <option key={k} value={k}>{label}</option>)}
             </select>
           </div>
           <div className={styles.fieldFull}>
-            <label className={styles.label}>Descripción</label>
-            <textarea className={`${styles.input} ${styles.textarea}`} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Detalle del problema..." rows={4} />
+            <label className={styles.label} htmlFor="inc-desc">Descripción</label>
+            <textarea id="inc-desc" className={`${styles.input} ${styles.textarea}`} value={form.description} onChange={e => set('description', e.target.value)} placeholder="Detalle del problema..." rows={4} />
           </div>
         </div>
       </Modal>

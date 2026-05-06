@@ -7,7 +7,7 @@ const AuthContext = createContext(null);
 function mockLogin(username, password) {
   const found = USERS.find(u => u.username === username);
   if (!found || found.status === 'inactive') return null;
-  if (password !== 'lumen2024') return null;
+  if (password !== 'lumen2026') return null;
   return { user: found, token: 'mock-token-' + found.id };
 }
 

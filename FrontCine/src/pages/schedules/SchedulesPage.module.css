@@ -5,6 +5,8 @@
 .dateInput { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); padding: 6px 10px; color: var(--text-1); font-size: 12px; outline: none; }
 .dateInput:focus { border-color: var(--accent); }
 .clearDate { background: var(--bg-4); border: none; border-radius: 50%; width: 18px; height: 18px; color: var(--text-3); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+.todayBtn { background: var(--accent-dim); border: 1px solid var(--accent-dim2); border-radius: var(--r-sm); padding: 3px 8px; color: var(--accent); font-size: 11px; font-weight: 600; cursor: pointer; transition: background var(--t); }
+.todayBtn:hover { background: var(--accent-dim2); }
 .statChips { display: flex; align-items: center; gap: 12px; }
 .chip { display: flex; align-items: center; gap: 5px; }
 .chipN { font-size: 11px; color: var(--text-3); }

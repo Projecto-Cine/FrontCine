@@ -8,6 +8,7 @@ import Modal from '../../components/ui/Modal';
 import KPICard from '../../components/shared/KPICard';
 import { useApp } from '../../contexts/AppContext';
 import { inventoryService } from '../../services/inventoryService';
+import SkeletonPage from '../../components/shared/Skeleton';
 import styles from './InventoryPage.module.css';
 
 const CAT_COLOR = { Técnico: 'accent', Concesión: 'yellow', Oficina: 'default', Limpieza: 'green', Comercial: 'purple' };
@@ -83,7 +84,7 @@ export default function InventoryPage() {
     }},
   ];
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-3)', fontSize: 13 }}>Cargando inventario...</div>;
+  if (loading) return <SkeletonPage />;
 
   return (
     <div className={styles.page}>

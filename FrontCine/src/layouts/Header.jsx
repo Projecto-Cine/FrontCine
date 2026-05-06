@@ -1,4 +1,4 @@
-import { PanelLeftClose, PanelLeft, Bell, Clock, Keyboard } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, Bell, Clock, Keyboard, Search } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
@@ -40,7 +40,7 @@ function useLiveClock() {
   return time;
 }
 
-export default function Header() {
+export default function Header({ onOpenPalette }) {
   const { sidebarCollapsed, toggleSidebar } = useApp();
   const { user } = useAuth();
   const location = useLocation();
@@ -76,10 +76,24 @@ export default function Header() {
         </div>
 
         <div className={styles.right}>
+          {onOpenPalette && (
+            <button
+              className={styles.searchTrigger}
+              onClick={onOpenPalette}
+              title="Búsqueda rápida (Ctrl+K)"
+              aria-label="Abrir búsqueda rápida"
+            >
+              <Search size={12} aria-hidden="true" />
+              <span>Ir a...</span>
+              <kbd className={styles.searchKbd}>Ctrl K</kbd>
+            </button>
+          )}
+
           <div className={styles.clock} aria-hidden="true">
             <Clock size={11} />
             <span>{now}</span>
           </div>
+
           <button
             className={styles.iconBtn}
             onClick={() => setShowShortcuts(true)}
@@ -88,12 +102,14 @@ export default function Header() {
           >
             <Keyboard size={14} aria-hidden="true" />
           </button>
-          <button className={styles.iconBtn} title="Notificaciones" aria-label="Notificaciones">
+
+          <button className={styles.iconBtn} title="Notificaciones" aria-label="Notificaciones" aria-haspopup="true">
             <Bell size={14} aria-hidden="true" />
-            <span className={styles.notifDot} />
+            <span className={styles.notifDot} aria-hidden="true" />
           </button>
+
           {user && (
-            <div className={styles.userChip} aria-label={`Usuario: ${user.name}, ${ROLE_LABELS[user.role]}`}>
+            <div className={styles.userChip} aria-label={`Usuario: ${user.name}, rol: ${ROLE_LABELS[user.role]}`}>
               <div className={styles.avatar} aria-hidden="true">{user.name.charAt(0)}</div>
               <div className={styles.meta}>
                 <span className={styles.name}>{user.name.split(' ')[0]}</span>

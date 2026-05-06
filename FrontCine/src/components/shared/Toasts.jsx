@@ -21,6 +21,7 @@ export default function Toasts() {
       {toasts.map(t => {
         const Icon = ICONS[t.type] || Info;
         const isError = t.type === 'error';
+        const duration = t.duration ?? 3500;
         return (
           <div
             key={t.id}
@@ -39,6 +40,11 @@ export default function Toasts() {
             >
               <X size={12} aria-hidden="true" />
             </button>
+            <span
+              className={styles.progress}
+              style={{ animationDuration: `${duration}ms` }}
+              aria-hidden="true"
+            />
           </div>
         );
       })}

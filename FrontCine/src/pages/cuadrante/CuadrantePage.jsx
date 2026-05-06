@@ -382,7 +382,7 @@ export default function CuadrantePage() {
             Generar {mode === 'week' ? 'semana' : 'mes'}
           </button>
 
-          <button className={styles.exportBtn} title="Exportar PDF">
+          <button className={styles.exportBtn} title="Imprimir / Exportar PDF" onClick={() => window.print()}>
             <Download size={13} />
           </button>
         </div>

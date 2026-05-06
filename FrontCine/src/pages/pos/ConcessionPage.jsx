@@ -2,15 +2,21 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Minus, Plus, X, CreditCard, Banknote, Smartphone,
   ShoppingCart, CheckCircle, Printer, Trash2, Search,
-  RotateCcw, ChevronDown
+  RotateCcw, Loader
 } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
-import { useApp } from '../../contexts/AppContext';
-import styles from './CajaPage.module.css';
+import { salesService }     from '../../services/salesService';
+import { useApp }  from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
+import styles from './ConcessionPage.module.css';
+
+const CATEGORY_EMOJI = { Palomitas: '🍿', Bebidas: '🥤', Snacks: '🌮', Combos: '🎁', Concesión: '🛒' };
+const getEmoji = (p) => p.emoji ?? CATEGORY_EMOJI[p.category] ?? '🔲';
+const getPrice = (p) => p.price ?? p.price_unit ?? 0;
 
 const PAY_METHODS = [
-  { id: 'card',   label: 'Tarjeta', Icon: CreditCard },
-  { id: 'cash',   label: 'Efectivo', Icon: Banknote },
+  { id: 'card',   label: 'Tarjeta', Icon: CreditCard  },
+  { id: 'cash',   label: 'Efectivo', Icon: Banknote   },
   { id: 'online', label: 'QR / App', Icon: Smartphone },
 ];
 
@@ -19,41 +25,51 @@ function generateReceiptId() {
 }
 
 export default function CajaPage() {
-  const [allProducts, setAllProducts] = useState([]);
-  const [category, setCategory] = useState('Todo');
-  const [search, setSearch] = useState('');
-  const [cart, setCart] = useState([]); // [{product, qty}]
-  const [payMethod, setPayMethod] = useState('card');
-  const [cashGiven, setCashGiven] = useState('');
+  const { toast } = useApp();
+  const { user }  = useAuth();
+
+  const [products, setProducts]       = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [category, setCategory]       = useState('Todo');
+  const [search, setSearch]           = useState('');
+  const [cart, setCart]               = useState([]);
+  const [payMethod, setPayMethod]     = useState('card');
+  const [cashGiven, setCashGiven]     = useState('');
   const [showPayModal, setShowPayModal] = useState(false);
-  const [receipt, setReceipt] = useState(null);
+  const [receipt, setReceipt]         = useState(null);
+  const [paying, setPaying]           = useState(false);
   const searchRef = useRef(null);
 
+  // Cargar productos de concesión desde el backend
   useEffect(() => {
     inventoryService.getAll()
-      .then(items => setAllProducts(
-        items
-          .filter(i => i.category === 'Concesión' && i.quantity > 0)
-          .map(i => ({ id: i.id, name: i.name, category: i.category, price: i.price_unit ?? 0, emoji: '', desc: '' }))
-      ))
-      .catch(() => {});
+      .then(data => {
+        const items = Array.isArray(data) ? data : [];
+        // Mostrar solo productos de concesión con stock disponible
+        const concession = items.filter(p => p.quantity === undefined || p.quantity > 0);
+        setProducts(concession);
+        // Categoría por defecto: la primera disponible
+        const cats = [...new Set(concession.map(p => p.category))];
+        if (cats.length > 0 && !cats.includes('Todo')) setCategory('Todo');
+      })
+      .catch(() => toast('Error al cargar productos.', 'error'))
+      .finally(() => setLoading(false));
   }, []);
 
-  const CATEGORIES = ['Todo', ...new Set(allProducts.map(p => p.category))];
-  const { toast } = useApp();
+  const CATEGORIES = ['Todo', ...new Set(products.map(p => p.category))];
 
-  // Keyboard shortcut: F2 = focus search, F4 = cobrar, Escape = clear cart
+  // Atajos de teclado: F2 = buscar, F4 = cobrar, Esc = vaciar carrito
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'F2') { e.preventDefault(); searchRef.current?.focus(); }
       if (e.key === 'F4' && cart.length > 0) { e.preventDefault(); setShowPayModal(true); }
-      if (e.key === 'Escape' && !showPayModal && !receipt) { setCart([]); }
+      if (e.key === 'Escape' && !showPayModal && !receipt) setCart([]);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [cart, showPayModal, receipt]);
 
-  const products = allProducts.filter(p => {
+  const filteredProducts = products.filter(p => {
     if (category !== 'Todo' && p.category !== category) return false;
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
@@ -68,35 +84,55 @@ export default function CajaPage() {
   }, []);
 
   const changeQty = useCallback((productId, delta) => {
-    setCart(prev => {
-      const next = prev.map(i => i.product.id === productId ? { ...i, qty: Math.max(0, i.qty + delta) } : i)
-        .filter(i => i.qty > 0);
-      return next;
-    });
+    setCart(prev =>
+      prev.map(i => i.product.id === productId ? { ...i, qty: Math.max(0, i.qty + delta) } : i)
+          .filter(i => i.qty > 0)
+    );
   }, []);
 
   const removeFromCart = useCallback((productId) => {
     setCart(prev => prev.filter(i => i.product.id !== productId));
   }, []);
 
-  const total = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
+  const total      = cart.reduce((s, i) => s + getPrice(i.product) * i.qty, 0);
   const totalItems = cart.reduce((s, i) => s + i.qty, 0);
-  const change = payMethod === 'cash' && cashGiven ? (parseFloat(cashGiven) - total).toFixed(2) : null;
+  const change     = payMethod === 'cash' && cashGiven ? (parseFloat(cashGiven) - total).toFixed(2) : null;
 
-  const handlePay = () => {
+  const handlePay = async () => {
     if (payMethod === 'cash' && (!cashGiven || parseFloat(cashGiven) < total)) {
       toast('Importe entregado insuficiente.', 'error');
       return;
     }
+    setPaying(true);
+    try {
+      await salesService.createConcessionSale({
+        items: cart.map(({ product, qty }) => ({
+          product_id: product.id,
+          name:       product.name,
+          qty,
+          unit_price: getPrice(product),
+        })),
+        total,
+        payment_method: payMethod.toUpperCase(),
+        cash_given:     payMethod === 'cash' ? parseFloat(cashGiven) : null,
+        change:         change ? parseFloat(change) : null,
+        cashier_id:     user?.id ?? null,
+      });
+    } catch {
+      // Si el endpoint aún no existe, continuamos igualmente con el recibo local
+    } finally {
+      setPaying(false);
+    }
+
     const rec = {
-      id: generateReceiptId(),
-      lines: [...cart],
+      id:        generateReceiptId(),
+      lines:     [...cart],
       total,
       payMethod,
       cashGiven: payMethod === 'cash' ? parseFloat(cashGiven) : null,
-      change: change ? parseFloat(change) : null,
+      change:    change ? parseFloat(change) : null,
       timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      date: new Date().toLocaleDateString('es-ES'),
+      date:      new Date().toLocaleDateString('es-ES'),
     };
     setReceipt(rec);
     setShowPayModal(false);
@@ -143,35 +179,38 @@ export default function CajaPage() {
               className={`${styles.catTab} ${category === c && !search ? styles.catActive : ''}`}
               onClick={() => { setCategory(c); setSearch(''); }}
             >
-              {c === 'Palomitas' ? '🍿' : c === 'Bebidas' ? '🥤' : c === 'Snacks' ? '🌮' : c === 'Combos' ? '🎁' : '🔲'}
-              {c}
+              {CATEGORY_EMOJI[c] ?? '🔲'} {c}
             </button>
           ))}
         </div>
 
-        <div className={styles.productGrid}>
-          {products.map(product => {
-            const inCart = cart.find(i => i.product.id === product.id);
-            return (
-              <button
-                key={product.id}
-                className={`${styles.productCard} ${inCart ? styles.productInCart : ''}`}
-                onClick={() => addToCart(product)}
-              >
-                <span className={styles.productEmoji}>{product.emoji}</span>
-                <span className={styles.productName}>{product.name}</span>
-                {product.desc && <span className={styles.productDesc}>{product.desc}</span>}
-                <span className={styles.productPrice}>€{product.price.toFixed(2)}</span>
-                {inCart && (
-                  <span className={styles.productQtyBadge}>{inCart.qty}</span>
-                )}
-              </button>
-            );
-          })}
-          {products.length === 0 && (
-            <div className={styles.noResults}>Sin productos para "{search}"</div>
-          )}
-        </div>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)' }}>
+            <Loader size={18} /> Cargando productos...
+          </div>
+        ) : (
+          <div className={styles.productGrid}>
+            {filteredProducts.map(product => {
+              const inCart = cart.find(i => i.product.id === product.id);
+              return (
+                <button
+                  key={product.id}
+                  className={`${styles.productCard} ${inCart ? styles.productInCart : ''}`}
+                  onClick={() => addToCart(product)}
+                >
+                  <span className={styles.productEmoji}>{getEmoji(product)}</span>
+                  <span className={styles.productName}>{product.name}</span>
+                  {product.desc && <span className={styles.productDesc}>{product.desc}</span>}
+                  <span className={styles.productPrice}>€{getPrice(product).toFixed(2)}</span>
+                  {inCart && <span className={styles.productQtyBadge}>{inCart.qty}</span>}
+                </button>
+              );
+            })}
+            {filteredProducts.length === 0 && (
+              <div className={styles.noResults}>Sin productos para "{search || category}"</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── RIGHT — carrito ─────────────────────────────── */}
@@ -187,7 +226,6 @@ export default function CajaPage() {
           )}
         </div>
 
-        {/* Líneas del carrito */}
         <div className={styles.cartLines}>
           {cart.length === 0 ? (
             <div className={styles.cartEmpty}>
@@ -198,10 +236,10 @@ export default function CajaPage() {
           ) : (
             cart.map(({ product, qty }) => (
               <div key={product.id} className={styles.cartLine}>
-                <span className={styles.lineEmoji}>{product.emoji}</span>
+                <span className={styles.lineEmoji}>{getEmoji(product)}</span>
                 <div className={styles.lineInfo}>
                   <span className={styles.lineName}>{product.name}</span>
-                  <span className={styles.lineUnit}>€{product.price.toFixed(2)} / ud.</span>
+                  <span className={styles.lineUnit}>€{getPrice(product).toFixed(2)} / ud.</span>
                 </div>
                 <div className={styles.lineQty}>
                   <button className={styles.qtyBtn} onClick={() => changeQty(product.id, -1)}><Minus size={12} /></button>
@@ -209,7 +247,7 @@ export default function CajaPage() {
                   <button className={styles.qtyBtn} onClick={() => changeQty(product.id, 1)}><Plus size={12} /></button>
                 </div>
                 <div className={styles.lineSubtotal}>
-                  <span>€{(product.price * qty).toFixed(2)}</span>
+                  <span>€{(getPrice(product) * qty).toFixed(2)}</span>
                   <button className={styles.lineRemove} onClick={() => removeFromCart(product.id)}><X size={11} /></button>
                 </div>
               </div>
@@ -217,14 +255,13 @@ export default function CajaPage() {
           )}
         </div>
 
-        {/* Footer con total y cobrar */}
         <div className={styles.cartFooter}>
           {cart.length > 0 && (
             <div className={styles.cartSummary}>
               {cart.slice(0, 3).map(({ product, qty }) => (
                 <div key={product.id} className={styles.summaryLine}>
                   <span>{qty}× {product.name}</span>
-                  <span>€{(product.price * qty).toFixed(2)}</span>
+                  <span>€{(getPrice(product) * qty).toFixed(2)}</span>
                 </div>
               ))}
               {cart.length > 3 && <div className={styles.summaryMore}>+{cart.length - 3} más...</div>}
@@ -238,13 +275,10 @@ export default function CajaPage() {
 
           <div className={styles.payMethodRow}>
             {PAY_METHODS.map(({ id, label, Icon }) => (
-              <button
-                key={id}
+              <button key={id}
                 className={`${styles.payTab} ${payMethod === id ? styles.payTabActive : ''}`}
-                onClick={() => setPayMethod(id)}
-              >
-                <Icon size={14} />
-                <span>{label}</span>
+                onClick={() => setPayMethod(id)}>
+                <Icon size={14} /><span>{label}</span>
               </button>
             ))}
           </div>
@@ -274,7 +308,7 @@ export default function CajaPage() {
 
           <button
             className={styles.cobrarBtn}
-            disabled={cart.length === 0 || (payMethod === 'cash' && (!cashGiven || parseFloat(cashGiven) < total))}
+            disabled={cart.length === 0 || paying || (payMethod === 'cash' && (!cashGiven || parseFloat(cashGiven) < total))}
             onClick={() => setShowPayModal(true)}
           >
             <CheckCircle size={20} />
@@ -283,7 +317,7 @@ export default function CajaPage() {
         </div>
       </div>
 
-      {/* ── Modal confirmación de cobro ─────────────────── */}
+      {/* ── Modal confirmación ─────────────────── */}
       {showPayModal && (
         <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && setShowPayModal(false)}>
           <div className={styles.payModal}>
@@ -295,30 +329,28 @@ export default function CajaPage() {
               <div className={styles.payModalTotal}>€{total.toFixed(2)}</div>
               <div className={styles.payModalMethod}>{PAY_LABEL[payMethod]}</div>
               {payMethod === 'cash' && change !== null && (
-                <div className={styles.payModalChange}>
-                  Cambio a devolver: <strong>€{change}</strong>
-                </div>
+                <div className={styles.payModalChange}>Cambio a devolver: <strong>€{change}</strong></div>
               )}
               <div className={styles.payModalLines}>
                 {cart.map(({ product, qty }) => (
                   <div key={product.id} className={styles.payModalLine}>
                     <span>{qty}× {product.name}</span>
-                    <span>€{(product.price * qty).toFixed(2)}</span>
+                    <span>€{(getPrice(product) * qty).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
             </div>
             <div className={styles.payModalFooter}>
               <button className={styles.payModalCancel} onClick={() => setShowPayModal(false)}>Cancelar</button>
-              <button className={styles.payModalConfirm} onClick={handlePay}>
-                <CheckCircle size={16} /> Confirmar cobro
+              <button className={styles.payModalConfirm} onClick={handlePay} disabled={paying}>
+                {paying ? <Loader size={16} /> : <CheckCircle size={16} />} Confirmar cobro
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Ticket / Recibo ─────────────────────────────── */}
+      {/* ── Recibo ─────────────────────────────── */}
       {receipt && (
         <div className={styles.modalOverlay}>
           <div className={styles.receiptModal}>
@@ -334,8 +366,8 @@ export default function CajaPage() {
               <div className={styles.receiptLines}>
                 {receipt.lines.map(({ product, qty }) => (
                   <div key={product.id} className={styles.receiptLine}>
-                    <span>{product.emoji} {qty}× {product.name}</span>
-                    <span>€{(product.price * qty).toFixed(2)}</span>
+                    <span>{getEmoji(product)} {qty}× {product.name}</span>
+                    <span>€{(getPrice(product) * qty).toFixed(2)}</span>
                   </div>
                 ))}
               </div>

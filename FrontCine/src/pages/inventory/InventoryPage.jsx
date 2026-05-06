@@ -15,6 +15,7 @@ const EMPTY = { name: '', category: 'Técnico', quantity: '', min_stock: '', uni
 
 export default function InventoryPage() {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
@@ -22,7 +23,10 @@ export default function InventoryPage() {
   const { toast } = useApp();
 
   useEffect(() => {
-    inventoryService.getAll().then(setItems).catch(() => {});
+    inventoryService.getAll()
+      .then(data => setItems(Array.isArray(data) ? data : []))
+      .catch(() => toast('Error al cargar inventario.', 'error'))
+      .finally(() => setLoading(false));
   }, []);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setModal('form'); };
@@ -33,16 +37,21 @@ export default function InventoryPage() {
   const categories = [...new Set(items.map(i => i.category))];
   const filtered = filterCat === 'all' ? items : items.filter(i => i.category === filterCat);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) { toast('El nombre es obligatorio.', 'error'); return; }
-    if (editing) {
-      setItems(p => p.map(i => i.id === editing.id ? { ...i, ...form, quantity: Number(form.quantity), min_stock: Number(form.min_stock), price_unit: Number(form.price_unit) } : i));
-      toast('Artículo actualizado.', 'success');
-      inventoryService.update(editing.id, { ...form, quantity: Number(form.quantity), min_stock: Number(form.min_stock), price_unit: Number(form.price_unit) }).catch(() => toast('Error al guardar en el servidor.', 'error'));
-    } else {
-      setItems(p => [...p, { ...form, id: Date.now(), quantity: Number(form.quantity), min_stock: Number(form.min_stock), price_unit: Number(form.price_unit), last_order: '' }]);
-      toast('Artículo añadido.', 'success');
-      inventoryService.create({ ...form, quantity: Number(form.quantity), min_stock: Number(form.min_stock), price_unit: Number(form.price_unit) }).catch(() => toast('Error al guardar en el servidor.', 'error'));
+    const payload = { ...form, quantity: Number(form.quantity), min_stock: Number(form.min_stock), price_unit: Number(form.price_unit) };
+    try {
+      if (editing) {
+        const updated = await inventoryService.update(editing.id, payload);
+        setItems(p => p.map(i => i.id === editing.id ? (updated ?? { ...i, ...payload }) : i));
+        toast('Artículo actualizado.', 'success');
+      } else {
+        const created = await inventoryService.create(payload);
+        setItems(p => [...p, created]);
+        toast('Artículo añadido.', 'success');
+      }
+    } catch {
+      toast('Error al guardar el artículo.', 'error');
     }
     setModal(null);
   };
@@ -69,10 +78,13 @@ export default function InventoryPage() {
     { key: 'supplier', label: 'Proveedor', render: v => <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{v}</span> },
     { key: 'price_unit', label: 'P/ud.', width: 80, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>€{Number(v).toFixed(2)}</span> },
     { key: 'stock_status', label: 'Estado', width: 100, sortable: false, render: (_, row) => {
-      const s = stockStatus(row.quantity, row.min_stock);
+      const v = row.quantity;
+      const s = stockStatus(v, row.min_stock);
       return <Badge variant={s.v} dot>{s.label}</Badge>;
     }},
   ];
+
+  if (loading) return <div style={{ padding: 40, color: 'var(--text-3)', fontSize: 13 }}>Cargando inventario...</div>;
 
   return (
     <div className={styles.page}>

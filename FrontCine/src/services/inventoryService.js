@@ -1,10 +1,11 @@
 import { api } from './api';
 
-// Endpoint /merchandises no disponible en el backend actual (devuelve null)
 export const inventoryService = {
-  getAll:  ()         => api.get('/merchandises').then(d => d ?? []).catch(() => []),
-  getById: (id)       => api.get(`/merchandises/${id}`),
-  create:  (data)     => api.post('/merchandises', data),
-  update:  (id, data) => api.put(`/merchandises/${id}`, data),
-  remove:  (id)       => api.delete(`/merchandises/${id}`),
+  getAll:  ()         => api.get('/merchandise'),
+  getById: (id)       => api.get(`/merchandise/${id}`),
+  create:  (data)     => api.post('/merchandise', data),
+  update:  (id, data) => api.put(`/merchandise/${id}`, data),
+  remove:  (id)       => api.delete(`/merchandise/${id}`),
 };
+
+export const merchandiseService = inventoryService;

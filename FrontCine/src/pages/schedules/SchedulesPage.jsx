@@ -1,22 +1,39 @@
-import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, CalendarDays } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { CalendarDays, Edit2, Plus, Trash2 } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useApp } from '../../contexts/AppContext';
-import { sessionsService } from '../../services/sessionsService';
 import { moviesService } from '../../services/moviesService';
-import { roomsService } from '../../services/roomsService';
+import { theatersService } from '../../services/roomsService';
+import { screeningsService } from '../../services/sessionsService';
 import styles from './SchedulesPage.module.css';
 
-const EMPTY = { movie_id: '', room_id: '', date: '', time: '', price: '' };
+const STATUS_MAP = {
+  SCHEDULED: { label: 'Programada', v: 'cyan' },
+  ACTIVE: { label: 'Activa', v: 'green' },
+  CANCELLED: { label: 'Cancelada', v: 'default' },
+  FULL: { label: 'Llena', v: 'red' },
+};
+
+const EMPTY = { movieId: '', theaterId: '', dateTime: '', price: '', status: 'SCHEDULED' };
+
+const getDate = (screening) => (screening.dateTime ?? '').slice(0, 10);
+const getTime = (screening) => (screening.dateTime ?? '').slice(11, 16);
+const getMovie = (screening, movies) => screening.movie ?? movies.find(movie => movie.id === screening.movieId);
+const getTheater = (screening, theaters) => screening.theater ?? theaters.find(theater => theater.id === screening.theaterId);
+
+const toLocalDateTime = (value) => {
+  if (!value) return '';
+  return value.length > 16 ? value.slice(0, 16) : value;
+};
 
 export default function SchedulesPage() {
-  const [sessions, setSessions] = useState([]);
+  const [screenings, setScreenings] = useState([]);
   const [movies, setMovies] = useState([]);
-  const [rooms, setRooms] = useState([]);
+  const [theaters, setTheaters] = useState([]);
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
@@ -25,107 +42,82 @@ export default function SchedulesPage() {
   const { toast } = useApp();
 
   useEffect(() => {
-    sessionsService.getAll().then(setSessions).catch(() => {});
-    moviesService.getAll().then(setMovies).catch(() => {});
-    roomsService.getAll().then(setRooms).catch(() => {});
-  }, []);
+    Promise.all([screeningsService.getAll(), moviesService.getAll(), theatersService.getAll()])
+      .then(([screeningsData, moviesData, theatersData]) => {
+        setScreenings(screeningsData ?? []);
+        setMovies(moviesData ?? []);
+        setTheaters(theatersData ?? []);
+      })
+      .catch(() => toast('No se pudieron cargar los horarios del backend.', 'error'));
+  }, [toast]);
+
+  const filtered = useMemo(
+    () => filterDate ? screenings.filter(screening => getDate(screening) === filterDate) : screenings,
+    [filterDate, screenings],
+  );
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setModal('form'); };
-  const openEdit = (s) => {
-    setEditing(s);
+  const openEdit = (screening) => {
+    setEditing(screening);
     setForm({
-      movie_id: String(s.movie?.id ?? ''),
-      room_id:  String(s.theater?.id ?? ''),
-      date:     s.fechaHora?.slice(0, 10) ?? '',
-      time:     s.fechaHora?.slice(11, 16) ?? '',
-      price:    String(s.precioBase ?? ''),
+      movieId: String(screening.movie?.id ?? screening.movieId ?? ''),
+      theaterId: String(screening.theater?.id ?? screening.theaterId ?? ''),
+      dateTime: toLocalDateTime(screening.dateTime),
+      price: screening.price ?? '',
+      status: screening.status ?? 'SCHEDULED',
     });
     setModal('form');
   };
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
-  const filtered = filterDate
-    ? sessions.filter(s => s.fechaHora?.slice(0, 10) === filterDate)
-    : sessions;
-
-  const handleSave = () => {
-    if (!form.movie_id || !form.room_id || !form.date || !form.time) {
-      toast('Todos los campos son obligatorios.', 'error'); return;
+  const handleSave = async () => {
+    if (!form.movieId || !form.theaterId || !form.dateTime) {
+      toast('Pelicula, sala y fecha son obligatorios.', 'error');
+      return;
     }
-    const fechaHora = `${form.date}T${form.time}:00`;
+
+    const payload = {
+      movieId: Number(form.movieId),
+      theaterId: Number(form.theaterId),
+      dateTime: form.dateTime,
+      price: form.price === '' ? undefined : Number(form.price),
+      status: form.status,
+    };
 
     if (editing) {
-      sessionsService.update(editing.id, {
-        fechaHora,
-        precioBase: Number(form.price) || 0,
-      })
-        .then(updated => {
-          setSessions(p => p.map(s => s.id === editing.id
-            ? { ...s, fechaHora, precioBase: Number(form.price) || 0 }
-            : s
-          ));
-          toast('Sesión actualizada.', 'success');
-        })
-        .catch(() => toast('Error al guardar en el servidor.', 'error'));
+      const saved = await screeningsService.update(editing.id, payload);
+      setScreenings(prev => prev.map(screening => screening.id === editing.id ? saved : screening));
+      toast('Proyeccion actualizada.', 'success');
     } else {
-      sessionsService.create({
-        movieId:   Number(form.movie_id),
-        theaterId: Number(form.room_id),
-        fechaHora,
-        precioBase: Number(form.price) || 0,
-      })
-        .then(created => {
-          setSessions(p => [...p, created]);
-          toast('Sesión creada.', 'success');
-        })
-        .catch(() => toast('Error al guardar en el servidor.', 'error'));
+      const saved = await screeningsService.create(payload);
+      setScreenings(prev => [...prev, saved]);
+      toast('Proyeccion creada.', 'success');
     }
     setModal(null);
   };
 
-  const handleDelete = () => {
-    setSessions(p => p.filter(s => s.id !== deleteTarget.id));
-    toast('Sesión eliminada.', 'warning');
-    sessionsService.remove(deleteTarget.id).catch(() => {});
+  const handleDelete = async () => {
+    await screeningsService.remove(deleteTarget.id);
+    setScreenings(prev => prev.filter(screening => screening.id !== deleteTarget.id));
+    toast('Proyeccion eliminada.', 'warning');
     setDeleteTarget(null);
   };
 
   const columns = [
-    { key: 'fechaHora', label: 'Fecha', width: 100,
-      render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v?.slice(0, 10) ?? '—'}</span> },
-    { key: '_hora', label: 'Hora', width: 80, sortable: false,
-      render: (_, row) => <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-1)', fontWeight: 600 }}>{row.fechaHora?.slice(11, 16) ?? '—'}</span> },
-    { key: 'movie', label: 'Película',
-      render: v => <span style={{ fontWeight: 500 }}>{v?.titulo ?? '—'}</span> },
-    { key: 'theater', label: 'Sala', width: 160,
-      render: v => v?.nombre?.split('—')[0].trim() ?? '—' },
-    { key: 'asientosDisponibles', label: 'Ocupación', width: 110, render: (v, row) => {
-      const cap   = row.theater?.totalSeats ?? row.theater?.capacidad ?? 100;
-      const avail = v != null ? v : cap;
-      const sold  = cap - avail;
-      return (
-        <div className={styles.occ}>
-          <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{sold}/{cap}</span>
-          <div className={styles.bar}><div className={styles.barFill} style={{ width: `${cap > 0 ? (sold / cap) * 100 : 0}%`, background: sold >= cap ? 'var(--red)' : sold > cap * 0.8 ? 'var(--yellow)' : 'var(--accent)' }} /></div>
-        </div>
-      );
-    }},
-    { key: 'precioBase', label: 'Precio', width: 80,
-      render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>€{Number(v ?? 0).toFixed(2)}</span> },
-    { key: 'completo', label: 'Estado', width: 120, render: (v, row) => {
-      const isPast = row.fechaHora ? new Date(row.fechaHora) < new Date() : false;
-      if (isPast) return <Badge variant="default" dot>Finalizada</Badge>;
-      if (v)      return <Badge variant="red" dot>Llena</Badge>;
-      return <Badge variant="green" dot>Activa</Badge>;
-    }},
+    { key: 'date', label: 'Fecha', width: 110, render: (_, row) => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{getDate(row)}</span> },
+    { key: 'time', label: 'Hora', width: 80, render: (_, row) => <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-1)', fontWeight: 600 }}>{getTime(row)}</span> },
+    { key: 'movie', label: 'Pelicula', render: (_, row) => <span style={{ fontWeight: 500 }}>{getMovie(row, movies)?.title || '-'}</span> },
+    { key: 'theater', label: 'Sala', width: 160, render: (_, row) => getTheater(row, theaters)?.name || '-' },
+    { key: 'price', label: 'Precio', width: 90, render: value => value == null ? '-' : <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>€{Number(value).toFixed(2)}</span> },
+    { key: 'status', label: 'Estado', width: 120, render: value => <Badge variant={STATUS_MAP[value]?.v || 'default'} dot>{STATUS_MAP[value]?.label || value || '-'}</Badge> },
   ];
 
   return (
     <div className={styles.page}>
       <PageHeader
         title="Horarios"
-        subtitle={`${sessions.length} sesiones · ${sessions.filter(s => !s.completo && s.fechaHora && new Date(s.fechaHora) > new Date()).length} próximas`}
-        actions={<Button icon={Plus} onClick={openCreate}>Nueva sesión</Button>}
+        subtitle={`${screenings.length} proyecciones · ${screenings.filter(s => s.status === 'ACTIVE').length} activas`}
+        actions={<Button icon={Plus} onClick={openCreate}>Nueva proyeccion</Button>}
       />
 
       <div className={styles.toolbar}>
@@ -135,16 +127,15 @@ export default function SchedulesPage() {
           {filterDate && <button className={styles.clearDate} onClick={() => setFilterDate('')}>×</button>}
         </div>
         <div className={styles.statChips}>
-          <span className={styles.chip}><Badge variant="green">Activas</Badge> <span className={styles.chipN}>{sessions.filter(s => !s.completo && s.fechaHora && new Date(s.fechaHora) > new Date()).length}</span></span>
-          <span className={styles.chip}><Badge variant="red">Llenas</Badge> <span className={styles.chipN}>{sessions.filter(s => s.completo).length}</span></span>
-          <span className={styles.chip}><Badge variant="default">Finalizadas</Badge> <span className={styles.chipN}>{sessions.filter(s => s.fechaHora && new Date(s.fechaHora) < new Date()).length}</span></span>
+          {Object.entries(STATUS_MAP).map(([key, { label, v }]) => (
+            <span key={key} className={styles.chip}><Badge variant={v}>{label}</Badge> <span className={styles.chipN}>{screenings.filter(s => s.status === key).length}</span></span>
+          ))}
         </div>
       </div>
 
       <DataTable
         columns={columns}
         data={filtered}
-        searchKeys={['date']}
         searchable={false}
         rowActions={(row) => (
           <div style={{ display: 'flex', gap: 2 }}>
@@ -154,46 +145,50 @@ export default function SchedulesPage() {
         )}
       />
 
-      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar sesión' : 'Nueva sesión'}
+      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar proyeccion' : 'Nueva proyeccion'}
         footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
-          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Crear sesión'}</Button>
+          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Crear proyeccion'}</Button>
         </div>}
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
-            <label className={styles.label}>Película *</label>
-            <select className={styles.input} value={form.movie_id} onChange={e => set('movie_id', e.target.value)}>
-              <option value="">— Seleccionar película —</option>
-              {movies.filter(m => m.active !== false).map(m => <option key={m.id} value={m.id}>{m.titulo} ({m.duracionMin} min)</option>)}
+            <label className={styles.label}>Pelicula *</label>
+            <select className={styles.input} value={form.movieId} onChange={e => set('movieId', e.target.value)}>
+              <option value="">Seleccionar pelicula</option>
+              {movies.filter(movie => movie.active !== false).map(movie => <option key={movie.id} value={movie.id}>{movie.title}</option>)}
             </select>
           </div>
           <div className={styles.fieldFull}>
             <label className={styles.label}>Sala *</label>
-            <select className={styles.input} value={form.room_id} onChange={e => set('room_id', e.target.value)}>
-              <option value="">— Seleccionar sala —</option>
-              {rooms.map(r => <option key={r.id} value={r.id}>{r.nombre} ({r.totalSeats ?? r.capacidad} but.)</option>)}
+            <select className={styles.input} value={form.theaterId} onChange={e => set('theaterId', e.target.value)}>
+              <option value="">Seleccionar sala</option>
+              {theaters.map(theater => <option key={theater.id} value={theater.id}>{theater.name} ({theater.capacity} but.)</option>)}
             </select>
           </div>
           <div>
-            <label className={styles.label}>Fecha *</label>
-            <input className={styles.input} type="date" value={form.date} onChange={e => set('date', e.target.value)} />
-          </div>
-          <div>
-            <label className={styles.label}>Hora inicio *</label>
-            <input className={styles.input} type="time" value={form.time} onChange={e => set('time', e.target.value)} />
+            <label className={styles.label}>Fecha y hora *</label>
+            <input className={styles.input} type="datetime-local" value={form.dateTime} onChange={e => set('dateTime', e.target.value)} />
           </div>
           <div>
             <label className={styles.label}>Precio (€)</label>
             <input className={styles.input} type="number" step="0.50" value={form.price} onChange={e => set('price', e.target.value)} />
           </div>
+          <div>
+            <label className={styles.label}>Estado</label>
+            <select className={styles.input} value={form.status} onChange={e => set('status', e.target.value)}>
+              <option value="SCHEDULED">Programada</option>
+              <option value="ACTIVE">Activa</option>
+              <option value="CANCELLED">Cancelada</option>
+            </select>
+          </div>
         </div>
       </Modal>
 
       <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete}
-        title="Cancelar sesión" danger
-        message="¿Seguro que quieres eliminar esta sesión? Las reservas asociadas quedarán sin asignar."
-        confirmLabel="Eliminar sesión" />
+        title="Eliminar proyeccion" danger
+        message="¿Seguro que quieres eliminar esta proyeccion?"
+        confirmLabel="Eliminar proyeccion" />
     </div>
   );
 }

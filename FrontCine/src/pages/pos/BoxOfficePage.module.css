@@ -439,3 +439,23 @@
 .ticketId { font-family: var(--mono); font-size: 12px; color: var(--text-2); font-weight: 700; letter-spacing: 0.04em; }
 
 .ticketFooter { font-size: 10px; color: var(--text-3); line-height: 1.5; padding: 12px 20px 16px; text-align: center; }
+.ticketIdSeat { font-size: 11px; color: var(--text-3); }
+
+/* ── Client search ──────────────────────────────────── */
+.clientSearchWrap { position: relative; display: flex; align-items: center; }
+.clientSearchInput { width: 100%; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px 7px 28px; color: var(--text-1); font-size: 12px; outline: none; }
+.clientSearchInput:focus { border-color: var(--accent); }
+.clientLoader { position: absolute; right: 10px; color: var(--text-3); }
+.clientDropdown { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); margin-top: 4px; overflow: hidden; }
+.clientDropdownItem { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: transparent; border: none; border-bottom: 1px solid var(--border); cursor: pointer; text-align: left; transition: background var(--t); }
+.clientDropdownItem:last-child { border-bottom: none; }
+.clientDropdownItem:hover { background: var(--bg-3); }
+.clientDropdownName { font-size: 12px; font-weight: 500; color: var(--text-1); flex: 1; }
+.clientDropdownEmail { font-size: 10px; color: var(--text-3); }
+.clientChip { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg-3); border: 1px solid var(--border); border-radius: var(--r); }
+.clientChipInfo { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.clientChipName { font-size: 12px; font-weight: 600; color: var(--text-1); }
+.clientChipEmail { font-size: 10px; color: var(--text-3); }
+.fidelityBadge { display: flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; color: var(--accent); background: var(--accent-dim2); padding: 2px 7px; border-radius: 99px; }
+.clientChipRemove { background: transparent; border: none; color: var(--text-3); cursor: pointer; padding: 2px; display: flex; align-items: center; }
+.clientChipRemove:hover { color: var(--red); }

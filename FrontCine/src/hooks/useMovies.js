@@ -18,6 +18,7 @@ export function useMovies() {
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   const create = async (movie) => {

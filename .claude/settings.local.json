@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s https://raw.githubusercontent.com/Projecto-Cine/BackendCine/main/README.md)",
+      "Bash(curl *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\Bootcamp\\\\PROYECTOS\\\\FrontCine\\\\FrontCine\\\\src\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(Head -20)",
+      "Bash(npm run *)"
+    ]
+  }
+}

@@ -1,76 +1,95 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { authService } from '../services/authService';
+import { USERS } from '../data/mockData';
 
 const AuthContext = createContext(null);
 
-// Normaliza la respuesta del backend al formato interno del frontend
-function normalizeUser(apiUser) {
-  return {
-    ...apiUser,
-    name: apiUser.nombre,
-    role: apiUser.rol === 'ADMIN' ? 'admin' : 'cliente',
-  };
-}
-
-// Fallback para desarrollo cuando el backend no está disponible
-const DEV_USERS = [
-  { id: 1, nombre: 'Ana Admin',      email: 'admin@lumen.com',    rol: 'ADMIN'   },
-  { id: 2, nombre: 'Carlos Cliente', email: 'cliente@lumen.com',  rol: 'CLIENTE' },
-];
-const DEV_PASSWORD = 'lumen2024';
-
-function devLogin(email, password) {
-  const found = DEV_USERS.find(u => u.email === email);
-  if (!found || password !== DEV_PASSWORD) return null;
-  return normalizeUser(found);
+function mockLogin(username, password) {
+  const found = USERS.find(u => u.username === username);
+  if (!found || found.status === 'inactive') return null;
+  if (password !== 'lumen2024') return null;
+  return { user: found, token: 'mock-token-' + found.id };
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [error, setError] = useState('');
+  const [user, setUser]       = useState(null);
+  const [error, setError]     = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Restaurar sesión al recargar si hay token guardado
   useEffect(() => {
-    const stored = localStorage.getItem('lumen_user');
-    if (stored) {
-      try { setUser(JSON.parse(stored)); } catch { localStorage.removeItem('lumen_user'); }
+    const token = localStorage.getItem('lumen_token');
+    if (!token) { setLoading(false); return; }
+
+    if (token.startsWith('mock-token-')) {
+      const saved = localStorage.getItem('lumen_user');
+      if (saved) { try { setUser(JSON.parse(saved)); } catch {} }
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    authService.me()
+      .then(res => setUser(res?.user ?? null))
+      .catch(() => localStorage.removeItem('lumen_token'))
+      .finally(() => setLoading(false));
   }, []);
 
-  const login = useCallback(async (email, password) => {
+  const login = useCallback(async (username, password) => {
     setError('');
     try {
-      const apiUser = await authService.login({ email, password });
-      const normalized = normalizeUser(apiUser);
-      localStorage.setItem('lumen_user', JSON.stringify(normalized));
-      setUser(normalized);
+      // Intentar login real con el backend
+      const res = await authService.login(username, password);
+      if (res?.token) localStorage.setItem('lumen_token', res.token);
+      if (res?.user) localStorage.setItem('lumen_user', JSON.stringify(res.user));
+      if (res?.user?.status === 'inactive') {
+        setError('Cuenta desactivada. Contacta con el administrador.');
+        return false;
+      }
+      setUser(res?.user ?? null);
       return true;
     } catch {
-      const devUser = devLogin(email, password);
-      if (devUser) {
-        localStorage.setItem('lumen_user', JSON.stringify(devUser));
-        setUser(devUser);
-        return true;
+      // Fallback: backend no disponible o endpoint pendiente → usar mock
+      const mock = mockLogin(username, password);
+      if (!mock) {
+        setError('Credenciales inválidas o cuenta desactivada.');
+        return false;
       }
-      setError('Credenciales inválidas o cuenta desactivada.');
-      return false;
+      localStorage.setItem('lumen_token', mock.token);
+      localStorage.setItem('lumen_user', JSON.stringify(mock.user));
+      setUser(mock.user);
+      return true;
     }
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const token = localStorage.getItem('lumen_token');
+    if (token && !token.startsWith('mock-token-')) {
+      try { await authService.logout(); } catch {}
+    }
+    localStorage.removeItem('lumen_token');
     localStorage.removeItem('lumen_user');
     setUser(null);
   }, []);
 
   const can = useCallback((action) => {
     if (!user) return false;
-    if (user.role === 'admin') return true;
-    return ['read', 'create_reservation'].includes(action);
+    const role = (user.role ?? '').toLowerCase();
+    const perms = {
+      admin:       true,
+      supervisor:  ['read', 'create', 'update', 'approve'],
+      operator:    ['read', 'create', 'update'],
+      ticket:      ['read', 'create_reservation'],
+      maintenance: ['read', 'create_incident', 'update_incident'],
+      readonly:    ['read'],
+    };
+    const p = perms[role];
+    return p === true || (Array.isArray(p) && (p.includes('*') || p.includes(action)));
   }, [user]);
 
+  if (loading) return null;
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, error, setError, can, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, error, setError, can }}>
       {children}
     </AuthContext.Provider>
   );

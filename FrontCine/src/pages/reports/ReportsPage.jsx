@@ -4,6 +4,7 @@ import PageHeader from '../../components/shared/PageHeader';
 import KPICard    from '../../components/shared/KPICard';
 import { Euro, TrendingUp, Users, Film, Download } from 'lucide-react';
 import Button from '../../components/ui/Button';
+import SkeletonPage from '../../components/shared/Skeleton';
 import { reportsService }   from '../../services/reportsService';
 import { moviesService }    from '../../services/moviesService';
 import { incidentsService } from '../../services/incidentsService';
@@ -69,7 +70,7 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-3)', fontSize: 13 }}>Cargando informes...</div>;
+  if (loading) return <SkeletonPage />;
 
   return (
     <div className={styles.page}>

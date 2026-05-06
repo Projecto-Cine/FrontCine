@@ -1,7 +1,8 @@
-import { PanelLeftClose, PanelLeft, Bell, Clock } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, Bell, Clock, Search } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import styles from './Header.module.css';
 
 const ROUTE_LABELS = {
@@ -25,34 +26,68 @@ const ROLE_LABELS = {
   ticket: 'Taquilla', maintenance: 'Mantenimiento', readonly: 'Consulta',
 };
 
-export default function Header() {
+function useLiveClock() {
+  const [time, setTime] = useState(() =>
+    new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+  );
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTime(new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }));
+    }, 10000);
+    return () => clearInterval(id);
+  }, []);
+  return time;
+}
+
+export default function Header({ onOpenPalette }) {
   const { sidebarCollapsed, toggleSidebar } = useApp();
   const { user } = useAuth();
   const location = useLocation();
-  const now = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const now = useLiveClock();
 
   return (
     <header className={styles.header}>
       <div className={styles.left}>
-        <button className={styles.toggleBtn} onClick={toggleSidebar} title="Alternar barra lateral">
-          {sidebarCollapsed ? <PanelLeft size={15} /> : <PanelLeftClose size={15} />}
+        <button
+          className={styles.toggleBtn}
+          onClick={toggleSidebar}
+          title={sidebarCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
+          aria-expanded={!sidebarCollapsed}
+          aria-controls="app-sidebar"
+        >
+          {sidebarCollapsed
+            ? <PanelLeft size={15} aria-hidden="true" />
+            : <PanelLeftClose size={15} aria-hidden="true" />}
         </button>
-        <div className={styles.pageDivider} />
-        <h2 className={styles.pageTitle}>{ROUTE_LABELS[location.pathname] || 'Lumen'}</h2>
+        <div className={styles.pageDivider} aria-hidden="true" />
+        <h1 className={styles.pageTitle}>{ROUTE_LABELS[location.pathname] || 'Lumen'}</h1>
       </div>
 
       <div className={styles.right}>
-        <div className={styles.clock}>
+        <button
+          className={styles.searchTrigger}
+          onClick={onOpenPalette}
+          title="Búsqueda rápida (Ctrl+K)"
+          aria-label="Abrir búsqueda rápida"
+        >
+          <Search size={12} aria-hidden="true" />
+          <span>Ir a...</span>
+          <kbd className={styles.searchKbd}>Ctrl K</kbd>
+        </button>
+
+        <div className={styles.clock} aria-hidden="true">
           <Clock size={11} />
           <span>{now}</span>
         </div>
-        <button className={styles.iconBtn} title="Notificaciones">
-          <Bell size={14} />
+
+        <button className={styles.iconBtn} title="Notificaciones" aria-label="Notificaciones">
+          <Bell size={14} aria-hidden="true" />
           <span className={styles.notifDot} />
         </button>
+
         {user && (
-          <div className={styles.userChip}>
-            <div className={styles.avatar}>{user.name.charAt(0)}</div>
+          <div className={styles.userChip} aria-label={`${user.name}, ${ROLE_LABELS[user.role]}`}>
+            <div className={styles.avatar} aria-hidden="true">{user.name.charAt(0)}</div>
             <div className={styles.meta}>
               <span className={styles.name}>{user.name.split(' ')[0]}</span>
               <span className={styles.role}>{ROLE_LABELS[user.role]}</span>

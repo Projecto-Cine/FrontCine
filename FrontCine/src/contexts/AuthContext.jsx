@@ -17,6 +17,15 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const handleExpired = () => {
+      localStorage.removeItem('lumen_user');
+      setUser(null);
+    };
+    window.addEventListener('lumen:auth-expired', handleExpired);
+    return () => window.removeEventListener('lumen:auth-expired', handleExpired);
+  }, []);
+
+  useEffect(() => {
     const token = localStorage.getItem('lumen_token');
     if (!token) { setLoading(false); return; }
 

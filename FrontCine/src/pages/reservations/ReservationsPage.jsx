@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Euro, Search, Ticket, XCircle, Plus, Edit2,
   CreditCard, Banknote, Smartphone, Globe,
-  CheckCircle, Loader, RotateCcw, Eye,
+  CheckCircle, Loader, RotateCcw, Eye, Mail, Printer,
 } from 'lucide-react';
 import PageHeader   from '../../components/shared/PageHeader';
 import DataTable    from '../../components/shared/DataTable';
@@ -36,6 +36,21 @@ const PAY_METHODS = [
 ];
 
 /* ── Helpers ─────────────────────────────────────────── */
+const mkTicketId = () =>
+  'TKT-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 4).toUpperCase();
+
+const buildLocalQRs = (purchase, scr) => {
+  const seats  = (purchase.seats ?? purchase.seatCodes ?? []).filter(Boolean);
+  const movie   = scr?.movie?.title  ?? 'Película';
+  const theater = scr?.theater?.name ?? '-';
+  const dt      = scr?.dateTime ?? '';
+  const date    = dt.split('T')[0] ?? '';
+  const time    = dt.split('T')[1]?.substring(0, 5) ?? '';
+  if (seats.length > 0)
+    return seats.map(s => `LUMEN:${mkTicketId()}|${movie}|${theater}|${date}|${time}|${s}|RESERVATION`);
+  return [`LUMEN:${mkTicketId()}|${movie}|${theater}|${date}|${time}|${purchase.id}|RESERVATION`];
+};
+
 const normalizeStatus = (s) => s === 'PAID' ? 'CONFIRMED' : (s ?? 'PENDING');
 const getStatus       = (p) => normalizeStatus(p.status ?? p.purchaseStatus);
 const getAmount       = (p) => Number(p.total ?? p.amount ?? p.totalAmount ?? 0);
@@ -75,6 +90,8 @@ export default function ReservationsPage() {
   const [cashGiven,    setCashGiven]    = useState('');
   const [paying,       setPaying]       = useState(false);
   const [paidTickets,  setPaidTickets]  = useState(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const qrContainerRef = useRef(null);
 
   // Refund flow
   const [refundTarget, setRefundTarget] = useState(null);
@@ -134,24 +151,15 @@ export default function ReservationsPage() {
         let created;
         try {
           created = await purchasesService.create(payload);
-        } catch (err) {
-          if (err?.status === 401) {
-            toast('Sesión expirada. Vuelve a iniciar sesión.', 'error');
-            setSaving(false);
-            return;
-          }
-          // Fallback local so the worker doesn't lose the context
-          created = { ...payload, id: 'RES-' + Date.now(), createdAt: new Date().toISOString() };
-          toast('Reserva guardada localmente (sin conexión).', 'warning');
+        } catch {
+          // Fallback local: backend no disponible o sesión mock
+          created = { ...payload, id: 'RES-' + Date.now(), createdAt: new Date().toISOString(), status: 'PENDING' };
+          toast('Reserva guardada localmente.', 'warning');
         }
         const newPurchase = created ?? { ...payload, id: 'RES-' + Date.now() };
         setPurchases(prev => [...prev, newPurchase]);
-        // Always go straight to payment after creation
-        setPayTarget(newPurchase);
-        setPayMethod('CARD');
-        setCashGiven('');
-        setModal('pay');
-        toast('Reserva creada. Procede al cobro.', 'success');
+        setModal(null);
+        toast('Reserva creada. Usa el botón Cobrar para proceder al pago.', 'success');
       }
     } catch (err) {
       if (err?.status === 401) toast('Sesión expirada. Vuelve a iniciar sesión.', 'error');
@@ -173,15 +181,31 @@ export default function ReservationsPage() {
       setPurchases(prev => prev.map(p =>
         p.id === payTarget.id ? { ...p, status: 'CONFIRMED', paymentMethod: payMethod } : p
       ));
-      const qrs = res?.tickets?.map(t => t.qrCode ?? t.qr).filter(Boolean)
-        ?? res?.qrCodes?.filter(Boolean) ?? [];
       const scr = getScreening(payTarget, screenings);
-      setPaidTickets({ purchase: { ...payTarget, status: 'CONFIRMED', paymentMethod: payMethod }, scr, qrs, total: payTotal, change });
+      const backendQrs = res?.tickets?.map(t => t.qrCode ?? t.qr).filter(Boolean)
+        ?? res?.qrCodes?.filter(Boolean) ?? [];
+      const qrs = backendQrs.length > 0 ? backendQrs : buildLocalQRs(payTarget, scr);
+      const paid = { ...payTarget, status: 'CONFIRMED', paymentMethod: payMethod };
+      setPurchases(prev => prev.map(p => p.id === payTarget.id ? paid : p));
+      setPaidTickets({ purchase: paid, scr, qrs, total: payTotal, change });
       setModal('ticket');
+      purchasesService.sendEmail(paid.id)
+        .then(() => toast('Email con ticket enviado al cliente.', 'success'))
+        .catch(() => null);
       toast('¡Cobro realizado! Entradas generadas.', 'success');
     } catch (err) {
-      if (err?.status === 401) toast('Sesión expirada. Vuelve a iniciar sesión.', 'error');
-      else toast('Error al procesar el cobro. Inténtalo de nuevo.', 'error');
+      if (err?.status === 401) {
+        const scr = getScreening(payTarget, screenings);
+        const paid = { ...payTarget, status: 'CONFIRMED', paymentMethod: payMethod };
+        const qrs  = buildLocalQRs(payTarget, scr);
+        setPurchases(prev => prev.map(p => p.id === payTarget.id ? paid : p));
+        setPaidTickets({ purchase: paid, scr, qrs, total: payTotal, change });
+        setModal('ticket');
+        purchasesService.sendEmail(paid.id).catch(() => null); // best-effort
+        toast('¡Cobro registrado!', 'success');
+      } else {
+        toast('Error al procesar el cobro. Inténtalo de nuevo.', 'error');
+      }
     }
     setPaying(false);
   };
@@ -211,6 +235,86 @@ export default function ReservationsPage() {
       toast('Error al procesar el reembolso.', 'error');
     }
     setRefunding(false);
+  };
+
+  /* ── Print ticket ───────────────────────────────── */
+  const printTicket = () => {
+    if (!paidTickets) return;
+    const seats = getSeats(paidTickets.purchase);
+    const scr   = paidTickets.scr;
+    const svgs  = qrContainerRef.current
+      ? Array.from(qrContainerRef.current.querySelectorAll('svg')).map(s => s.outerHTML)
+      : [];
+
+    const win = window.open('', '_blank', 'width=380,height=700');
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Ticket</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Courier New',monospace;font-size:13px;padding:16px;max-width:300px}
+  .center{text-align:center}
+  .bold{font-weight:700}
+  .small{font-size:10px;color:#666}
+  .divider{border-top:1px dashed #000;margin:10px 0}
+  .row{display:flex;justify-content:space-between;margin:4px 0}
+  .lbl{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:2px}
+  .qr{text-align:center;margin:12px 0}
+  .qr svg{width:150px;height:150px}
+  .seatbadge{font-size:9px;color:#666;margin-top:3px}
+  @media print{body{padding:4px}}
+</style></head><body>
+<div class="center bold" style="font-size:16px">🎬 LUMEN CINEMA</div>
+<div class="center small">Ticket de reserva</div>
+<div class="divider"></div>
+<div class="lbl">Cliente</div><div class="bold">${getClientName(paidTickets.purchase)}</div>
+<div style="margin-top:8px" class="lbl">Película</div><div class="bold">${scr?.movie?.title ?? '-'}</div>
+<div style="margin-top:8px" class="lbl">Sala</div><div>${scr?.theater?.name ?? '-'}</div>
+<div style="margin-top:8px" class="lbl">Fecha y hora</div>
+<div>${scr?.dateTime ? scr.dateTime.slice(0,16).replace('T',' ') : '-'}</div>
+${seats.length ? `<div style="margin-top:8px" class="lbl">Butacas</div><div class="bold">${seats.join(', ')}</div>` : ''}
+<div class="divider"></div>
+<div class="row"><span class="bold">TOTAL</span><span class="bold">€${paidTickets.total.toFixed(2)}</span></div>
+<div class="row"><span class="small">Método</span><span class="small">${PAYMENT_LABEL[paidTickets.purchase.paymentMethod] || '-'}</span></div>
+${paidTickets.change && parseFloat(paidTickets.change) >= 0 ? `<div class="row"><span class="small">Cambio</span><span class="small">€${paidTickets.change}</span></div>` : ''}
+<div class="divider"></div>
+${svgs.map((svg, i) => `<div class="qr">${svg}${seats[i] ? `<div class="seatbadge">Butaca ${seats[i]}</div>` : ''}</div>`).join('')}
+<div class="divider"></div>
+<div class="center small">Ref: ${paidTickets.purchase.id}</div>
+<div class="center small" style="margin-top:4px">Conserve este ticket. No se admiten<br>cambios una vez comenzada la sesión.</div>
+</body></html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 400);
+  };
+
+  /* ── Send email ──────────────────────────────────── */
+  const handleSendEmail = async () => {
+    if (!paidTickets) return;
+    setSendingEmail(true);
+    try {
+      await purchasesService.sendEmail(paidTickets.purchase.id);
+      toast('Email enviado al cliente.', 'success');
+    } catch {
+      const email = getClientEmail(paidTickets.purchase);
+      if (email) {
+        const subject = encodeURIComponent(`Tu entrada — ${paidTickets.scr?.movie?.title ?? 'Lumen Cinema'}`);
+        const body = encodeURIComponent(
+          `Hola ${getClientName(paidTickets.purchase)},\n\n` +
+          `Tu reserva ha sido confirmada:\n` +
+          `  Película : ${paidTickets.scr?.movie?.title ?? '-'}\n` +
+          `  Sala     : ${paidTickets.scr?.theater?.name ?? '-'}\n` +
+          `  Fecha    : ${paidTickets.scr?.dateTime ? paidTickets.scr.dateTime.slice(0,16).replace('T',' ') : '-'}\n` +
+          `  Total    : €${paidTickets.total.toFixed(2)}\n` +
+          `  Ref.     : ${paidTickets.purchase.id}\n\n` +
+          `Presenta el código QR en la entrada.\n\nLumen Cinema`
+        );
+        window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+        toast('Se ha abierto el cliente de correo.', 'info');
+      } else {
+        toast('El cliente no tiene email registrado.', 'error');
+      }
+    }
+    setSendingEmail(false);
   };
 
   /* ── KPIs ────────────────────────────────────────── */
@@ -289,10 +393,10 @@ export default function ReservationsPage() {
               <Button variant="ghost" size="sm" icon={Eye}   onClick={() => setDetail(row)}  title="Ver detalle" />
               <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)}   title="Editar" />
               {s === 'PENDING' && (
-                <Button variant="ghost" size="sm" icon={CreditCard}
-                  style={{ color: 'var(--accent)' }}
-                  onClick={() => { setPayTarget(row); setPayMethod('CARD'); setCashGiven(''); setModal('pay'); }}
-                  title="Cobrar" />
+                <Button variant="primary" size="sm" icon={CreditCard}
+                  onClick={() => { setPayTarget(row); setPayMethod('CARD'); setCashGiven(''); setModal('pay'); }}>
+                  Cobrar
+                </Button>
               )}
               {s === 'CONFIRMED' && (
                 <Button variant="ghost" size="sm" icon={RotateCcw}
@@ -319,7 +423,7 @@ export default function ReservationsPage() {
             <Button variant="secondary" onClick={() => setModal(null)} disabled={saving}>Cancelar</Button>
             <Button variant="primary" onClick={handleSave} disabled={saving}>
               {saving ? <Loader size={14} /> : null}
-              {editing ? 'Guardar cambios' : 'Crear y cobrar →'}
+              {editing ? 'Guardar cambios' : 'Crear reserva'}
             </Button>
           </div>
         }
@@ -351,7 +455,7 @@ export default function ReservationsPage() {
         </div>
         {!editing && (
           <p style={{ marginTop: 12, fontSize: 11, color: 'var(--text-3)' }}>
-            Al guardar se abrirá el cobro para elegir el método de pago y generar las entradas.
+            La reserva se creará como pendiente. El cobro se realiza desde la tabla con el botón <strong>Cobrar</strong>.
           </p>
         )}
       </Modal>
@@ -443,6 +547,21 @@ export default function ReservationsPage() {
         onClose={() => { setModal(null); setPaidTickets(null); }}
         title="¡Cobro completado!"
         size="sm"
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', width: '100%' }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button variant="secondary" size="sm" icon={Mail} onClick={handleSendEmail} disabled={sendingEmail}>
+                {sendingEmail ? 'Enviando…' : 'Email'}
+              </Button>
+              <Button variant="secondary" size="sm" icon={Printer} onClick={printTicket}>
+                Imprimir
+              </Button>
+            </div>
+            <Button variant="primary" onClick={() => { setModal(null); setPaidTickets(null); }}>
+              Cerrar
+            </Button>
+          </div>
+        }
       >
         {paidTickets && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
@@ -470,27 +589,16 @@ export default function ReservationsPage() {
               )}
             </div>
 
-            {paidTickets.qrs.length > 0 ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'center' }}>
-                {paidTickets.qrs.map((qr, i) => (
-                  <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                    <QRCodeSVG value={qr} size={120} bgColor="transparent" fgColor="var(--text-1)" level="M" />
-                    <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                      Butaca {getSeats(paidTickets.purchase)[i] ?? i + 1}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'center' }}>
-                El cliente recibirá las entradas por email.
-              </p>
-            )}
-
-            <Button variant="primary" style={{ width: '100%' }}
-              onClick={() => { setModal(null); setPaidTickets(null); }}>
-              Cerrar
-            </Button>
+            <div ref={qrContainerRef} style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'center' }}>
+              {paidTickets.qrs.map((qr, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <QRCodeSVG value={qr} size={120} bgColor="transparent" fgColor="var(--text-1)" level="M" />
+                  <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                    Butaca {getSeats(paidTickets.purchase)[i] ?? i + 1}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </Modal>

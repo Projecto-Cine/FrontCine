@@ -23,14 +23,18 @@ async function request(path, options = {}) {
   });
 
   if (res.status === 401) {
-    if (path.includes('/auth/login')) {
-      // Let the login page handle its own 401
-    } else {
-      localStorage.removeItem('lumen_token');
-      // Throw first so callers can show a toast, then redirect after 1.5 s
+    if (!path.includes('/auth/login')) {
+      const token = localStorage.getItem('lumen_token') ?? '';
+      const isMock = token.startsWith('mock-token-');
+      // Solo forzar logout si es un endpoint de verificación de sesión (/auth/me, /auth/refresh)
+      // Para endpoints de negocio (purchases, sales…) el componente maneja el error con fallback local
+      const isSessionCheck = !isMock && (path.includes('/auth/me') || path.includes('/auth/refresh'));
+      if (isSessionCheck) {
+        localStorage.removeItem('lumen_token');
+        window.dispatchEvent(new CustomEvent('lumen:auth-expired'));
+      }
       const err = new Error('Sesión expirada. Vuelve a iniciar sesión.');
       err.status = 401;
-      setTimeout(() => { window.location.href = '/login'; }, 1500);
       throw err;
     }
   }

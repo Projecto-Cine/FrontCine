@@ -13,8 +13,10 @@ export const reservationsService = {
   // Pagar una reserva pendiente → devuelve { status:"CONFIRMED", tickets[{qrCode}] }
   pay:     (id, data) => api.post(`/purchases/${id}/pay`, data),
   // Cancelar usando el endpoint dedicado
-  cancel:  (id)       => api.post(`/purchases/${id}/cancel`, {}),
-  remove:  (id)       => api.delete(`/purchases/${id}`),
+  cancel:    (id)     => api.post(`/purchases/${id}/cancel`, {}),
+  // Enviar email con ticket al cliente
+  sendEmail: (id)     => api.post(`/purchases/${id}/email`, {}),
+  remove:    (id)     => api.delete(`/purchases/${id}`),
 };
 
 export const purchasesService = reservationsService;

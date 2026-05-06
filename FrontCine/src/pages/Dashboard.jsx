@@ -4,6 +4,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContai
 import KPICard from '../components/shared/KPICard';
 import PageHeader from '../components/shared/PageHeader';
 import Badge from '../components/ui/Badge';
+import SkeletonPage from '../components/shared/Skeleton';
 import { reportsService } from '../services/reportsService';
 import { sessionsService } from '../services/sessionsService';
 import { incidentsService } from '../services/incidentsService';
@@ -54,7 +55,7 @@ export default function Dashboard() {
     }).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-3)', fontSize: 13 }}>Cargando dashboard...</div>;
+  if (loading) return <SkeletonPage />;
 
   const criticalInc = incidents.filter(i => i.priority === 'critical');
 

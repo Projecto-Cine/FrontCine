@@ -10,6 +10,7 @@ import { AlertTriangle, Clock, CheckSquare } from 'lucide-react';
 import { useApp }  from '../../contexts/AppContext';
 import { incidentsService } from '../../services/incidentsService';
 import { usersService }     from '../../services/usersService';
+import SkeletonPage from '../../components/shared/Skeleton';
 import styles from './IncidentsPage.module.css';
 
 const PRIORITY_MAP  = { critical: { label: 'Crítica', v: 'red' }, high: { label: 'Alta', v: 'yellow' }, medium: { label: 'Media', v: 'accent' }, low: { label: 'Baja', v: 'green' } };
@@ -90,7 +91,7 @@ export default function IncidentsPage() {
   const open     = incidents.filter(i => i.status !== 'resolved');
   const critical = incidents.filter(i => i.priority === 'critical' && i.status !== 'resolved');
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-3)', fontSize: 13 }}>Cargando incidencias...</div>;
+  if (loading) return <SkeletonPage />;
 
   return (
     <div className={styles.page}>

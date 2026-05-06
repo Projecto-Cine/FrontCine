@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Ticket, Building2, AlertTriangle, Euro, Film } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import KPICard from '../components/shared/KPICard';
@@ -27,6 +28,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [kpis, setKpis]             = useState(null);
   const [salesWeek, setSalesWeek]   = useState([]);
   const [occupancy, setOccupancy]   = useState([]);
@@ -67,12 +69,12 @@ export default function Dashboard() {
       />
 
       <div className={styles.kpiGrid}>
-        <KPICard label="Ingresos hoy"        value={`€${(kpis?.revenue_today ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 0 })}`} icon={Euro}          color="green"  trend={12} sub="vs. ayer" />
-        <KPICard label="Sesiones activas"    value={kpis?.active_sessions ?? sessions.length}                                                 icon={Film}          color="accent" sub={`${sessions.filter(s => s.status === 'ACTIVE').length} en marcha`} />
-        <KPICard label="Ocupación media"     value={`${kpis?.occupancy_avg ?? 0}%`}                                                           icon={Building2}     color="cyan"   trend={-3} sub="sesiones de hoy" />
-        <KPICard label="Reservas hoy"        value={kpis?.reservations_today ?? 0}                                                            icon={Ticket}        color="purple" trend={8} />
-        <KPICard label="Incidencias abiertas" value={kpis?.incidents_open ?? incidents.length}                                                icon={AlertTriangle} color={criticalInc.length > 0 ? 'red' : 'yellow'} sub={`${criticalInc.length} crítica(s)`} />
-        <KPICard label="Salas operativas"    value={kpis?.operational_rooms ?? '—'}                                                           icon={Building2}     color="green"  sub="en servicio" />
+        <KPICard label="Ingresos hoy"        value={`€${(kpis?.revenue_today ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 0 })}`} icon={Euro}          color="green"  trend={12} sub="vs. ayer" onClick={() => navigate('/informes')} />
+        <KPICard label="Sesiones activas"    value={kpis?.active_sessions ?? sessions.length}                                                 icon={Film}          color="accent" sub={`${sessions.filter(s => s.status === 'ACTIVE').length} en marcha`} onClick={() => navigate('/horarios')} />
+        <KPICard label="Ocupación media"     value={`${kpis?.occupancy_avg ?? 0}%`}                                                           icon={Building2}     color="cyan"   trend={-3} sub="sesiones de hoy" onClick={() => navigate('/salas')} />
+        <KPICard label="Reservas hoy"        value={kpis?.reservations_today ?? 0}                                                            icon={Ticket}        color="purple" trend={8} onClick={() => navigate('/reservas')} />
+        <KPICard label="Incidencias abiertas" value={kpis?.incidents_open ?? incidents.length}                                                icon={AlertTriangle} color={criticalInc.length > 0 ? 'red' : 'yellow'} sub={`${criticalInc.length} crítica(s)`} onClick={() => navigate('/incidencias')} />
+        <KPICard label="Salas operativas"    value={kpis?.operational_rooms ?? '—'}                                                           icon={Building2}     color="green"  sub="en servicio" onClick={() => navigate('/salas')} />
       </div>
 
       <div className={styles.chartsRow}>

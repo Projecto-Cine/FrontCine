@@ -9,7 +9,7 @@
 .filterBtn { padding: 4px 10px; background: transparent; border: 1px solid var(--border); border-radius: var(--r); color: var(--text-2); font-size: 11px; cursor: pointer; transition: all var(--t); }
 .filterBtn:hover { background: var(--bg-3); color: var(--text-1); }
 .filterActive { background: var(--accent-dim2); border-color: var(--accent); color: var(--accent); }
-.filterSelect { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); padding: 5px 10px; color: var(--text-1); font-size: 11px; outline: none; }
+.filterSelect { background: var(--bg-2); border: 1px solid var(--border-l); border-radius: var(--r-lg); padding: 5px 12px; color: var(--text-1); font-size: 11px; outline: none; transition: border-color var(--t); }
 .sessionPanel { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 20px; }
 .sectionTitle { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 14px; }
 .sessionGrid { display: flex; flex-direction: column; gap: 8px; }

@@ -17,7 +17,7 @@ const ROUTE_LABELS = {
   '/shifts':       'Cuadrante de Turnos',
   '/reports':      'Informes',
   '/employees':    'Trabajadores',
-  '/clients':      'Clientes',
+  '/clients':      'Socios',
   '/audit':        'Auditoría y Seguridad',
 };
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, Users, GraduationCap, Star, UserCheck, Plus, Edit2, Trash2, RefreshCw } from 'lucide-react';
+import { Search, Users, Clock, Heart, CalendarDays, Star, Plus, Edit2, Trash2, RefreshCw } from 'lucide-react';
 import PageHeader    from '../../components/shared/PageHeader';
 import DataTable     from '../../components/shared/DataTable';
 import Badge         from '../../components/ui/Badge';
@@ -11,17 +11,34 @@ import { clientsService } from '../../services/clientsService';
 import styles from './ClientsPage.module.css';
 
 /* ── Local persistence ───────────────────────────────── */
-const LOCAL_KEY  = 'lumen_clients';
-const loadLocal  = () => { try { return JSON.parse(localStorage.getItem(LOCAL_KEY) ?? '[]'); } catch { return []; } };
-const saveLocal  = (list) => localStorage.setItem(LOCAL_KEY, JSON.stringify(list.filter(c => c._local)));
+const LOCAL_KEY = 'lumen_socios';
+const loadLocal = () => { try { return JSON.parse(localStorage.getItem(LOCAL_KEY) ?? '[]'); } catch { return []; } };
+const saveLocal = (list) => localStorage.setItem(LOCAL_KEY, JSON.stringify(list.filter(c => c._local)));
+
+/* ── Extended fields (memberType, diaEspectador) not in backend ── */
+const EXT_KEY  = 'lumen_socios_ext';
+const loadExt  = () => { try { return JSON.parse(localStorage.getItem(EXT_KEY) ?? '{}'); } catch { return {}; } };
+const getExt   = (id) => loadExt()[String(id)] ?? {};
+const saveExt  = (id, fields) => {
+  const ext = loadExt();
+  ext[String(id)] = { ...ext[String(id)], ...fields };
+  localStorage.setItem(EXT_KEY, JSON.stringify(ext));
+};
 
 /* ── Constants ───────────────────────────────────────── */
 const STATUS_COLOR = { ACTIVE: 'green', INACTIVE: 'default', SUSPENDED: 'red' };
 const STATUS_LABEL = { ACTIVE: 'Activo', INACTIVE: 'Inactivo', SUSPENDED: 'Suspendido' };
 
+const MEMBER_TYPES = {
+  ESTANDAR:      { label: 'Estándar',      badge: 'default', discount: null   },
+  ESTUDIANTE:    { label: 'Estudiante',    badge: 'purple',  discount: '−20%' },
+  TERCERA_EDAD:  { label: 'Tercera edad',  badge: 'cyan',    discount: '−30%' },
+  DISCAPACITADO: { label: 'Discapacitado', badge: 'yellow',  discount: '−50%' },
+};
+
 const EMPTY_FORM = {
   name: '', username: '', email: '', password: '',
-  dateOfBirth: '', student: false, visitsPerYear: '',
+  dateOfBirth: '', memberType: 'ESTANDAR', diaEspectador: false, visitsPerYear: '',
 };
 
 /* ── Helpers ─────────────────────────────────────────── */
@@ -29,35 +46,47 @@ function initials(name = '') {
   return name.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase() || '?';
 }
 
-function normalizeClient(raw, fallback = {}) {
+function normalizeSocio(raw, fallback = {}, ext = {}) {
   const visits = Number(raw?.visitsPerYear ?? fallback.visitsPerYear ?? 0);
+  const id = raw?.id ?? raw?.userId ?? raw?.clientId ?? ('SOC-' + Date.now());
+  // memberType: prefer ext (local override), then raw/fallback, then infer from student flag
+  let memberType = ext.memberType ?? raw?.memberType ?? fallback.memberType ?? 'ESTANDAR';
+  if (memberType === 'ESTANDAR' && (raw?.student || raw?.isStudent || fallback.student)) {
+    memberType = 'ESTUDIANTE';
+  }
+  const isStudent = memberType === 'ESTUDIANTE';
+  // status: backend returns lowercase ("active") — normalize to uppercase
+  const rawStatus = raw?.status ?? fallback.status ?? 'ACTIVE';
   return {
     ...raw,
-    id:                      raw?.id ?? raw?.userId ?? raw?.clientId ?? ('CLI-' + Date.now()),
-    name:                    raw?.name ?? fallback.name ?? raw?.username ?? '-',
-    email:                   raw?.email ?? fallback.email ?? '-',
-    username:                raw?.username ?? fallback.username ?? '',
-    student:                 raw?.student ?? raw?.isStudent ?? fallback.student ?? false,
-    status:                  raw?.status ?? 'ACTIVE',
-    visitsPerYear:           visits,
-    fidelityDiscountEligible: raw?.fidelityDiscountEligible ?? (visits >= 10),
-    dateOfBirth:             raw?.dateOfBirth ?? raw?.birthDate ?? fallback.dateOfBirth ?? null,
+    id,
+    name:          raw?.name ?? fallback.name ?? raw?.username ?? '-',
+    email:         raw?.email ?? fallback.email ?? '-',
+    username:      raw?.username ?? fallback.username ?? '',
+    memberType,
+    student:       isStudent,
+    diaEspectador: ext.diaEspectador ?? raw?.diaEspectador ?? fallback.diaEspectador ?? false,
+    status:        rawStatus.toUpperCase(),
+    visitsPerYear: visits,
+    // Backend rule: eligible if visits >= 10 OR student = true
+    fidelityDiscountEligible: raw?.fidelityDiscountEligible ?? (visits >= 10 || isStudent),
+    dateOfBirth:   raw?.dateOfBirth ?? raw?.birthDate ?? fallback.dateOfBirth ?? null,
   };
 }
 
 /* ── Component ───────────────────────────────────────── */
 export default function ClientsPage() {
-  const [clients,      setClients]      = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [query,        setQuery]        = useState('');
-  const [filterType,   setFilterType]   = useState('all');
-  const [detail,       setDetail]       = useState(null);
-  const [detailLoading,setDetailLoading]= useState(false);
-  const [modal,        setModal]        = useState(null);
-  const [editing,      setEditing]      = useState(null);
-  const [form,         setForm]         = useState(EMPTY_FORM);
-  const [saving,       setSaving]       = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [clients,       setClients]       = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [query,         setQuery]         = useState('');
+  const [filterType,    setFilterType]    = useState('all');
+  const [detail,        setDetail]        = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [modal,         setModal]         = useState(null);
+  const [editing,       setEditing]       = useState(null);
+  const [form,          setForm]          = useState(EMPTY_FORM);
+  const [saving,        setSaving]        = useState(false);
+  const [deleteTarget,  setDeleteTarget]  = useState(null);
   const { toast } = useApp();
   const fetchedRef = useRef(false);
 
@@ -71,20 +100,23 @@ export default function ClientsPage() {
 
     clientsService.getAll()
       .then(data => {
-        const backend  = (Array.isArray(data) ? data : (data?.content ?? [])).map(c => normalizeClient(c));
+        const backend   = (Array.isArray(data) ? data : (data?.content ?? [])).map(c => normalizeSocio(c, {}, getExt(c?.id ?? c?.userId)));
         const localOnly = local.filter(lc => lc._local && !backend.some(bc => bc.email === lc.email));
         setClients([...backend, ...localOnly]);
       })
-      .catch(() => {/* keep local */})
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   /* ── Filtered list ───────────────────────────────── */
   const filtered = useMemo(() => {
     let list = clients;
-    if (filterType === 'student')  list = list.filter(c => c.student || c.isStudent);
-    if (filterType === 'fidelity') list = list.filter(c => c.fidelityDiscountEligible);
-    if (filterType === 'active')   list = list.filter(c => (c.status ?? 'ACTIVE') === 'ACTIVE');
+    if (filterType === 'tercera_edad')  list = list.filter(c => c.memberType === 'TERCERA_EDAD');
+    if (filterType === 'discapacitado') list = list.filter(c => c.memberType === 'DISCAPACITADO');
+    if (filterType === 'estudiante')    list = list.filter(c => c.memberType === 'ESTUDIANTE');
+    if (filterType === 'espectador')    list = list.filter(c => c.diaEspectador);
+    if (filterType === 'fidelidad')     list = list.filter(c => c.fidelityDiscountEligible);
+    if (filterType === 'active')        list = list.filter(c => (c.status ?? 'ACTIVE') === 'ACTIVE');
     if (!query.trim()) return list;
     const q = query.toLowerCase();
     return list.filter(c =>
@@ -95,9 +127,9 @@ export default function ClientsPage() {
   }, [clients, query, filterType]);
 
   /* ── KPIs ────────────────────────────────────────── */
-  const students = clients.filter(c => c.student || c.isStudent);
-  const fidelity = clients.filter(c => c.fidelityDiscountEligible);
-  const active   = clients.filter(c => (c.status ?? 'ACTIVE') === 'ACTIVE');
+  const terceraEdad    = clients.filter(c => c.memberType === 'TERCERA_EDAD');
+  const discapacitados = clients.filter(c => c.memberType === 'DISCAPACITADO');
+  const espectadores   = clients.filter(c => c.diaEspectador);
 
   /* ── Form helpers ────────────────────────────────── */
   const setField   = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
@@ -105,78 +137,83 @@ export default function ClientsPage() {
   const openEdit   = (row) => {
     setEditing(row);
     setForm({
-      name:         row.name ?? '',
-      username:     row.username ?? '',
-      email:        row.email ?? '',
-      password:     '',
-      dateOfBirth:  row.dateOfBirth ?? row.birthDate ?? '',
-      student:      !!(row.student || row.isStudent),
-      visitsPerYear: String(row.visitsPerYear ?? ''),
+      name:          row.name ?? '',
+      username:      row.username ?? '',
+      email:         row.email ?? '',
+      password:      '',
+      dateOfBirth:   row.dateOfBirth ?? row.birthDate ?? '',
+      memberType:    row.memberType ?? 'ESTANDAR',
+      diaEspectador: !!(row.diaEspectador),
+      visitsPerYear:  String(row.visitsPerYear ?? ''),
     });
     setModal('form');
   };
 
   /* ── Save ────────────────────────────────────────── */
   const handleSave = async () => {
-    if (!form.name.trim())  { toast('El nombre es obligatorio.', 'error');     return; }
-    if (!form.email.trim()) { toast('El email es obligatorio.', 'error');      return; }
+    if (!form.name.trim())  { toast('El nombre es obligatorio.', 'error');  return; }
+    if (!form.email.trim()) { toast('El email es obligatorio.', 'error');   return; }
     if (!editing && !form.password.trim()) { toast('La contraseña es obligatoria.', 'error'); return; }
     setSaving(true);
 
-    const visits   = form.visitsPerYear ? Number(form.visitsPerYear) : 0;
-    const fidelOk  = visits >= 10;
-    const payload  = {
-      name:                    form.name,
-      username:                form.username || form.email,
-      email:                   form.email,
-      dateOfBirth:             form.dateOfBirth || null,
-      student:                 form.student,
-      visitsPerYear:           visits || undefined,
+    const visits  = form.visitsPerYear ? Number(form.visitsPerYear) : 0;
+    const fidelOk = visits >= 10;
+    const payload = {
+      name:                     form.name,
+      username:                 form.username || form.email,
+      email:                    form.email,
+      dateOfBirth:              form.dateOfBirth || null,
+      memberType:               form.memberType,
+      student:                  form.memberType === 'ESTUDIANTE',
+      diaEspectador:            form.diaEspectador,
+      visitsPerYear:            visits || undefined,
       fidelityDiscountEligible: fidelOk,
-      role:                    'CLIENT',
+      role:                     'CLIENT',
     };
-    if (!editing)            payload.password = form.password;
+    if (!editing)                        payload.password = form.password;
     if (editing && form.password.trim()) payload.password = form.password;
 
+    const extFields = { memberType: form.memberType, diaEspectador: form.diaEspectador };
     try {
       if (editing) {
         const updated = await clientsService.update(editing.id, payload).catch(() => null);
-        const merged  = normalizeClient(updated ?? {}, { ...editing, ...payload });
+        saveExt(editing.id, extFields);
+        const merged  = normalizeSocio(updated ?? {}, { ...editing, ...payload }, extFields);
         setClients(prev => {
           const next = prev.map(c => c.id === editing.id ? merged : c);
           saveLocal(next);
           return next;
         });
         if (detail?.id === editing.id) setDetail(merged);
-        toast('Cliente actualizado.', 'success');
+        toast('Socio actualizado.', 'success');
       } else {
         try {
           const raw     = await clientsService.create(payload);
-          const created = normalizeClient(raw, payload);
+          const created = normalizeSocio(raw, payload, extFields);
+          saveExt(created.id, extFields);
           setClients(prev => { const next = [...prev, created]; saveLocal(next); return next; });
-          toast('Cliente creado.', 'success');
+          toast('Socio creado.', 'success');
         } catch (err) {
           if (err?.status === 409) {
             toast('Este email o usuario ya está registrado.', 'error');
             setSaving(false); setModal(null); return;
           }
-          // Local fallback: backend not available
-          const local = normalizeClient({}, payload);
+          const local = normalizeSocio({}, payload, extFields);
           local._local = true;
+          saveExt(local.id, extFields);
           setClients(prev => { const next = [...prev, local]; saveLocal(next); return next; });
-          toast('Cliente guardado localmente.', 'warning');
+          toast('Socio guardado localmente.', 'warning');
         }
       }
     } catch {
-      // Edit fallback: update locally
-      const merged = normalizeClient({}, { ...editing, ...payload });
+      const merged = normalizeSocio({}, { ...editing, ...payload }, extFields);
       merged._local = editing?._local ?? true;
       setClients(prev => {
         const next = prev.map(c => c.id === editing.id ? merged : c);
         saveLocal(next);
         return next;
       });
-      toast('Cliente actualizado localmente.', 'warning');
+      toast('Socio actualizado localmente.', 'warning');
     }
 
     setSaving(false);
@@ -192,7 +229,7 @@ export default function ClientsPage() {
       return next;
     });
     if (detail?.id === deleteTarget.id) setDetail(null);
-    toast('Cliente eliminado.', 'warning');
+    toast('Socio eliminado.', 'warning');
     setDeleteTarget(null);
   };
 
@@ -203,17 +240,17 @@ export default function ClientsPage() {
     setDetailLoading(true);
     try {
       const full = await clientsService.getById(row.id);
-      setDetail(normalizeClient(full, row) ?? row);
-    } catch { /* keep row */ }
+      setDetail(normalizeSocio(full, row) ?? row);
+    } catch { }
     setDetailLoading(false);
   };
 
-  /* ── Refresh from backend ────────────────────────── */
+  /* ── Refresh ─────────────────────────────────────── */
   const handleRefresh = async () => {
     setLoading(true);
     try {
       const data    = await clientsService.getAll();
-      const backend = (Array.isArray(data) ? data : (data?.content ?? [])).map(c => normalizeClient(c));
+      const backend = (Array.isArray(data) ? data : (data?.content ?? [])).map(c => normalizeSocio(c, {}, getExt(c?.id ?? c?.userId)));
       const local   = loadLocal();
       const localOnly = local.filter(lc => lc._local && !backend.some(bc => bc.email === lc.email));
       setClients([...backend, ...localOnly]);
@@ -226,7 +263,7 @@ export default function ClientsPage() {
 
   /* ── Columns ─────────────────────────────────────── */
   const columns = [
-    { key: 'name', label: 'Cliente', render: (v, row) => (
+    { key: 'name', label: 'Socio', render: (v, row) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div className={styles.detailAvatar} style={{ width: 28, height: 28, fontSize: 11 }}>
           {initials(v ?? row.username)}
@@ -240,14 +277,19 @@ export default function ClientsPage() {
         </div>
       </div>
     )},
-    { key: 'student', label: 'Tipo', width: 110, render: (v, row) =>
-      (v || row.isStudent)
-        ? <Badge variant="purple">Estudiante</Badge>
-        : <Badge variant="default">Estándar</Badge> },
+    { key: 'memberType', label: 'Tipo', width: 130, render: (v) => {
+      const mt = MEMBER_TYPES[v] ?? MEMBER_TYPES.ESTANDAR;
+      return <Badge variant={mt.badge}>{mt.label}</Badge>;
+    }},
+    { key: 'diaEspectador', label: 'Descuentos extra', width: 210, render: (v, row) => (
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+        {row.fidelityDiscountEligible && <Badge variant="accent" dot>Fidelidad −10%</Badge>}
+        {v && <Badge variant="purple">Día espectador</Badge>}
+        {!row.fidelityDiscountEligible && !v && <span style={{ color: 'var(--text-3)', fontSize: 11 }}>—</span>}
+      </div>
+    )},
     { key: 'visitsPerYear', label: 'Visitas/año', width: 100, render: v =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{v ?? 0}</span> },
-    { key: 'fidelityDiscountEligible', label: 'Fidelidad', width: 110, render: v =>
-      v ? <Badge variant="accent" dot>Socio −10%</Badge> : <Badge variant="default">No</Badge> },
     { key: 'status', label: 'Estado', width: 110, render: v => {
       const s = v ?? 'ACTIVE';
       return <Badge variant={STATUS_COLOR[s] ?? 'default'} dot>{STATUS_LABEL[s] ?? s}</Badge>;
@@ -255,25 +297,26 @@ export default function ClientsPage() {
   ];
 
   const fidelVisits = Number(form.visitsPerYear ?? 0);
+  const selectedMT  = MEMBER_TYPES[form.memberType] ?? MEMBER_TYPES.ESTANDAR;
 
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Clientes"
-        subtitle={`${clients.length} clientes · ${fidelity.length} socios · ${students.length} estudiantes`}
+        title="Socios"
+        subtitle={`${clients.length} socios registrados · ${espectadores.length} día espectador · ${terceraEdad.length} tercera edad`}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="secondary" icon={RefreshCw} onClick={handleRefresh} disabled={loading} />
-            <Button icon={Plus} onClick={openCreate}>Nuevo cliente</Button>
+            <Button icon={Plus} onClick={openCreate}>Nuevo socio</Button>
           </div>
         }
       />
 
       <div className={styles.kpiRow}>
-        <KPICard label="Total clientes"    value={clients.length}  icon={Users}         color="accent" />
-        <KPICard label="Activos"           value={active.length}   icon={UserCheck}     color="green" />
-        <KPICard label="Estudiantes"       value={students.length} icon={GraduationCap} color="purple" />
-        <KPICard label="Socios fidelidad"  value={fidelity.length} icon={Star}          color="cyan" />
+        <KPICard label="Total socios"   value={clients.length}        icon={Users}       color="accent" />
+        <KPICard label="Tercera edad"   value={terceraEdad.length}    icon={Clock}       color="cyan" />
+        <KPICard label="Discapacitados" value={discapacitados.length} icon={Heart}       color="yellow" />
+        <KPICard label="Día espectador" value={espectadores.length}   icon={CalendarDays} color="purple" />
       </div>
 
       {/* ── Search + filter bar ── */}
@@ -287,10 +330,16 @@ export default function ClientsPage() {
             onChange={e => setQuery(e.target.value)}
           />
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {[['all','Todos'],['active','Activos'],['student','Estudiantes'],['fidelity','Socios']].map(([k, label]) => (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {[
+            ['all',          'Todos'],
+            ['tercera_edad', 'Tercera edad'],
+            ['discapacitado','Discapacitados'],
+            ['estudiante',   'Estudiantes'],
+            ['espectador',   'Día espectador'],
+            ['fidelidad',    'Fidelidad'],
+          ].map(([k, label]) => (
             <button key={k}
-              className={`${styles.filterBtn ?? ''} ${filterType === k ? styles.filterActive ?? '' : ''}`}
               style={{
                 padding: '4px 10px', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)',
                 background: filterType === k ? 'var(--accent)' : 'var(--bg-2)',
@@ -325,12 +374,12 @@ export default function ClientsPage() {
       <Modal
         open={modal === 'form'}
         onClose={() => setModal(null)}
-        title={editing ? `Editar — ${editing.name ?? editing.email}` : 'Nuevo cliente'}
+        title={editing ? `Editar — ${editing.name ?? editing.email}` : 'Nuevo socio'}
         footer={
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
             <Button variant="primary" onClick={handleSave} disabled={saving}>
-              {editing ? 'Guardar cambios' : 'Crear cliente'}
+              {editing ? 'Guardar cambios' : 'Crear socio'}
             </Button>
           </div>
         }
@@ -362,6 +411,21 @@ export default function ClientsPage() {
               onChange={e => setField('dateOfBirth', e.target.value)} />
           </div>
           <div>
+            <label className={styles.formLabel}>Tipo de socio</label>
+            <select className={styles.formInput} value={form.memberType}
+              onChange={e => setField('memberType', e.target.value)}>
+              <option value="ESTANDAR">Estándar (sin descuento)</option>
+              <option value="ESTUDIANTE">Estudiante (−20%)</option>
+              <option value="TERCERA_EDAD">Tercera edad (−30%)</option>
+              <option value="DISCAPACITADO">Discapacitado / minusválido (−50%)</option>
+            </select>
+            {selectedMT.discount && (
+              <p style={{ fontSize: 10, color: 'var(--accent)', marginTop: 4 }}>
+                Descuento por tipo: {selectedMT.discount} en entradas
+              </p>
+            )}
+          </div>
+          <div>
             <label className={styles.formLabel}>Visitas por año</label>
             <input className={styles.formInput} type="number" min="0" value={form.visitsPerYear}
               onChange={e => setField('visitsPerYear', e.target.value)} placeholder="0" />
@@ -372,11 +436,11 @@ export default function ClientsPage() {
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20 }}>
-            <input type="checkbox" id="student-check" checked={form.student}
-              onChange={e => setField('student', e.target.checked)}
+            <input type="checkbox" id="espectador-check" checked={form.diaEspectador}
+              onChange={e => setField('diaEspectador', e.target.checked)}
               style={{ width: 15, height: 15, accentColor: 'var(--accent)', cursor: 'pointer' }} />
-            <label htmlFor="student-check" style={{ fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
-              Cliente estudiante (precio reducido)
+            <label htmlFor="espectador-check" style={{ fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+              Inscrito en día del espectador
             </label>
           </div>
         </div>
@@ -386,12 +450,12 @@ export default function ClientsPage() {
       <Modal
         open={!!detail}
         onClose={() => setDetail(null)}
-        title={detailLoading ? 'Cargando…' : `Cliente — ${detail?.name ?? detail?.username ?? detail?.id}`}
+        title={detailLoading ? 'Cargando…' : `Socio — ${detail?.name ?? detail?.username ?? detail?.id}`}
         size="sm"
       >
         {detail && !detailLoading && (() => {
-          const eligible = detail.fidelityDiscountEligible;
-          const status   = detail.status ?? 'ACTIVE';
+          const mt     = MEMBER_TYPES[detail.memberType] ?? MEMBER_TYPES.ESTANDAR;
+          const status = detail.status ?? 'ACTIVE';
           return (
             <div className={styles.detail}>
               <div className={styles.detailHeader}>
@@ -405,10 +469,24 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              {eligible && (
-                <div className={styles.fidelityBanner}>
-                  <Star size={14} />
-                  Socio fidelidad — descuento −10% en entradas de adulto
+              {/* Descuentos activos */}
+              {(mt.discount || detail.fidelityDiscountEligible || detail.diaEspectador) && (
+                <div className={styles.discountBanners}>
+                  {mt.discount && (
+                    <div className={`${styles.fidelityBanner} ${styles.discountMember}`}>
+                      <Star size={13} /> {mt.label} — descuento {mt.discount} en entradas
+                    </div>
+                  )}
+                  {detail.fidelityDiscountEligible && (
+                    <div className={styles.fidelityBanner}>
+                      <Star size={13} /> Socio fidelidad — descuento −10% (≥ 10 visitas/año)
+                    </div>
+                  )}
+                  {detail.diaEspectador && (
+                    <div className={`${styles.fidelityBanner} ${styles.discountEspectador}`}>
+                      <CalendarDays size={13} /> Inscrito en día del espectador
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -422,14 +500,14 @@ export default function ClientsPage() {
                   <Badge variant={STATUS_COLOR[status] ?? 'default'} dot>{STATUS_LABEL[status] ?? status}</Badge>
                 </div>
                 <div className={styles.detailCard}>
-                  <span className={styles.detailLbl}>Tipo</span>
-                  <span className={styles.detailVal}>{(detail.student || detail.isStudent) ? 'Estudiante' : 'Estándar'}</span>
+                  <span className={styles.detailLbl}>Tipo de socio</span>
+                  <Badge variant={mt.badge}>{mt.label}</Badge>
                 </div>
                 <div className={styles.detailCard}>
                   <span className={styles.detailLbl}>Visitas / año</span>
                   <span className={styles.detailVal} style={{ fontFamily: 'var(--mono)', fontWeight: 700 }}>
                     {detail.visitsPerYear ?? 0}
-                    {!eligible && Number(detail.visitsPerYear ?? 0) > 0 && (
+                    {!detail.fidelityDiscountEligible && Number(detail.visitsPerYear ?? 0) > 0 && (
                       <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 6 }}>
                         ({10 - Number(detail.visitsPerYear)} para fidelidad)
                       </span>
@@ -438,7 +516,7 @@ export default function ClientsPage() {
                 </div>
                 <div className={styles.detailCard}>
                   <span className={styles.detailLbl}>Fidelidad</span>
-                  <span className={styles.detailVal}>{eligible ? '✓ Sí (≥ 10 visitas)' : 'No'}</span>
+                  <span className={styles.detailVal}>{detail.fidelityDiscountEligible ? '✓ Sí (≥ 10 visitas)' : 'No'}</span>
                 </div>
                 <div className={styles.detailCard}>
                   <span className={styles.detailLbl}>Fecha nacimiento</span>
@@ -459,7 +537,7 @@ export default function ClientsPage() {
         })()}
         {detailLoading && (
           <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>
-            Cargando datos del cliente…
+            Cargando datos del socio…
           </div>
         )}
       </Modal>
@@ -468,10 +546,10 @@ export default function ClientsPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Eliminar cliente"
+        title="Eliminar socio"
         danger
-        message={`¿Eliminar el cliente ${deleteTarget?.name ?? deleteTarget?.email}? Esta acción no se puede deshacer.`}
-        confirmLabel="Eliminar cliente"
+        message={`¿Eliminar al socio ${deleteTarget?.name ?? deleteTarget?.email}? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar socio"
       />
     </div>
   );

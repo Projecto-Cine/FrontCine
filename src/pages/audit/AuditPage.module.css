@@ -1,0 +1,19 @@
+.page { display: flex; flex-direction: column; gap: 16px; }
+.kpiRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.alertSection { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.25); border-radius: var(--r-lg); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.alertTitle { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--red); margin-bottom: 4px; }
+.alertItem { display: flex; align-items: center; gap: 12px; padding: 8px 10px; background: rgba(239,68,68,0.06); border-radius: var(--r-sm); border: 1px solid rgba(239,68,68,0.12); }
+.filters { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.filterGroup { display: flex; align-items: center; gap: 6px; }
+.filterLabel { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.filterBtn { padding: 4px 10px; background: transparent; border: 1px solid var(--border); border-radius: var(--r); color: var(--text-2); font-size: 11px; cursor: pointer; transition: all var(--t); }
+.filterBtn:hover { background: var(--bg-3); color: var(--text-1); }
+.filterActive { background: var(--accent-dim2); border-color: var(--accent); color: var(--accent); }
+.filterSelect { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); padding: 5px 10px; color: var(--text-1); font-size: 11px; outline: none; }
+.sessionPanel { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 20px; }
+.sectionTitle { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 14px; }
+.sessionGrid { display: flex; flex-direction: column; gap: 8px; }
+.sessionCard { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--bg-3); border-radius: var(--r); border: 1px solid var(--border); }
+.sessionAvatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-dim2); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.sessionInfo { display: flex; flex-direction: column; gap: 2px; }
+.sessionUser { font-size: 12px; font-weight: 500; color: var(--text-1); }

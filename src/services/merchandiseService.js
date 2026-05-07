@@ -1,0 +1,1 @@
+export { merchandiseService } from './inventoryService';

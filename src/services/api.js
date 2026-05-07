@@ -1,0 +1,56 @@
+export const BASE = import.meta.env.VITE_API_URL ?? '/api';
+
+function unwrap(data) {
+  if (data && typeof data === 'object') {
+    if (Array.isArray(data.content)) return data.content;
+    if (Array.isArray(data.data)) return data.data;
+    if ('data' in data) return data.data;
+    if ('payload' in data) return data.payload;
+  }
+  return data;
+}
+
+async function request(path, options = {}) {
+  const token = localStorage.getItem('lumen_token');
+  const isFormData = options.body instanceof FormData;
+  const res = await fetch(`${BASE}${path}`, {
+    headers: {
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+    ...options,
+  });
+
+  if (res.status === 401) {
+    if (path.includes('/auth/login')) {
+      // Let the login page handle its own 401
+    } else {
+      localStorage.removeItem('lumen_token');
+      // Throw first so callers can show a toast, then redirect after 1.5 s
+      const err = new Error('Sesión expirada. Vuelve a iniciar sesión.');
+      err.status = 401;
+      setTimeout(() => { window.location.href = '/login'; }, 1500);
+      throw err;
+    }
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    const err  = new Error(`API ${res.status} ${path}: ${text}`);
+    err.status = res.status;
+    throw err;
+  }
+
+  if (res.status === 204) return null;
+  return unwrap(await res.json());
+}
+
+export const api = {
+  get:    (path)       => request(path),
+  post:   (path, body) => request(path, { method: 'POST',   body: JSON.stringify(body) }),
+  postFormData: (path, formData) => request(path, { method: 'POST', body: formData }),
+  put:    (path, body) => request(path, { method: 'PUT',    body: JSON.stringify(body) }),
+  patch:  (path, body) => request(path, { method: 'PATCH',  body: JSON.stringify(body) }),
+  delete: (path)       => request(path, { method: 'DELETE' }),
+};

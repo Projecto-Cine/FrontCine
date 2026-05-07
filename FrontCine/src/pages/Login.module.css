@@ -22,7 +22,7 @@
   position: absolute;
   top: -180px; left: 50%; transform: translateX(-50%);
   width: 700px; height: 700px;
-  background: radial-gradient(ellipse, rgba(184,150,106,0.08) 0%, transparent 65%);
+  background: radial-gradient(ellipse, rgba(201,169,110,0.08) 0%, transparent 65%);
 }
 
 .panel {
@@ -50,7 +50,7 @@
   width: 56px; height: 56px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid rgba(184,150,106,0.3);
+  border: 1px solid rgba(201,169,110,0.3);
   flex-shrink: 0;
 }
 .brandText { display: flex; flex-direction: column; gap: 1px; }
@@ -88,7 +88,7 @@
 .submitBtn > button, .submitBtnInner {
   background: var(--accent) !important;
   border-color: var(--accent) !important;
-  color: #0E0A06 !important;
+  color: #0a0a0a !important;
   font-weight: 700;
 }
 

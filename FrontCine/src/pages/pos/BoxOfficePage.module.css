@@ -155,7 +155,7 @@
 .sessionPosterInitials {
   font-size: 28px;
   font-weight: 900;
-  color: rgba(237,228,212,0.18);
+  color: rgba(240,240,240,0.18);
   letter-spacing: -0.02em;
   font-family: var(--font);
   user-select: none;
@@ -208,7 +208,7 @@
 .sessionListInitials {
   font-size: 13px;
   font-weight: 900;
-  color: rgba(237,228,212,0.35);
+  color: rgba(240,240,240,0.35);
   font-family: var(--font);
   user-select: none;
 }

@@ -2,26 +2,25 @@
 
 :root {
   /* ── Backgrounds ───────────────────────── */
-  --bg-0: #120E08;
-  --bg-1: #1A140C;
-  --bg-2: #211910;
-  --bg-3: #2A2015;
-  --bg-4: #342818;
-  --bg-sidebar: #0E0A06;
-  --border: #302618;
-  --border-l: #3D3020;
+  --bg-0: #0f0f0f;
+  --bg-1: #161616;
+  --bg-2: #1c1c1c;
+  --bg-3: #222222;
+  --bg-4: #2a2a2a;
+  --bg-sidebar: #0a0a0a;
+  --border: #252525;
+  --border-l: #333333;
 
-  /* ── Text — warm cream ─────────────────── */
-  --text-1: #EDE4D4;
-  --text-2: #9A8A70;
-  /* text-3 subido de #5A4A38 → #7A6A58 para cumplir 3:1 en texto grande */
-  --text-3: #7A6A58;
+  /* ── Text ──────────────────────────────── */
+  --text-1: #f0f0f0;
+  --text-2: #888888;
+  --text-3: #666666;
 
-  /* ── Bronze-gold accent ────────────────── */
-  --accent: #B8966A;
-  --accent-h: #CCA87C;
-  --accent-dim: rgba(184,150,106,0.10);
-  --accent-dim2: rgba(184,150,106,0.18);
+  /* ── Gold accent ───────────────────────── */
+  --accent: #c9a96e;
+  --accent-h: #d4b87c;
+  --accent-dim: rgba(201,169,110,0.10);
+  --accent-dim2: rgba(201,169,110,0.18);
 
   /* ── Status colours ────────────────────── */
   --green: #4ade80;
@@ -48,7 +47,7 @@
   --t: 150ms ease;
 
   /* ── Accesibilidad: focus ring ─────────── */
-  --focus-ring: 0 0 0 3px rgba(184,150,106,0.7);
+  --focus-ring: 0 0 0 3px rgba(201,169,110,0.7);
   --focus-outline: 2px solid var(--accent-h);
 }
 

@@ -20,6 +20,11 @@ const SCREENING_LABEL = { ACTIVE: 'Activa', FULL: 'Llena', SCHEDULED: 'Programad
 const PAID_STATUSES = new Set(['CONFIRMED', 'PAID']);
 
 const toArray = (value) => Array.isArray(value) ? value : value?.content ?? [];
+const loadLocalPurch = () => { try { return JSON.parse(localStorage.getItem('lumen_purchases') ?? '[]'); } catch { return []; } };
+const mergePurchases = (backend, local) => {
+  const ids = new Set(backend.map(p => p.id));
+  return [...backend, ...local.filter(p => p._local && !ids.has(p.id))];
+};
 const money = (value, decimals = 2) => `€${Number(value ?? 0).toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
 const localISODate = (date = new Date()) => {
   const offsetMs = date.getTimezoneOffset() * 60_000;
@@ -32,6 +37,12 @@ const dayLabel = (isoDate) => {
 const getAmount = (purchase) => Number(purchase?.total ?? purchase?.amount ?? purchase?.totalAmount ?? 0);
 const getStatus = (purchase) => purchase?.status ?? purchase?.purchaseStatus ?? 'PENDING';
 const getDateValue = (item) => item?.createdAt ?? item?.purchaseDate ?? item?.dateTime ?? '';
+const getDateLocal = (item) => {
+  const raw = getDateValue(item);
+  if (!raw) return '';
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? raw : localISODate(d);
+};
 const getSold = (screening) => Number(screening?.soldCount ?? screening?.sold ?? screening?.ticketsSold ?? 0);
 const getCapacity = (screening) => Number(screening?.theater?.capacity ?? screening?.capacity ?? 0);
 const getRoomName = (screening) => screening?.theater?.name?.split('-')[0]?.trim() ?? `Sala ${screening?.theater?.id ?? '?'}`;
@@ -58,7 +69,7 @@ const PercentTooltip = ({ active, payload, label }) => {
 };
 
 function buildFallbackData({ reportKpis, reportSalesWeek, reportOccupancy, purchases, screenings, incidents, clients, today }) {
-  const todayPurchases = purchases.filter(purchase => getDateValue(purchase).startsWith(today));
+  const todayPurchases = purchases.filter(purchase => getDateLocal(purchase) === today);
   const paidPurchases = purchases.filter(purchase => PAID_STATUSES.has(getStatus(purchase)));
   const paidToday = todayPurchases.filter(purchase => PAID_STATUSES.has(getStatus(purchase)));
   const activeScreenings = screenings.filter(screening => screening.status === 'ACTIVE');
@@ -90,7 +101,7 @@ function buildFallbackData({ reportKpis, reportSalesWeek, reportOccupancy, purch
   });
 
   const fallbackSalesWeek = days.map(day => {
-    const dayPurchases = purchases.filter(purchase => getDateValue(purchase).startsWith(day) && PAID_STATUSES.has(getStatus(purchase)));
+    const dayPurchases = purchases.filter(purchase => getDateLocal(purchase) === day && PAID_STATUSES.has(getStatus(purchase)));
     return {
       day: dayLabel(day),
       revenue: dayPurchases.reduce((sum, purchase) => sum + getAmount(purchase), 0),
@@ -114,7 +125,18 @@ function buildFallbackData({ reportKpis, reportSalesWeek, reportOccupancy, purch
   }));
 
   return {
-    kpis: { ...fallbackKpis, ...(reportKpis ?? {}) },
+    kpis: {
+      // Backend puede tener datos de ocupación/salas/sesiones que no calculamos
+      ...(reportKpis ?? {}),
+      // Ingresos y reservas: siempre desde datos mezclados (backend + local)
+      // El endpoint /reports/kpis no ve las compras locales y devolvería 0
+      revenue_today:      fallbackKpis.revenue_today,
+      tickets_today:      fallbackKpis.tickets_today,
+      reservations_today: fallbackKpis.reservations_today,
+      total_revenue:      fallbackKpis.total_revenue,
+      total_clients:      fallbackKpis.total_clients,
+      incidents_open:     fallbackKpis.incidents_open,
+    },
     salesWeek: toArray(reportSalesWeek).length
       ? toArray(reportSalesWeek).map(item => ({ day: item.day, revenue: item.ventas ?? item.revenue ?? 0, tickets: item.entradas ?? item.tickets ?? 0 }))
       : fallbackSalesWeek,
@@ -144,7 +166,7 @@ export default function Dashboard() {
       if (ignore) return;
       const sessions = toArray(screeningsData).filter(screening => screening.status !== 'CANCELLED');
       const incidents = toArray(incidentsData).filter(isOpenIncident);
-      const purchases = toArray(purchasesData);
+      const purchases = mergePurchases(toArray(purchasesData), loadLocalPurch());
       const clients = toArray(clientsData);
       const computed = buildFallbackData({ reportKpis, reportSalesWeek, reportOccupancy, purchases, screenings: sessions, incidents, clients, today });
 

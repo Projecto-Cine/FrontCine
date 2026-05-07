@@ -12,15 +12,22 @@ import { usersService } from '../../services/usersService';
 import styles from './UsersPage.module.css';
 
 const ROLES = {
-  ADMIN: { label: 'Administrador', color: 'red' },
-  CLIENT: { label: 'Cliente', color: 'green' },
+  ADMIN:       { label: 'Administrador', color: 'red' },
+  SUPERVISOR:  { label: 'Supervisor',    color: 'yellow' },
+  OPERATOR:    { label: 'Operador',      color: 'accent' },
+  TICKET:      { label: 'Taquilla',      color: 'cyan' },
+  MAINTENANCE: { label: 'Mantenimiento', color: 'purple' },
+  READONLY:    { label: 'Consulta',      color: 'default' },
 };
 
-const EMPTY = { email: '', role: 'CLIENT', dateOfBirth: '' };
+const EMPLOYEE_ROLES = Object.keys(ROLES);
+
+const EMPTY = { name: '', email: '', role: 'OPERATOR', dateOfBirth: '' };
 
 const normalizeUser = (user) => ({
   ...user,
-  role: String(user.role ?? 'CLIENT').toUpperCase(),
+  name: user.name ?? [user.firstName, user.lastName].filter(Boolean).join(' ') ?? '',
+  role: String(user.role ?? 'OPERATOR').toUpperCase(),
   dateOfBirth: user.dateOfBirth ?? user.birthDate ?? '',
 });
 
@@ -37,8 +44,10 @@ export default function UsersPage() {
 
   useEffect(() => {
     usersService.getAll()
-      .then(data => setUsers((data ?? []).map(normalizeUser)))
-      .catch(() => toast('No se pudieron cargar los usuarios del backend.', 'error'));
+      .then(data => setUsers(
+        (data ?? []).map(normalizeUser).filter(u => EMPLOYEE_ROLES.includes(u.role))
+      ))
+      .catch(() => toast('No se pudieron cargar los trabajadores del backend.', 'error'));
   }, [toast]);
 
   const openCreate = () => { if (!isAdmin) return; setEditing(null); setForm(EMPTY); setModal('form'); };
@@ -46,12 +55,15 @@ export default function UsersPage() {
   const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
   const handleSave = async () => {
-    if (!form.email.trim()) {
-      toast('Email obligatorio.', 'error');
-      return;
-    }
+    if (!form.name.trim()) { toast('Nombre obligatorio.', 'error'); return; }
+    if (!form.email.trim()) { toast('Email obligatorio.', 'error'); return; }
 
-    const payload = { email: form.email.trim(), role: form.role, dateOfBirth: form.dateOfBirth || null };
+    const payload = {
+      name: form.name.trim(),
+      email: form.email.trim(),
+      role: form.role,
+      dateOfBirth: form.dateOfBirth || null,
+    };
     if (editing) {
       const saved = normalizeUser(await usersService.update(editing.id, payload));
       setUsers(prev => prev.map(user => user.id === editing.id ? saved : user));
@@ -72,13 +84,18 @@ export default function UsersPage() {
   };
 
   const columns = [
-    { key: 'email', label: 'Email', render: value => (
+    { key: 'name', label: 'Trabajador', render: (value, row) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-dim2)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{value?.charAt(0)?.toUpperCase()}</div>
-        <span style={{ fontSize: 12, color: 'var(--text-1)', fontWeight: 500 }}>{value}</span>
+        <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-dim2)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+          {(value || row.email)?.charAt(0)?.toUpperCase()}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <span style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 600 }}>{value || '—'}</span>
+          <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{row.email}</span>
+        </div>
       </div>
     )},
-    { key: 'role', label: 'Rol', width: 140, render: value => <Badge variant={ROLES[value]?.color || 'default'}>{ROLES[value]?.label || value}</Badge> },
+    { key: 'role', label: 'Rol', width: 150, render: value => <Badge variant={ROLES[value]?.color || 'default'}>{ROLES[value]?.label || value}</Badge> },
     { key: 'dateOfBirth', label: 'Fecha nacimiento', width: 160, render: value => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{value || '-'}</span> },
   ];
 
@@ -86,14 +103,14 @@ export default function UsersPage() {
     <div className={styles.page}>
       <PageHeader
         title="Usuarios"
-        subtitle={`${users.length} usuarios · ${users.filter(user => user.role === 'ADMIN').length} administradores`}
+        subtitle={`${users.length} trabajadores · ${users.filter(user => user.role === 'ADMIN').length} administradores`}
         actions={isAdmin && <Button icon={Plus} onClick={openCreate}>Nuevo trabajador</Button>}
       />
 
       <div className={styles.kpiRow}>
-        <KPICard label="Usuarios totales" value={users.length} icon={Users} color="accent" />
+        <KPICard label="Trabajadores" value={users.length} icon={Users} color="accent" />
         <KPICard label="Administradores" value={users.filter(user => user.role === 'ADMIN').length} icon={Shield} color="red" />
-        <KPICard label="Clientes" value={users.filter(user => user.role === 'CLIENT').length} icon={UserCheck} color="green" />
+        <KPICard label="Supervisores" value={users.filter(user => user.role === 'SUPERVISOR').length} icon={UserCheck} color="yellow" />
       </div>
 
       <div className={styles.rolesGrid}>
@@ -101,7 +118,7 @@ export default function UsersPage() {
           <div key={key} className={styles.roleCard}>
             <div className={styles.roleTop}>
               <Badge variant={role.color}>{role.label}</Badge>
-              <span className={styles.roleCount}>{users.filter(user => user.role === key).length} usuarios</span>
+              <span className={styles.roleCount}>{users.filter(user => user.role === key).length} trabajadores</span>
             </div>
           </div>
         ))}
@@ -110,7 +127,7 @@ export default function UsersPage() {
       <DataTable
         columns={columns}
         data={users}
-        searchKeys={['email', 'role']}
+        searchKeys={['name', 'email', 'role']}
         rowActions={(row) => isAdmin ? (
           <div style={{ display: 'flex', gap: 2 }}>
             <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)} />
@@ -127,14 +144,19 @@ export default function UsersPage() {
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
+            <label className={styles.label}>Nombre completo *</label>
+            <input className={styles.input} type="text" placeholder="Ej: Ana García López" value={form.name} onChange={e => set('name', e.target.value)} />
+          </div>
+          <div className={styles.fieldFull}>
             <label className={styles.label}>Email *</label>
-            <input className={styles.input} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+            <input className={styles.input} type="email" placeholder="trabajador@lumen.es" value={form.email} onChange={e => set('email', e.target.value)} />
           </div>
           <div>
             <label className={styles.label}>Rol</label>
             <select className={styles.input} value={form.role} onChange={e => set('role', e.target.value)}>
-              <option value="ADMIN">Administrador</option>
-              <option value="CLIENT">Cliente</option>
+              {Object.entries(ROLES).map(([key, role]) => (
+                <option key={key} value={key}>{role.label}</option>
+              ))}
             </select>
           </div>
           <div>

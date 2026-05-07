@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Building2, Edit2, Plus, Trash2, Users } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
-import DataTable from '../../components/shared/DataTable';
 import Button from '../../components/ui/Button';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import KPICard from '../../components/shared/KPICard';
@@ -34,7 +33,6 @@ export default function RoomsPage() {
       toast('Nombre y capacidad son obligatorios.', 'error');
       return;
     }
-
     const payload = { name: form.name.trim(), capacity: Number(form.capacity) };
     if (editing) {
       const saved = await theatersService.update(editing.id, payload);
@@ -56,58 +54,70 @@ export default function RoomsPage() {
   };
 
   const totalCap = rooms.reduce((sum, room) => sum + Number(room.capacity ?? 0), 0);
-
-  const columns = [
-    { key: 'name', label: 'Sala', render: value => <span style={{ fontWeight: 500 }}>{value}</span> },
-    { key: 'capacity', label: 'Capacidad', width: 120, render: value => <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{value} but.</span> },
-  ];
+  const avgCap = rooms.length ? Math.round(totalCap / rooms.length) : 0;
 
   return (
     <div className={styles.page}>
       <PageHeader
         title="Salas"
-        subtitle={`${rooms.length} salas · ${totalCap} butacas`}
+        subtitle={`${rooms.length} salas · ${totalCap} butacas en total`}
         actions={<Button icon={Plus} onClick={openCreate}>Nueva sala</Button>}
       />
 
       <div className={styles.kpiRow}>
         <KPICard label="Salas" value={rooms.length} icon={Building2} color="green" />
         <KPICard label="Capacidad total" value={totalCap} icon={Users} color="accent" sub="butacas" />
+        <KPICard label="Media por sala" value={avgCap} icon={Users} color="cyan" sub="butacas" />
       </div>
 
-      <DataTable
-        columns={columns}
-        data={rooms}
-        searchKeys={['name']}
-        rowActions={(row) => (
-          <div style={{ display: 'flex', gap: 2 }}>
-            <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)} title="Editar" />
-            <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setDeleteTarget(row)} title="Eliminar" />
-          </div>
-        )}
-      />
+      {rooms.length === 0 ? (
+        <div className={styles.empty}>No hay salas registradas</div>
+      ) : (
+        <div className={styles.grid}>
+          {rooms.map(room => (
+            <div key={room.id} className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div className={styles.cardIcon}>
+                  <Building2 size={20} />
+                </div>
+                <div className={styles.cardName}>{room.name}</div>
+              </div>
+
+              <div className={styles.cardStats}>
+                <div className={styles.cardCapNum}>{room.capacity}</div>
+                <div className={styles.cardCapLabel}>butacas</div>
+              </div>
+
+              <div className={styles.cardActions}>
+                <Button variant="secondary" size="sm" icon={Edit2} onClick={() => openEdit(room)}>Editar</Button>
+                <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setDeleteTarget(room)} title="Eliminar" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar sala' : 'Nueva sala'}
         footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
-          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Crear'}</Button>
+          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Crear sala'}</Button>
         </div>}
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
             <label className={styles.label}>Nombre de sala *</label>
-            <input className={styles.input} value={form.name} onChange={e => set('name', e.target.value)} placeholder="Ej: Sala 1" />
+            <input className={styles.input} value={form.name} onChange={e => set('name', e.target.value)} placeholder="Ej: Sala 1 - IMAX" />
           </div>
           <div>
             <label className={styles.label}>Capacidad (butacas) *</label>
-            <input className={styles.input} type="number" value={form.capacity} onChange={e => set('capacity', e.target.value)} />
+            <input className={styles.input} type="number" min="1" value={form.capacity} onChange={e => set('capacity', e.target.value)} placeholder="200" />
           </div>
         </div>
       </Modal>
 
       <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete}
         title="Eliminar sala" danger
-        message={`¿Eliminar "${deleteTarget?.name}"?`}
+        message={`¿Eliminar "${deleteTarget?.name}"? Se perderán los horarios asociados.`}
         confirmLabel="Eliminar" />
     </div>
   );

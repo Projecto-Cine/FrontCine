@@ -1,15 +1,50 @@
 .page { display: flex; flex-direction: column; gap: 16px; }
-.filters { display: flex; align-items: center; gap: 16px; }
-.filterChip { display: flex; align-items: center; gap: 6px; }
+
+/* ── Top bar ── */
+.topBar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.searchWrap { position: relative; flex: 1; min-width: 200px; max-width: 320px; }
+.searchIcon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
+.searchInput { width: 100%; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px 7px 30px; color: var(--text-1); font-size: 12px; outline: none; }
+.searchInput:focus { border-color: var(--accent); }
+.filterChip { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .filterCount { font-size: 11px; color: var(--text-3); }
-.title { font-weight: 500; color: var(--text-1); }
-.mono { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
-.rowActions { display: flex; gap: 2px; justify-content: flex-end; }
+
+/* ── Cards grid ── */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+
+.card { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.15s, box-shadow 0.15s; }
+.card:hover { border-color: var(--accent); box-shadow: 0 4px 20px rgba(0,0,0,.25); }
+
+/* ── Poster ── */
+.poster { position: relative; aspect-ratio: 2/3; max-height: 230px; background: var(--bg-3); overflow: hidden; }
+.posterImg { width: 100%; height: 100%; object-fit: cover; }
+.posterFallback { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-4); padding: 12px; }
+.posterFallbackText { font-size: 11px; font-weight: 600; color: var(--text-3); text-align: center; line-height: 1.3; }
+.statusOverlay { position: absolute; top: 8px; right: 8px; }
+.ratingOverlay { position: absolute; top: 8px; left: 8px; }
+
+/* ── Card body ── */
+.cardBody { padding: 12px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.cardTitle { font-size: 13px; font-weight: 700; color: var(--text-1); line-height: 1.3; }
+.cardMeta { font-size: 11px; color: var(--text-3); line-height: 1.4; }
+.cardBadges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.cardDuration { font-family: var(--mono); font-size: 11px; color: var(--text-3); margin-top: auto; padding-top: 6px; border-top: 1px solid var(--border); }
+
+/* ── Card actions ── */
+.cardActions { display: flex; gap: 4px; padding: 8px 10px; background: var(--bg-1); border-top: 1px solid var(--border); }
+.cardActions > button { flex: 1; }
+
+/* ── Empty ── */
+.empty { text-align: center; padding: 60px 16px; color: var(--text-3); font-size: 13px; }
+
+/* ── Form ── */
 .formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .fieldFull { grid-column: 1 / -1; }
 .label { display: block; font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
 .input { width: 100%; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px; color: var(--text-1); font-size: 12px; outline: none; }
 .input:focus { border-color: var(--accent); }
+
+/* ── Detail modal ── */
 .detail { display: flex; flex-direction: column; gap: 12px; }
 .detailTitle { font-size: 18px; font-weight: 700; color: var(--text-1); }
 .detailDir { font-size: 12px; color: var(--text-3); }

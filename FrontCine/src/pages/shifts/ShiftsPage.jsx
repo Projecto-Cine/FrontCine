@@ -235,7 +235,7 @@ export default function CuadrantePage() {
   }, []);
 
   const activeEmployees = useMemo(
-    () => allUsers.filter(u => u.status === 'active'),
+    () => allUsers.filter(u => u.status === 'active' && u.role?.toLowerCase() !== 'client'),
     [allUsers]
   );
 

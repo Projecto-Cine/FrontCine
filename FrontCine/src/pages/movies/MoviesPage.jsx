@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, Eye } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Edit2, Film, Plus, Search, Trash2 } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
-import DataTable from '../../components/shared/DataTable';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
@@ -32,6 +31,7 @@ const toPayload = (movie) => ({
 
 export default function MoviesPage() {
   const [movies, setMovies] = useState([]);
+  const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_MOVIE);
@@ -41,15 +41,22 @@ export default function MoviesPage() {
   useEffect(() => {
     moviesService.getAll()
       .then(data => setMovies((data ?? []).map(normalizeMovie)))
-      .catch(() => toast('No se pudieron cargar las peliculas del backend.', 'error'));
+      .catch(() => toast('No se pudieron cargar las películas del backend.', 'error'));
   }, [toast]);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return q
+      ? movies.filter(m => (m.title ?? '').toLowerCase().includes(q) || (m.genre ?? '').toLowerCase().includes(q) || (m.director ?? '').toLowerCase().includes(q))
+      : movies;
+  }, [movies, search]);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_MOVIE); setModal('form'); };
   const openEdit = (movie) => { setEditing(movie); setForm({ ...movie }); setModal('form'); };
   const openDetail = (movie) => { setEditing(movie); setModal('detail'); };
 
   const handleSave = async () => {
-    if (!form.title.trim() || !form.durationMin) { toast('Titulo y duracion son obligatorios.', 'error'); return; }
+    if (!form.title.trim() || !form.durationMin) { toast('Título y duración son obligatorios.', 'error'); return; }
     const payload = toPayload(form);
     if (editing) {
       const saved = normalizeMovie(await moviesService.update(editing.id, payload));
@@ -58,7 +65,7 @@ export default function MoviesPage() {
     } else {
       const saved = normalizeMovie(await moviesService.create(payload));
       setMovies(prev => [...prev, saved]);
-      toast(`"${form.title}" anadida.`, 'success');
+      toast(`"${form.title}" añadida.`, 'success');
     }
     setModal(null);
   };
@@ -72,16 +79,6 @@ export default function MoviesPage() {
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
-  const columns = [
-    { key: 'title', label: 'Título', render: (v) => <span className={styles.title}>{v}</span> },
-    { key: 'genre', label: 'Género' },
-    { key: 'durationMin', label: 'Duración', render: v => <span className={styles.mono}>{v} min</span>, width: 90 },
-    { key: 'language', label: 'Idioma', width: 80, render: v => <Badge variant="default">{v}</Badge> },
-    { key: 'format', label: 'Formato', width: 90, render: v => <Badge variant={FORMAT_COLOR[v] || 'default'}>{v}</Badge> },
-    { key: 'ageRating', label: 'Clasificación', width: 100, render: v => <Badge variant={RATING_COLOR[v] || 'default'}>{v}</Badge> },
-    { key: 'active', label: 'Estado', width: 120, render: v => <Badge variant={v ? STATUS_MAP.active.v : STATUS_MAP.inactive.v} dot>{v ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</Badge> },
-  ];
-
   return (
     <div className={styles.page}>
       <PageHeader
@@ -90,35 +87,82 @@ export default function MoviesPage() {
         actions={<Button icon={Plus} onClick={openCreate}>Nueva película</Button>}
       />
 
-      <div className={styles.filters}>
-        {Object.entries(STATUS_MAP).map(([k, { label, v }]) => (
-          <span key={k} className={styles.filterChip}>
-            <Badge variant={v}>{label}</Badge>
-            <span className={styles.filterCount}>{movies.filter(m => k === 'active' ? m.active : !m.active).length}</span>
-          </span>
-        ))}
+      <div className={styles.topBar}>
+        <div className={styles.searchWrap}>
+          <Search size={13} className={styles.searchIcon} />
+          <input
+            className={styles.searchInput}
+            placeholder="Buscar por título, género o director…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <div className={styles.filterChip}>
+          <Badge variant="green">{movies.filter(m => m.active).length} activas</Badge>
+          <Badge variant="default">{movies.filter(m => !m.active).length} inactivas</Badge>
+        </div>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={movies}
-        searchKeys={['title', 'genre', 'director']}
-        onRowClick={openDetail}
-        rowActions={(row) => (
-          <div className={styles.rowActions}>
-            <Button variant="ghost" size="sm" icon={Eye} onClick={() => openDetail(row)} title="Ver detalle" />
-            <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)} title="Editar" />
-            <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setDeleteTarget(row)} title="Eliminar" />
-          </div>
-        )}
-        bulkActions={(ids, clear) => (
-          <Button variant="danger" size="sm" onClick={() => {
-            setMovies(prev => prev.filter(m => !ids.includes(m.id)));
-            toast(`${ids.length} película(s) eliminadas.`, 'warning'); clear();
-          }}>Eliminar selección ({ids.length})</Button>
-        )}
-      />
+      {filtered.length === 0 ? (
+        <div className={styles.empty}>
+          {search ? `Sin resultados para "${search}"` : 'No hay películas registradas'}
+        </div>
+      ) : (
+        <div className={styles.grid}>
+          {filtered.map(movie => (
+            <div key={movie.id} className={styles.card} onClick={() => openDetail(movie)}>
+              <div className={styles.poster}>
+                {movie.imageUrl ? (
+                  <img
+                    src={movie.imageUrl}
+                    alt={movie.title}
+                    className={styles.posterImg}
+                    onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                  />
+                ) : null}
+                <div className={styles.posterFallback} style={movie.imageUrl ? { display: 'none' } : {}}>
+                  <Film size={32} />
+                  <span className={styles.posterFallbackText}>{movie.title}</span>
+                </div>
+                <div className={styles.statusOverlay}>
+                  <Badge variant={movie.active ? 'green' : 'default'} dot>
+                    {movie.active ? 'Activa' : 'Baja'}
+                  </Badge>
+                </div>
+                {movie.ageRating && (
+                  <div className={styles.ratingOverlay}>
+                    <Badge variant={RATING_COLOR[movie.ageRating] || 'default'}>{movie.ageRating}</Badge>
+                  </div>
+                )}
+              </div>
 
+              <div className={styles.cardBody}>
+                <div className={styles.cardTitle}>{movie.title}</div>
+                {(movie.director || movie.year) && (
+                  <div className={styles.cardMeta}>
+                    {[movie.director, movie.year].filter(Boolean).join(' · ')}
+                  </div>
+                )}
+                {movie.genre && <div className={styles.cardMeta}>{movie.genre}</div>}
+                <div className={styles.cardBadges}>
+                  {movie.format && <Badge variant={FORMAT_COLOR[movie.format] || 'default'}>{movie.format}</Badge>}
+                  {movie.language && <Badge variant="default">{movie.language}</Badge>}
+                </div>
+                {movie.durationMin && (
+                  <div className={styles.cardDuration}>{movie.durationMin} min</div>
+                )}
+              </div>
+
+              <div className={styles.cardActions} onClick={e => e.stopPropagation()}>
+                <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(movie)}>Editar</Button>
+                <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setDeleteTarget(movie)} title="Eliminar" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Form modal ── */}
       <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar película' : 'Nueva película'}
         footer={
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -176,16 +220,17 @@ export default function MoviesPage() {
             </select>
           </div>
           <div>
-            <label className={styles.label}>Imagen URL</label>
-            <input className={styles.input} value={form.imageUrl} onChange={e => set('imageUrl', e.target.value)} />
+            <label className={styles.label}>Imagen URL (póster)</label>
+            <input className={styles.input} value={form.imageUrl} onChange={e => set('imageUrl', e.target.value)} placeholder="https://…" />
           </div>
           <div className={styles.fieldFull}>
-            <label className={styles.label}>Descripcion</label>
+            <label className={styles.label}>Descripción</label>
             <textarea className={styles.input} rows={3} value={form.description} onChange={e => set('description', e.target.value)} />
           </div>
         </div>
       </Modal>
 
+      {/* ── Detail modal ── */}
       <Modal open={modal === 'detail'} onClose={() => setModal(null)} title="Detalle de película" size="sm">
         {editing && (
           <div className={styles.detail}>
@@ -194,15 +239,21 @@ export default function MoviesPage() {
             <div className={styles.detailBadges}>
               <Badge variant={FORMAT_COLOR[editing.format] || 'default'}>{editing.format}</Badge>
               <Badge variant={RATING_COLOR[editing.ageRating] || 'default'}>{editing.ageRating}</Badge>
-              <Badge variant={editing.active ? STATUS_MAP.active.v : STATUS_MAP.inactive.v} dot>{editing.active ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</Badge>
+              <Badge variant={editing.active ? STATUS_MAP.active.v : STATUS_MAP.inactive.v} dot>
+                {editing.active ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}
+              </Badge>
             </div>
             <div className={styles.detailGrid}>
-              <div><span className={styles.detailLbl}>Género</span><span>{editing.genre}</span></div>
+              <div><span className={styles.detailLbl}>Género</span><span>{editing.genre || '-'}</span></div>
               <div><span className={styles.detailLbl}>Duración</span><span>{editing.durationMin} min</span></div>
-              <div><span className={styles.detailLbl}>Idioma</span><span>{editing.language}</span></div>
-              <div><span className={styles.detailLbl}>Estado</span><span>{editing.active ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</span></div>
+              <div><span className={styles.detailLbl}>Idioma</span><span>{editing.language || '-'}</span></div>
+              <div><span className={styles.detailLbl}>Formato</span><span>{editing.format || '-'}</span></div>
             </div>
-            {editing.description && <p style={{ marginTop: 12, color: 'var(--text-2)', fontSize: 12 }}>{editing.description}</p>}
+            {editing.description && <p style={{ color: 'var(--text-2)', fontSize: 12, lineHeight: 1.6 }}>{editing.description}</p>}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <Button variant="secondary" onClick={() => setModal(null)}>Cerrar</Button>
+              <Button variant="primary" icon={Edit2} onClick={() => openEdit(editing)}>Editar</Button>
+            </div>
           </div>
         )}
       </Modal>

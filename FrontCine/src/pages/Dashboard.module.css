@@ -3,13 +3,13 @@
 .kpiGrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
 
 .chartsRow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.chartCard { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 20px; }
+.chartCard { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 20px 22px; }
 .chartTitle { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 14px; }
 
 .bottomRow { display: grid; grid-template-columns: 1fr 340px; gap: 12px; align-items: start; }
 .sideCol { display: flex; flex-direction: column; gap: 12px; }
 
-.tableCard { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 20px; }
+.tableCard { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 20px 22px; }
 .sectionTitle { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 14px; }
 
 .miniTable { width: 100%; border-collapse: collapse; }
@@ -25,7 +25,7 @@
 .barFill { height: 100%; border-radius: 99px; transition: width 0.3s; }
 
 .incList { display: flex; flex-direction: column; gap: 10px; }
-.incItem { padding: 10px; background: var(--bg-3); border-radius: var(--r); border: 1px solid var(--border); }
+.incItem { padding: 10px; background: var(--bg-3); border-radius: var(--r-lg); border: 1px solid var(--border); }
 .incTop { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .incId { font-size: 10px; font-family: var(--mono); color: var(--text-3); }
 .incTitle { font-size: 12px; color: var(--text-1); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

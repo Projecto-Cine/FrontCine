@@ -32,16 +32,16 @@
 
 .searchTrigger {
   display: flex; align-items: center; gap: 8px;
-  background: var(--bg-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 5px 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-l);
+  border-radius: var(--r-lg);
+  padding: 6px 12px;
   color: var(--text-3);
   font-size: 12px;
-  transition: border-color var(--t), color var(--t);
+  transition: border-color var(--t), color var(--t), box-shadow var(--t);
   min-width: 160px;
 }
-.searchTrigger:hover { border-color: var(--border-l); color: var(--text-2); }
+.searchTrigger:hover { border-color: var(--accent); color: var(--text-2); box-shadow: 0 0 0 3px rgba(196,154,108,0.10); }
 .searchTrigger span { flex: 1; text-align: left; }
 .searchKbd {
   background: var(--bg-4);

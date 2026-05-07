@@ -16,6 +16,7 @@ export function AuthProvider({ children }) {
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Restaurar sesión al recargar si hay token guardado
   useEffect(() => {
     const handleExpired = () => {
       localStorage.removeItem('lumen_user');
@@ -45,6 +46,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (username, password) => {
     setError('');
     try {
+      // Intentar login real con el backend
       const res = await authService.login(username, password);
       if (res?.token) localStorage.setItem('lumen_token', res.token);
       if (res?.user) localStorage.setItem('lumen_user', JSON.stringify(res.user));

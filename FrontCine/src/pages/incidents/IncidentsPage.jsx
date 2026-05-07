@@ -8,8 +8,9 @@ import Modal       from '../../components/ui/Modal';
 import KPICard     from '../../components/shared/KPICard';
 import { AlertTriangle, Clock, CheckSquare } from 'lucide-react';
 import { useApp }  from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { incidentsService } from '../../services/incidentsService';
-import { usersService }     from '../../services/usersService';
+import { workersService }   from '../../services/workersService';
 import SkeletonPage from '../../components/shared/Skeleton';
 import styles from './IncidentsPage.module.css';
 
@@ -21,6 +22,7 @@ const EMPTY = { title: '', category: 'Técnico', priority: 'medium', status: 'op
 
 export default function IncidentsPage() {
   const { toast } = useApp();
+  const { can }   = useAuth();
   const [incidents, setIncidents]     = useState([]);
   const [staffUsers, setStaffUsers]   = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -33,7 +35,7 @@ export default function IncidentsPage() {
   useEffect(() => {
     Promise.all([
       incidentsService.getAll().catch(() => []),
-      usersService.getAll().catch(() => []),
+      workersService.getAll().catch(() => []),
     ]).then(([inc, users]) => {
       setIncidents(Array.isArray(inc) ? inc : []);
       const staff = Array.isArray(users)
@@ -100,7 +102,7 @@ export default function IncidentsPage() {
       <PageHeader
         title="Incidencias"
         subtitle={`${open.length} activas · ${critical.length} críticas`}
-        actions={<Button icon={Plus} onClick={openCreate}>Registrar incidencia</Button>}
+        actions={can('create_incident') && <Button icon={Plus} onClick={openCreate}>Registrar incidencia</Button>}
       />
 
       <div className={styles.kpiRow}>
@@ -127,9 +129,9 @@ export default function IncidentsPage() {
         onRowClick={setDetail}
         rowActions={(row) => (
           <div style={{ display: 'flex', gap: 2 }}>
-            <Button variant="ghost" size="sm" icon={Eye}         onClick={() => setDetail(row)} />
-            <Button variant="ghost" size="sm" icon={Edit2}       onClick={() => openEdit(row)} />
-            {row.status !== 'resolved' && <Button variant="ghost" size="sm" icon={CheckCircle} onClick={() => resolve(row)} title="Marcar resuelta" />}
+            <Button variant="ghost" size="sm" icon={Eye} onClick={() => setDetail(row)} />
+            {can('update_incident') && <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)} />}
+            {can('update_incident') && row.status !== 'resolved' && <Button variant="ghost" size="sm" icon={CheckCircle} onClick={() => resolve(row)} title="Marcar resuelta" />}
           </div>
         )}
       />

@@ -85,11 +85,12 @@ export function AuthProvider({ children }) {
     const role = (user.role ?? '').toLowerCase();
     const perms = {
       admin:       true,
-      supervisor:  ['read', 'create', 'update', 'approve'],
+      supervisor:  ['read', 'create', 'update', 'approve', 'create_incident', 'update_incident', 'delete_incident'],
       operator:    ['read', 'create', 'update'],
-      ticket:      ['read', 'create_reservation'],
-      maintenance: ['read', 'create_incident', 'update_incident'],
+      ticket:      ['read', 'create_reservation', 'create_incident'],
+      maintenance: ['read', 'create_incident', 'update_incident', 'delete_incident'],
       readonly:    ['read'],
+      client:      ['read'],
     };
     const p = perms[role];
     return p === true || (Array.isArray(p) && (p.includes('*') || p.includes(action)));

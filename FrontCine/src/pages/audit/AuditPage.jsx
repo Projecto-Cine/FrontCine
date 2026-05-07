@@ -5,7 +5,7 @@ import DataTable  from '../../components/shared/DataTable';
 import Badge      from '../../components/ui/Badge';
 import KPICard    from '../../components/shared/KPICard';
 import { auditService }  from '../../services/auditService';
-import { usersService }  from '../../services/usersService';
+import { workersService }  from '../../services/workersService';
 import SkeletonPage from '../../components/shared/Skeleton';
 import styles from './AuditPage.module.css';
 
@@ -27,7 +27,7 @@ export default function AuditPage() {
   useEffect(() => {
     Promise.all([
       auditService.getAll().catch(() => []),
-      usersService.getAll().catch(() => []),
+      workersService.getAll().catch(() => []),
     ]).then(([auditLogs, users]) => {
       setLogs(Array.isArray(auditLogs) ? auditLogs : []);
       const today = new Date().toISOString().split('T')[0];

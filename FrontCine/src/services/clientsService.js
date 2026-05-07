@@ -4,7 +4,7 @@ export const clientsService = {
   getAll:  ()          => api.get('/clients'),
   search:  (q)         => api.get(`/clients/search?q=${encodeURIComponent(q)}`),
   getById: (id)        => api.get(`/clients/${id}`),
-  create:  (data)      => api.post('/users', data),
-  update:  (id, data)  => api.put(`/users/${id}`, data),
-  remove:  (id)        => api.delete(`/users/${id}`),
+  create:  (data)      => api.post('/clients', data),
+  update:  (id, data)  => api.put(`/clients/${id}`, data),
+  remove:  (id)        => api.delete(`/clients/${id}`),
 };

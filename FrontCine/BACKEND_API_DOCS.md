@@ -1,6 +1,7 @@
 # Lumen Cinema — Documentación de API Backend
 
-> Versión generada desde el frontend. Todos los endpoints, modelos y reglas de negocio que el frontend consume.
+> Versión actualizada desde el frontend tras refactorización de arquitectura de usuarios.
+> Separación completa entre trabajadores internos (`/workers`), clientes externos (`/clients`) y socios (`/socios`).
 
 ---
 
@@ -15,12 +16,14 @@
 7. [Compras/Reservas — `/purchases`](#7-comprasreservas--purchases)
 8. [Ventas de concesión — `/merchandise/sales`](#8-ventas-de-concesión--merchandisesales)
 9. [Incidencias — `/incidents`](#9-incidencias--incidents)
-10. [Usuarios — `/users`](#10-usuarios--users)
-11. [Inventario/Mercancía — `/merchandise`](#11-inventariomercancía--merchandise)
-12. [Informes — `/reports`](#12-informes--reports)
-13. [Auditoría — `/audit-logs`](#13-auditoría--audit-logs)
-14. [Roles y permisos](#14-roles-y-permisos)
-15. [Códigos de error estándar](#15-códigos-de-error-estándar)
+10. [Trabajadores — `/workers`](#10-trabajadores--workers)
+11. [Clientes — `/clients`](#11-clientes--clients)
+12. [Socios — `/socios`](#12-socios--socios)
+13. [Inventario/Mercancía — `/merchandise`](#13-inventariomercancía--merchandise)
+14. [Informes — `/reports`](#14-informes--reports)
+15. [Auditoría — `/audit-logs`](#15-auditoría--audit-logs)
+16. [Roles y permisos](#16-roles-y-permisos)
+17. [Códigos de error estándar](#17-códigos-de-error-estándar)
 
 ---
 
@@ -86,7 +89,7 @@ O directamente el objeto/array sin envelope:
     "name": "string",
     "username": "string",
     "email": "string",
-    "role": "ADMIN | SUPERVISOR | OPERATOR | TICKET | MAINTENANCE | READONLY",
+    "role": "ADMIN | SUPERVISOR | OPERATOR | TICKET | MAINTENANCE | READONLY | CLIENT",
     "status": "active | inactive"
   },
   "token": "string"
@@ -95,7 +98,7 @@ O directamente el objeto/array sin envelope:
 
 > El token se almacena en `localStorage` como `lumen_token` y se envía en cada petición como `Authorization: Bearer <token>`.
 
-> Si `status === "inactive"`, el frontend rechaza el login aunque las credenciales sean correctas. El backend debe permitir que esto sea manejado en cliente, pero también puede devolver `403`.
+> Si `status === "inactive"`, el frontend rechaza el login aunque las credenciales sean correctas. El backend puede devolver `403` adicionalmente.
 
 ---
 
@@ -251,8 +254,6 @@ image: File
 
 ## 4. Salas — `/theaters`
 
-> El frontend tenía antes el concepto `rooms`, ahora mapea a `/theaters`.
-
 ### Modelo completo
 
 ```json
@@ -309,8 +310,6 @@ image: File
 
 ## 5. Proyecciones — `/screenings`
 
-> El frontend tenía antes el concepto `sessions`, ahora mapea a `/screenings`.
-
 ### Modelo completo
 
 ```json
@@ -319,7 +318,7 @@ image: File
   "dateTime": "string",       // ISO 8601. Ej: "2024-04-30T16:00:00"
   "price": "number",          // Precio base de la entrada
   "status": "SCHEDULED | ACTIVE | CANCELLED | FULL",
-  "movie": {                  // Objeto película embebido (o solo id)
+  "movie": {                  // Objeto película embebido (no solo id)
     "id": "number",
     "title": "string",
     "durationMin": "number",
@@ -328,7 +327,7 @@ image: File
     "ageRating": "string",
     "imageUrl": "string"
   },
-  "theater": {                // Objeto sala embebido (o solo id)
+  "theater": {                // Objeto sala embebido (no solo id)
     "id": "number",
     "name": "string",
     "capacity": "number"
@@ -336,7 +335,7 @@ image: File
 }
 ```
 
-> El frontend espera que `movie` y `theater` vengan como **objetos embebidos** (con al menos `id` y `name`/`title`). Si vienen solo como IDs, el frontend fallará al intentar mostrar `screening.movie.title`.
+> **IMPORTANTE:** El frontend espera que `movie` y `theater` vengan como **objetos embebidos** con al menos `id` y `name`/`title`. Si vienen solo como IDs, el frontend fallará al intentar mostrar `screening.movie.title`.
 
 ---
 
@@ -344,9 +343,9 @@ image: File
 
 **Query params opcionales:**
 ```
-date=YYYY-MM-DD         // Filtrar por fecha
-movieId=number          // Filtrar por película
-theaterId=number        // Filtrar por sala
+date=YYYY-MM-DD
+movieId=number
+theaterId=number
 status=SCHEDULED|ACTIVE|CANCELLED|FULL
 ```
 
@@ -402,7 +401,7 @@ status=SCHEDULED|ACTIVE|CANCELLED|FULL
   "number": "number",        // Número de butaca
   "type": "standard | premium | vip | disabled",
   "status": "available | occupied | reserved | broken",
-  "screeningId": "number"    // A qué proyección pertenece
+  "screeningId": "number"
 }
 ```
 
@@ -410,25 +409,13 @@ status=SCHEDULED|ACTIVE|CANCELLED|FULL
 
 ### `GET /screenings/:screeningId/seats`
 
-Endpoint principal que usa el frontend en la pantalla de taquilla para mostrar el mapa de asientos.
+Endpoint principal para mostrar el mapa de asientos en taquilla.
 
 **Response `200`:** array de asientos de esa proyección
 ```json
 [
-  {
-    "id": 1,
-    "row": "A",
-    "number": 1,
-    "type": "standard",
-    "status": "available"
-  },
-  {
-    "id": 2,
-    "row": "A",
-    "number": 2,
-    "type": "standard",
-    "status": "occupied"
-  }
+  { "id": 1, "row": "A", "number": 1, "type": "standard",  "status": "available" },
+  { "id": 2, "row": "A", "number": 2, "type": "standard",  "status": "occupied"  }
 ]
 ```
 
@@ -471,7 +458,7 @@ status=available|occupied|reserved|broken
 
 ### `PUT /seats/:id`
 
-**Body:** objeto asiento (útil para marcar como ocupado tras una venta)
+**Body:** objeto asiento (usado para marcar como ocupado tras una venta)
 
 **Response `200`:** objeto asiento actualizado
 
@@ -485,7 +472,7 @@ status=available|occupied|reserved|broken
 
 ## 7. Compras/Reservas — `/purchases`
 
-> El frontend tenía antes el concepto `reservations`, ahora mapea a `/purchases`.
+> El frontend llama siempre a `/purchases`, nunca a `/reservations`. No crear alias.
 
 ### Modelo completo
 
@@ -495,41 +482,42 @@ status=available|occupied|reserved|broken
   "status": "CONFIRMED | PENDING | CANCELLED | REFUNDED",
   "paymentMethod": "CARD | CASH | ONLINE",
   "total": "number",
-  "createdAt": "string",         // ISO 8601
-  "screening": {                  // Objeto embebido
+  "createdAt": "string",
+  "screening": {
     "id": "number",
     "dateTime": "string",
     "movie": { "id": "number", "title": "string" },
     "theater": { "id": "number", "name": "string" }
   },
-  "user": {                       // Objeto embebido (puede ser null si es venta anónima en taquilla)
+  "user": {
     "id": "number",
     "name": "string",
     "email": "string"
   },
-  "seats": [                      // Array de asientos reservados
+  "seats": [
     { "id": "number", "row": "string", "number": "number" }
   ]
 }
 ```
 
+> `user` puede ser `null` en ventas anónimas de taquilla.
+
 ---
 
-### Venta desde Taquilla — `POST /purchases`
+### `POST /purchases` — Venta desde taquilla
 
-Este endpoint es el que llama la taquilla al finalizar una venta. El frontend envía:
-
+**Body:**
 ```json
 {
-  "session_id": "number",           // ID de la proyección (screeningId)
-  "seats": ["A1", "A2"],           // Array de identificadores de asiento (fila+número)
-  "ticket_type": "adulto",         // Tipo de entrada seleccionado
-  "format_extra": "imax",          // Suplemento de formato (puede ser null)
-  "unit_price": 13.50,             // Precio unitario base
-  "surcharge": 5.00,               // Suplemento (0 si no aplica)
-  "total": 37.00,                  // Total de la compra
-  "payment_method": "CARD",        // Método de pago
-  "cashier_id": "number"           // ID del empleado que realiza la venta
+  "session_id": "number",
+  "seats": ["A1", "A2"],
+  "ticket_type": "adulto",
+  "format_extra": "imax",
+  "unit_price": 13.50,
+  "surcharge": 5.00,
+  "total": 37.00,
+  "payment_method": "CARD",
+  "cashier_id": "number"
 }
 ```
 
@@ -538,14 +526,12 @@ Este endpoint es el que llama la taquilla al finalizar una venta. El frontend en
 {
   "sale_id": "number",
   "qr_codes": [
-    "LUMEN:TKT-1234567890-abc:A1:SES42:2024-04-30:16:00",
-    "LUMEN:TKT-1234567890-def:A2:SES42:2024-04-30:16:00"
+    "LUMEN:TKT-1234567890-abc:A1:SES42:2024-04-30:16:00"
   ]
 }
 ```
 
-> Los QR son strings que el frontend renderiza con `qrcode.react`. El formato es:
-> `LUMEN:{ticketId}:{seat}:SES{sessionId}:{date}:{time}`
+> Formato QR: `LUMEN:{ticketId}:{seat}:SES{sessionId}:{date}:{time}`
 
 ---
 
@@ -569,13 +555,9 @@ status=CONFIRMED|PENDING|CANCELLED|REFUNDED
 
 ### `PUT /purchases/:id`
 
-Usado principalmente para cancelar una reserva.
-
 **Body:**
 ```json
-{
-  "status": "CANCELLED"
-}
+{ "status": "CANCELLED" }
 ```
 
 **Response `200`:** objeto compra actualizado
@@ -592,8 +574,6 @@ Usado principalmente para cancelar una reserva.
 
 ### `POST /merchandise/sales`
 
-Llamado desde la página de Caja al cobrar productos de concesión.
-
 **Body:**
 ```json
 {
@@ -607,17 +587,15 @@ Llamado desde la página de Caja al cobrar productos de concesión.
   ],
   "total": "number",
   "payment_method": "CARD | CASH | QR",
-  "cash_given": "number | null",    // Solo si payment_method === "CASH"
-  "change": "number | null",        // Solo si payment_method === "CASH"
+  "cash_given": "number | null",
+  "change": "number | null",
   "cashier_id": "number"
 }
 ```
 
 **Response `201`:**
 ```json
-{
-  "sale_id": "number"
-}
+{ "sale_id": "number" }
 ```
 
 ---
@@ -629,22 +607,38 @@ Llamado desde la página de Caja al cobrar productos de concesión.
 ```json
 {
   "id": "number",
-  "title": "string",               // Requerido
+  "title": "string",
   "category": "Técnico | Infraestructura | Mobiliario | Software | Seguridad | Operativo",
   "priority": "critical | high | medium | low",
   "status": "open | in_progress | resolved",
-  "room": "string | null",         // Nombre de la sala afectada (libre)
+  "room": "string | null",
   "description": "string | null",
-  "assigned_to": "string | null",  // Nombre del empleado asignado
-  "reported_by": "string",         // Nombre del empleado que reporta
-  "created_at": "string",          // ISO 8601
-  "updated_at": "string"           // ISO 8601
+  "assigned_to": "string | null",
+  "reported_by": "string",
+  "created_at": "string",
+  "updated_at": "string"
 }
 ```
+
+### Permisos por rol en este endpoint
+
+| Rol | GET (listar/ver) | POST (crear) | PUT (editar/resolver) | DELETE |
+|-----|:---:|:---:|:---:|:---:|
+| ADMIN | ✓ | ✓ | ✓ | ✓ |
+| SUPERVISOR | ✓ | ✓ | ✓ | ✓ |
+| MAINTENANCE | ✓ | ✓ | ✓ | ✓ |
+| TICKET | ✓ | ✓ | — | — |
+| OPERATOR | ✓ | — | — | — |
+| READONLY | ✓ | — | — | — |
+| CLIENT | — | — | — | — |
+
+> **SecurityConfig crítico:** el endpoint `GET /incidents` debe permitir todos los roles internos de trabajador (ADMIN, SUPERVISOR, OPERATOR, TICKET, MAINTENANCE, READONLY). El frontend ya filtra qué botones muestra según el rol, pero si el backend devuelve `403` en el GET, la página aparecerá vacía para todos los roles no-admin.
 
 ---
 
 ### `GET /incidents`
+
+**Roles permitidos:** ADMIN, SUPERVISOR, OPERATOR, TICKET, MAINTENANCE, READONLY
 
 **Response `200`:** array de incidencias
 
@@ -652,11 +646,15 @@ Llamado desde la página de Caja al cobrar productos de concesión.
 
 ### `GET /incidents/:id`
 
+**Roles permitidos:** ADMIN, SUPERVISOR, OPERATOR, TICKET, MAINTENANCE, READONLY
+
 **Response `200`:** objeto incidencia
 
 ---
 
 ### `POST /incidents`
+
+**Roles permitidos:** ADMIN, SUPERVISOR, MAINTENANCE, TICKET
 
 **Body:** objeto incidencia sin `id`, `created_at`, `updated_at`
 
@@ -666,7 +664,12 @@ Llamado desde la página de Caja al cobrar productos de concesión.
 
 ### `PUT /incidents/:id`
 
-**Body:** objeto incidencia (usado también para marcar como resuelta: `{ "status": "resolved" }`)
+**Roles permitidos:** ADMIN, SUPERVISOR, MAINTENANCE
+
+**Body:** objeto incidencia parcial o completo
+```json
+{ "status": "resolved" }
+```
 
 **Response `200`:** objeto incidencia actualizado
 
@@ -674,11 +677,140 @@ Llamado desde la página de Caja al cobrar productos de concesión.
 
 ### `DELETE /incidents/:id`
 
+**Roles permitidos:** ADMIN, SUPERVISOR, MAINTENANCE
+
 **Response `204`**
 
 ---
 
-## 10. Usuarios — `/users`
+## 10. Trabajadores — `/workers`
+
+> **NUEVO ENDPOINT** — sustituye al antiguo `/users` para la gestión interna de empleados.
+> El frontend ya NO llama a `/users` para trabajadores: usa exclusivamente `/workers`.
+
+### ¿Por qué `/workers` y no `/users`?
+
+La separación es necesaria para evitar conflictos de negocio:
+- `/workers` → empleados internos del cine (roles: ADMIN, SUPERVISOR, OPERATOR, TICKET, MAINTENANCE, READONLY)
+- `/clients` → clientes externos (rol: CLIENT)
+- `/socios` → clientes con membresía/descuento (subconjunto de clients)
+
+Mezclar todo en `/users` generaba conflictos al gestionar permisos y al filtrar en cuadrante/incidencias.
+
+### Modelo completo
+
+```json
+{
+  "id": "number",
+  "name": "string",            // Nombre completo. Requerido
+  "username": "string",        // Nombre de usuario para login
+  "email": "string",           // Requerido
+  "role": "ADMIN | SUPERVISOR | OPERATOR | TICKET | MAINTENANCE | READONLY",
+  "status": "active | inactive",
+  "dateOfBirth": "string",     // ISO 8601 fecha. Ej: "1990-05-15"
+  "last_login": "string | null",
+  "created_at": "string"
+}
+```
+
+> El campo `role` **nunca** debe ser `CLIENT` en este endpoint. Si el backend recibe un `role: CLIENT` en un POST a `/workers`, debe devolver `400 Bad Request`.
+
+---
+
+### `GET /workers`
+
+**Roles permitidos:** ADMIN, SUPERVISOR
+
+**Comportamiento:** devuelve todos los usuarios con rol distinto de `CLIENT`.
+
+**Response `200`:** array de trabajadores
+```json
+[
+  {
+    "id": 1,
+    "name": "Ana García",
+    "username": "anagarcia",
+    "email": "ana@lumen.es",
+    "role": "MAINTENANCE",
+    "status": "active",
+    "dateOfBirth": "1990-05-15",
+    "last_login": "2026-05-06T08:30:00",
+    "created_at": "2024-01-15T10:00:00"
+  }
+]
+```
+
+> Este endpoint también lo usan `ShiftsPage` (cuadrante semanal) e `IncidentsPage` (dropdown de asignación). Para esos casos se recupera la lista completa y se filtra en cliente.
+
+---
+
+### `GET /workers/:id`
+
+**Roles permitidos:** ADMIN, SUPERVISOR
+
+**Response `200`:** objeto trabajador
+
+---
+
+### `POST /workers`
+
+**Roles permitidos:** ADMIN
+
+**Body:**
+```json
+{
+  "name": "string",
+  "email": "string",
+  "role": "OPERATOR",
+  "dateOfBirth": "1995-03-20"
+}
+```
+
+**Response `201`:** objeto trabajador creado con `id`
+
+> El backend debe generar automáticamente `username` a partir del nombre o email si no se proporciona.
+
+---
+
+### `PUT /workers/:id`
+
+**Roles permitidos:** ADMIN
+
+**Body:** objeto trabajador (parcial o completo)
+
+**Response `200`:** objeto trabajador actualizado
+
+---
+
+### `DELETE /workers/:id`
+
+**Roles permitidos:** ADMIN
+
+**Restricción:** no se puede eliminar al propio usuario autenticado.
+
+**Response `204`**
+
+---
+
+### Uso en otras páginas
+
+| Página | Llamada | Para qué |
+|--------|---------|----------|
+| `UsersPage` (Trabajadores) | `GET/POST/PUT/DELETE /workers` | CRUD completo de empleados |
+| `ShiftsPage` (Cuadrante) | `GET /workers` | Obtener lista de empleados para asignar turnos |
+| `IncidentsPage` (Incidencias) | `GET /workers` | Llenar dropdown "Asignar a" (filtrado a MAINTENANCE, OPERATOR, SUPERVISOR, ADMIN) |
+| `AuditPage` (Auditoría) | `GET /workers` | Filtro de usuario en el log de auditoría |
+
+---
+
+## 11. Clientes — `/clients`
+
+> **NUEVO ENDPOINT** — gestión de clientes externos (rol CLIENT).
+> El frontend ya NO usa `/users` para clientes: usa exclusivamente `/clients`.
+
+### ¿Qué es un cliente?
+
+Cualquier persona que compra entradas o tiene una cuenta de usuario para reservas online. Tiene rol `CLIENT` en el sistema. Los clientes **no son trabajadores** y no aparecen en el cuadrante ni en las incidencias.
 
 ### Modelo completo
 
@@ -686,62 +818,212 @@ Llamado desde la página de Caja al cobrar productos de concesión.
 {
   "id": "number",
   "name": "string",
-  "username": "string",
-  "email": "string",               // Requerido
-  "role": "ADMIN | SUPERVISOR | OPERATOR | TICKET | MAINTENANCE | READONLY | CLIENT",
+  "email": "string",           // Requerido. Único en el sistema
+  "phone": "string | null",
+  "dateOfBirth": "string | null",
+  "role": "CLIENT",            // Siempre CLIENT. No editable desde el backoffice
   "status": "active | inactive",
-  "dateOfBirth": "string",         // ISO 8601 fecha. Ej: "1990-05-15"
-  "last_login": "string | null",   // ISO 8601 datetime
-  "created_at": "string"           // ISO 8601 datetime
+  "isSocio": "boolean",        // true si tiene membresía activa
+  "socioSince": "string | null",  // Fecha de alta como socio. ISO 8601
+  "created_at": "string"
 }
 ```
 
-> El frontend de gestión de usuarios solo muestra roles internos de empleados. El rol `CLIENT` existe para usuarios del sistema de reservas online.
+---
+
+### `GET /clients`
+
+**Roles permitidos:** ADMIN, SUPERVISOR, OPERATOR, TICKET
+
+**Comportamiento:** devuelve todos los usuarios con rol `CLIENT`.
+
+**Response `200`:** array de clientes
 
 ---
 
-### `GET /users`
+### `GET /clients/search?q={query}`
 
-**Response `200`:** array de usuarios
+**Roles permitidos:** ADMIN, SUPERVISOR, OPERATOR, TICKET
 
----
+**Query param:** `q` — búsqueda por nombre, email o teléfono (mínimo 2 caracteres)
 
-### `GET /users/:id`
-
-**Response `200`:** objeto usuario
+**Response `200`:** array de clientes que coincidan (máximo 20 resultados recomendado)
 
 ---
 
-### `POST /users`
+### `GET /clients/:id`
+
+**Roles permitidos:** ADMIN, SUPERVISOR, OPERATOR, TICKET
+
+**Response `200`:** objeto cliente con historial de compras si está disponible
+
+---
+
+### `POST /clients`
+
+**Roles permitidos:** ADMIN, SUPERVISOR, OPERATOR
 
 **Body:**
 ```json
 {
+  "name": "string",
   "email": "string",
-  "role": "ADMIN",
-  "dateOfBirth": "1990-05-15"
+  "phone": "string | null",
+  "dateOfBirth": "string | null"
 }
 ```
 
-**Response `201`:** objeto usuario creado
+> El backend debe asignar automáticamente `role: CLIENT` y `isSocio: false`. No se pasa `role` desde el frontend.
+
+**Response `201`:** objeto cliente creado
 
 ---
 
-### `PUT /users/:id`
+### `PUT /clients/:id`
 
-**Body:** objeto usuario
+**Roles permitidos:** ADMIN, SUPERVISOR, OPERATOR
 
-**Response `200`:** objeto usuario actualizado
+**Body:** objeto cliente parcial
+
+**Response `200`:** objeto cliente actualizado
 
 ---
 
-### `DELETE /users/:id`
+### `DELETE /clients/:id`
+
+**Roles permitidos:** ADMIN
 
 **Response `204`**
 
 ---
 
-## 11. Inventario/Mercancía — `/merchandise`
+## 12. Socios — `/socios`
+
+> **NUEVO ENDPOINT** — subconjunto de clientes que se han registrado como socios y tienen descuento en entradas.
+
+### Lógica de negocio
+
+- Todo socio es cliente (`isSocio: true` en la entidad Client), pero no todo cliente es socio.
+- Un cliente se hace socio voluntariamente para obtener descuentos y beneficios.
+- El descuento se aplica automáticamente al calcular el precio en taquilla/reserva online.
+- Los datos de socio son opcionales y adicionales a los del cliente base.
+
+### Modelo completo
+
+```json
+{
+  "id": "number",
+  "clientId": "number",       // FK al cliente base. Requerido
+  "name": "string",           // Heredado del cliente o sobreescrito
+  "email": "string",
+  "phone": "string | null",
+  "dateOfBirth": "string | null",
+  "membershipNumber": "string",  // Número de socio único. Generado por el backend. Ej: "LUM-00042"
+  "membershipType": "BASIC | PREMIUM | VIP",
+  "discountPct": "number",       // Porcentaje de descuento. Ej: 15 (= 15%)
+  "status": "active | suspended | expired",
+  "joinedAt": "string",          // Fecha de alta. ISO 8601
+  "expiresAt": "string | null",  // Fecha de caducidad (null = indefinido)
+  "notes": "string | null"
+}
+```
+
+---
+
+### `GET /socios`
+
+**Roles permitidos:** ADMIN, SUPERVISOR, OPERATOR, TICKET
+
+**Response `200`:** array de socios con datos del cliente embebidos
+
+---
+
+### `GET /socios/search?q={query}`
+
+**Roles permitidos:** ADMIN, SUPERVISOR, OPERATOR, TICKET
+
+**Query param:** `q` — búsqueda por nombre, email, teléfono o número de socio
+
+**Response `200`:** array de coincidencias
+
+---
+
+### `GET /socios/:id`
+
+**Roles permitidos:** ADMIN, SUPERVISOR, OPERATOR, TICKET
+
+**Response `200`:** objeto socio
+
+---
+
+### `POST /socios`
+
+**Roles permitidos:** ADMIN, SUPERVISOR, OPERATOR
+
+El cliente decide hacerse socio. Se puede hacer a partir de un cliente existente o creando cliente y socio a la vez.
+
+**Body (a partir de cliente existente):**
+```json
+{
+  "clientId": "number",
+  "membershipType": "BASIC",
+  "notes": "string | null"
+}
+```
+
+**Body (cliente nuevo + socio en un solo paso):**
+```json
+{
+  "name": "string",
+  "email": "string",
+  "phone": "string | null",
+  "dateOfBirth": "string | null",
+  "membershipType": "BASIC",
+  "notes": "string | null"
+}
+```
+
+> El backend debe crear el cliente con `role: CLIENT`, luego crear el socio y vincularlos. Devuelve el socio con el cliente embebido.
+> El backend genera `membershipNumber` automáticamente.
+> El backend pone `isSocio: true` en la entidad Client.
+
+**Response `201`:** objeto socio creado con cliente embebido
+
+---
+
+### `PUT /socios/:id`
+
+**Roles permitidos:** ADMIN, SUPERVISOR
+
+**Body:** objeto socio parcial (ej. cambiar tipo, suspender, renovar)
+
+**Response `200`:** objeto socio actualizado
+
+---
+
+### `DELETE /socios/:id`
+
+**Roles permitidos:** ADMIN
+
+> Al eliminar un socio, el backend debe poner `isSocio: false` en la entidad Client asociada.
+
+**Response `204`**
+
+---
+
+### Tipos de membresía y descuentos sugeridos
+
+| Tipo | Descuento | Descripción |
+|------|-----------|-------------|
+| `BASIC` | 10% | Socio estándar |
+| `PREMIUM` | 15% | Socio con beneficios extra |
+| `VIP` | 20% | Socio VIP con acceso preferente |
+
+> Los descuentos exactos los decide el negocio. El frontend leerá `discountPct` del objeto socio sin hardcodear valores.
+
+---
+
+## 13. Inventario/Mercancía — `/merchandise`
 
 > Usado tanto para el inventario de concesión como para los productos del POS de Caja.
 
@@ -750,15 +1032,15 @@ Llamado desde la página de Caja al cobrar productos de concesión.
 ```json
 {
   "id": "number",
-  "name": "string",                // Requerido
+  "name": "string",
   "category": "Concesión | Técnico | Oficina | Limpieza | Comercial",
-  "quantity": "number",            // Stock actual
-  "min_stock": "number",           // Umbral de stock mínimo (para alertas)
-  "unit": "string",                // Unidad. Ej: "ud", "kg", "l", "caja"
-  "location": "string | null",     // Ubicación física. Ej: "Almacén A"
-  "supplier": "string | null",     // Proveedor
-  "price_unit": "number",          // Precio unitario de venta
-  "last_order": "string | null"    // Fecha último pedido. ISO 8601
+  "quantity": "number",
+  "min_stock": "number",
+  "unit": "string",
+  "location": "string | null",
+  "supplier": "string | null",
+  "price_unit": "number",
+  "last_order": "string | null"
 }
 ```
 
@@ -798,34 +1080,28 @@ Llamado desde la página de Caja al cobrar productos de concesión.
 
 ---
 
-## 12. Informes — `/reports`
-
-Estos endpoints proveen los datos agregados para el Dashboard y la página de Informes.
+## 14. Informes — `/reports`
 
 ---
 
 ### `GET /reports/kpis`
 
-Datos del día actual para el Dashboard principal.
-
 **Response `200`:**
 ```json
 {
-  "revenue_today": 4820.50,        // Ingresos del día (número)
-  "tickets_today": 312,            // Entradas vendidas hoy
-  "occupancy_avg": 78.4,           // Porcentaje medio de ocupación (0-100)
-  "incidents_open": 3,             // Incidencias abiertas actualmente
-  "active_sessions": 8,            // Proyecciones activas ahora
-  "reservations_today": 127,       // Reservas del día
-  "operational_rooms": 5           // Salas en estado "active"
+  "revenue_today": 4820.50,
+  "tickets_today": 312,
+  "occupancy_avg": 78.4,
+  "incidents_open": 3,
+  "active_sessions": 8,
+  "reservations_today": 127,
+  "operational_rooms": 5
 }
 ```
 
 ---
 
 ### `GET /reports/sales-week`
-
-Ventas de los últimos 7 días para el gráfico de ingresos.
 
 **Response `200`:**
 ```json
@@ -840,33 +1116,26 @@ Ventas de los últimos 7 días para el gráfico de ingresos.
 ]
 ```
 
-> `day` debe ser la abreviatura del día en español. `ventas` es el importe en euros. `entradas` es el número de tickets.
+> `day` debe ser la abreviatura del día en español. `ventas` es el importe en euros.
 
 ---
 
 ### `GET /reports/occupancy`
-
-Ocupación media por sala para el gráfico de barras.
 
 **Response `200`:**
 ```json
 [
   { "sala": "Sala IMAX", "pct": 92 },
   { "sala": "Sala 4DX",  "pct": 78 },
-  { "sala": "Sala VIP",  "pct": 65 },
-  { "sala": "Sala 3",    "pct": 54 },
-  { "sala": "Sala 4",    "pct": 48 },
-  { "sala": "Sala 5",    "pct": 71 }
+  { "sala": "Sala VIP",  "pct": 65 }
 ]
 ```
 
-> `sala` es el nombre de la sala. `pct` es el porcentaje de ocupación (0-100, entero).
+> `pct` es el porcentaje de ocupación (0-100, entero).
 
 ---
 
-### `GET /reports/incidents-by-category` *(recomendado añadir)*
-
-Datos para el gráfico de tarta de incidencias en la página de Informes.
+### `GET /reports/incidents-by-category`
 
 **Response `200`:**
 ```json
@@ -882,36 +1151,33 @@ Datos para el gráfico de tarta de incidencias en la página de Informes.
 
 ---
 
-### `GET /reports/format-performance` *(recomendado añadir)*
-
-Rendimiento por formato de sala para la tabla de la página de Informes.
+### `GET /reports/format-performance`
 
 **Response `200`:**
 ```json
 [
-  { "format": "IMAX",  "sessions": 24, "tickets": 3240, "revenue": 43740, "occupancy": 92 },
-  { "format": "4DX",   "sessions": 18, "tickets": 1620, "revenue": 24300, "occupancy": 75 },
-  { "format": "VIP",   "sessions": 12, "tickets": 540,  "revenue": 10800, "occupancy": 68 },
-  { "format": "3D",    "sessions": 30, "tickets": 3900, "revenue": 42900, "occupancy": 59 },
-  { "format": "2D",    "sessions": 45, "tickets": 4500, "revenue": 40500, "occupancy": 45 }
+  { "format": "IMAX", "sessions": 24, "tickets": 3240, "revenue": 43740, "occupancy": 92 },
+  { "format": "4DX",  "sessions": 18, "tickets": 1620, "revenue": 24300, "occupancy": 75 },
+  { "format": "3D",   "sessions": 30, "tickets": 3900, "revenue": 42900, "occupancy": 59 },
+  { "format": "2D",   "sessions": 45, "tickets": 4500, "revenue": 40500, "occupancy": 45 }
 ]
 ```
 
 ---
 
-## 13. Auditoría — `/audit-logs`
+## 15. Auditoría — `/audit-logs`
 
 ### Modelo completo
 
 ```json
 {
   "id": "number",
-  "timestamp": "string",          // ISO 8601 datetime
-  "user": "string",               // Nombre o username del usuario que realizó la acción
+  "timestamp": "string",
+  "user": "string",
   "action": "LOGIN | LOGOUT | UPDATE | CREATE | DELETE | PERMISSION | CONFIG | LOGIN_FAIL",
-  "resource": "string",           // Recurso afectado. Ej: "Película", "Usuario", "Configuración"
-  "detail": "string",             // Descripción legible. Ej: "Actualizó película 'Dune II'"
-  "ip": "string",                 // IP del cliente. Ej: "192.168.1.45"
+  "resource": "string",
+  "detail": "string",
+  "ip": "string",
   "severity": "info | warning | danger"
 }
 ```
@@ -938,62 +1204,113 @@ to=YYYY-MM-DD
 
 ---
 
-## 14. Roles y permisos
+## 16. Roles y permisos
 
-### Roles del sistema
+### Roles del sistema y a qué entidad pertenecen
 
-| Rol | Descripción | Accesos |
-|-----|-------------|---------|
-| `ADMIN` | Administrador total | Todo |
-| `SUPERVISOR` | Supervisión general | read, create, update, approve |
-| `OPERATOR` | Operador | read, create, update |
-| `TICKET` | Taquillero | read, create_reservation |
-| `MAINTENANCE` | Mantenimiento | read, create_incident, update_incident |
-| `READONLY` | Solo lectura | read |
-| `CLIENT` | Cliente externo | Acceso a reservas propias (app de cliente) |
+| Rol | Entidad | Descripción |
+|-----|---------|-------------|
+| `ADMIN` | Trabajador | Administrador total |
+| `SUPERVISOR` | Trabajador | Supervisión general |
+| `OPERATOR` | Trabajador | Operador de sala |
+| `TICKET` | Trabajador | Taquillero / cajero |
+| `MAINTENANCE` | Trabajador | Mantenimiento e instalaciones |
+| `READONLY` | Trabajador | Auditor / solo lectura |
+| `CLIENT` | Cliente | Cliente externo (reservas online) |
 
-### Restricciones de acceso por página
-
-| Página | Roles con acceso |
-|--------|-----------------|
-| Dashboard | Todos |
-| Taquilla | ADMIN, SUPERVISOR, TICKET, OPERATOR |
-| Caja | ADMIN, SUPERVISOR, TICKET, OPERATOR |
-| Películas | Todos (write solo ADMIN, SUPERVISOR, OPERATOR) |
-| Salas | Todos (write solo ADMIN, SUPERVISOR) |
-| Horarios | Todos (write solo ADMIN, SUPERVISOR, OPERATOR) |
-| Reservas | Todos (cancel solo ADMIN, SUPERVISOR) |
-| Incidencias | Todos (write solo ADMIN, SUPERVISOR, OPERATOR, MAINTENANCE) |
-| Inventario | Todos (write solo ADMIN, SUPERVISOR) |
-| Informes | Todos |
-| Cuadrante | Todos (edición solo ADMIN, SUPERVISOR) |
-| Trabajadores | Solo ADMIN |
-| Auditoría | Solo ADMIN |
+> Los roles `ADMIN` a `READONLY` son roles internos de trabajador.
+> El rol `CLIENT` es exclusivo de clientes externos. **Nunca debe aparecer en `/workers`**.
 
 ---
 
-## 15. Códigos de error estándar
+### Permisos por operación
+
+| Acción | ADMIN | SUPERVISOR | OPERATOR | TICKET | MAINTENANCE | READONLY | CLIENT |
+|--------|:-----:|:----------:|:--------:|:------:|:-----------:|:--------:|:------:|
+| `read` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `create` | ✓ | ✓ | ✓ | — | — | — | — |
+| `update` | ✓ | ✓ | ✓ | — | — | — | — |
+| `approve` | ✓ | ✓ | — | — | — | — | — |
+| `create_reservation` | ✓ | ✓ | ✓ | ✓ | — | — | ✓ |
+| `create_incident` | ✓ | ✓ | — | ✓ | ✓ | — | — |
+| `update_incident` | ✓ | ✓ | — | — | ✓ | — | — |
+| `delete_incident` | ✓ | ✓ | — | — | ✓ | — | — |
+
+---
+
+### Acceso por página del backoffice
+
+| Página | Roles con acceso | Escritura |
+|--------|-----------------|-----------|
+| Dashboard | Todos los trabajadores | — |
+| Taquilla | ADMIN, SUPERVISOR, TICKET, OPERATOR | TICKET, OPERATOR, ADMIN, SUPERVISOR |
+| Caja concesión | ADMIN, SUPERVISOR, TICKET, OPERATOR | TICKET, OPERATOR, ADMIN, SUPERVISOR |
+| Películas | Todos los trabajadores | ADMIN, SUPERVISOR, OPERATOR |
+| Salas | Todos los trabajadores | ADMIN, SUPERVISOR |
+| Horarios | Todos los trabajadores | ADMIN, SUPERVISOR, OPERATOR |
+| Reservas | Todos los trabajadores | Cancelar: ADMIN, SUPERVISOR |
+| **Incidencias** | **Todos los trabajadores** | **Crear: ADMIN, SUPERVISOR, MAINTENANCE, TICKET** · **Editar/borrar: ADMIN, SUPERVISOR, MAINTENANCE** |
+| Inventario | Todos los trabajadores | ADMIN, SUPERVISOR |
+| Informes | Todos los trabajadores | — |
+| Cuadrante | Todos los trabajadores | ADMIN, SUPERVISOR |
+| **Trabajadores** | **Solo ADMIN** | **Solo ADMIN** |
+| **Clientes** | **ADMIN, SUPERVISOR, OPERATOR, TICKET** | **Crear/editar: ADMIN, SUPERVISOR, OPERATOR** · **Borrar: ADMIN** |
+| **Socios** | **ADMIN, SUPERVISOR, OPERATOR, TICKET** | **Crear/editar: ADMIN, SUPERVISOR, OPERATOR** · **Borrar: ADMIN** |
+| Auditoría | Solo ADMIN | — |
+
+---
+
+### SecurityConfig — reglas concretas que el backend debe implementar
+
+```
+GET    /workers          → ADMIN, SUPERVISOR
+POST   /workers          → ADMIN
+PUT    /workers/:id      → ADMIN
+DELETE /workers/:id      → ADMIN
+
+GET    /clients          → ADMIN, SUPERVISOR, OPERATOR, TICKET
+GET    /clients/search   → ADMIN, SUPERVISOR, OPERATOR, TICKET
+GET    /clients/:id      → ADMIN, SUPERVISOR, OPERATOR, TICKET
+POST   /clients          → ADMIN, SUPERVISOR, OPERATOR
+PUT    /clients/:id      → ADMIN, SUPERVISOR, OPERATOR
+DELETE /clients/:id      → ADMIN
+
+GET    /socios           → ADMIN, SUPERVISOR, OPERATOR, TICKET
+GET    /socios/search    → ADMIN, SUPERVISOR, OPERATOR, TICKET
+GET    /socios/:id       → ADMIN, SUPERVISOR, OPERATOR, TICKET
+POST   /socios           → ADMIN, SUPERVISOR, OPERATOR
+PUT    /socios/:id       → ADMIN, SUPERVISOR
+DELETE /socios/:id       → ADMIN
+
+GET    /incidents        → ADMIN, SUPERVISOR, OPERATOR, TICKET, MAINTENANCE, READONLY  ← CRÍTICO
+GET    /incidents/:id    → ADMIN, SUPERVISOR, OPERATOR, TICKET, MAINTENANCE, READONLY
+POST   /incidents        → ADMIN, SUPERVISOR, MAINTENANCE, TICKET
+PUT    /incidents/:id    → ADMIN, SUPERVISOR, MAINTENANCE
+DELETE /incidents/:id    → ADMIN, SUPERVISOR, MAINTENANCE
+```
+
+---
+
+## 17. Códigos de error estándar
 
 El frontend espera que los errores vengan en este formato:
 
 ```json
 {
-  "error": "string",          // Código de error. Ej: "MOVIE_NOT_FOUND"
-  "message": "string",        // Mensaje legible para mostrar al usuario
-  "details": "any | null"     // Información adicional opcional
+  "error": "string",
+  "message": "string",
+  "details": "any | null"
 }
 ```
 
-### Códigos de error esperados
-
 | Código HTTP | Escenario |
 |-------------|-----------|
-| `400` | Validación fallida (campo requerido faltante, formato incorrecto) |
+| `400` | Validación fallida (campo requerido faltante, formato incorrecto, role CLIENT en /workers) |
 | `401` | Token ausente, expirado o inválido |
 | `403` | Sin permisos suficientes para la operación |
 | `404` | Recurso no encontrado |
-| `409` | Conflicto (ej: asiento ya ocupado, email duplicado) |
-| `422` | Datos semánticamente incorrectos (ej: fecha de proyección en el pasado) |
+| `409` | Conflicto (asiento ya ocupado, email duplicado, número de socio ya existe) |
+| `422` | Datos semánticamente incorrectos (fecha en el pasado, stock negativo) |
 | `500` | Error interno del servidor |
 
 ---
@@ -1001,25 +1318,28 @@ El frontend espera que los errores vengan en este formato:
 ## Apéndice A — Enumeraciones
 
 ```
-MOVIE STATUS:     active | inactive
-THEATER STATUS:   active | maintenance | inactive
-SCREENING STATUS: SCHEDULED | ACTIVE | CANCELLED | FULL
-PURCHASE STATUS:  CONFIRMED | PENDING | CANCELLED | REFUNDED
-PAYMENT METHOD:   CARD | CASH | ONLINE | QR
-USER ROLE:        ADMIN | SUPERVISOR | OPERATOR | TICKET | MAINTENANCE | READONLY | CLIENT
-USER STATUS:      active | inactive
-INCIDENT STATUS:  open | in_progress | resolved
-INCIDENT PRIORITY: critical | high | medium | low
-INCIDENT CATEGORY: Técnico | Infraestructura | Mobiliario | Software | Seguridad | Operativo
-INVENTORY CATEGORY: Concesión | Técnico | Oficina | Limpieza | Comercial
-MOVIE FORMAT:     IMAX | 4DX | 3D | 2D | IMAX 3D | 2D/3D
-MOVIE LANGUAGE:   ES | VO | VOSE
-MOVIE RATING:     G | PG | PG-13 | R | NC-17
-SEAT TYPE:        standard | premium | vip | disabled
-SEAT STATUS:      available | occupied | reserved | broken
-AUDIT ACTION:     LOGIN | LOGOUT | UPDATE | CREATE | DELETE | PERMISSION | CONFIG | LOGIN_FAIL
-AUDIT SEVERITY:   info | warning | danger
-SHIFT TYPE:       M (Mañana 08-16) | T (Tarde 14-22) | N (Noche 18-02) | L (Libre)
+MOVIE STATUS:        active | inactive
+THEATER STATUS:      active | maintenance | inactive
+SCREENING STATUS:    SCHEDULED | ACTIVE | CANCELLED | FULL
+PURCHASE STATUS:     CONFIRMED | PENDING | CANCELLED | REFUNDED
+PAYMENT METHOD:      CARD | CASH | ONLINE | QR
+WORKER ROLE:         ADMIN | SUPERVISOR | OPERATOR | TICKET | MAINTENANCE | READONLY
+CLIENT ROLE:         CLIENT  (siempre este valor, no editable)
+USER STATUS:         active | inactive
+INCIDENT STATUS:     open | in_progress | resolved
+INCIDENT PRIORITY:   critical | high | medium | low
+INCIDENT CATEGORY:   Técnico | Infraestructura | Mobiliario | Software | Seguridad | Operativo
+INVENTORY CATEGORY:  Concesión | Técnico | Oficina | Limpieza | Comercial
+MOVIE FORMAT:        IMAX | 4DX | 3D | 2D | IMAX 3D | 2D/3D
+MOVIE LANGUAGE:      ES | VO | VOSE
+MOVIE RATING:        G | PG | PG-13 | R | NC-17
+SEAT TYPE:           standard | premium | vip | disabled
+SEAT STATUS:         available | occupied | reserved | broken
+AUDIT ACTION:        LOGIN | LOGOUT | UPDATE | CREATE | DELETE | PERMISSION | CONFIG | LOGIN_FAIL
+AUDIT SEVERITY:      info | warning | danger
+SHIFT TYPE:          M (Mañana 08-16) | T (Tarde 14-22) | N (Noche 18-02) | L (Libre)
+MEMBERSHIP TYPE:     BASIC | PREMIUM | VIP
+MEMBERSHIP STATUS:   active | suspended | expired
 ```
 
 ---
@@ -1031,7 +1351,7 @@ MOVIE (1) ──────── (N) SCREENING (N) ──────── (1
                          │
                          │ (1)
                          │
-                    PURCHASE (N) ──────── (1) USER
+                    PURCHASE (N) ──────── (1) CLIENT
                          │
                          │ (N)
                          │
@@ -1039,29 +1359,70 @@ MOVIE (1) ──────── (N) SCREENING (N) ──────── (1
 
 SCREENING ──── (N) SEAT  (asientos de esa proyección)
 
-INCIDENT ──── (sin relación FK, sala es texto libre)
+CLIENT (1) ──── (0..1) SOCIO  (un cliente puede o no tener membresía)
+                              └── isSocio=true en entidad Client
+
+WORKER ──── (sin relación FK con Client — entidades completamente separadas)
+
+INCIDENT ──── assigned_to: string (username de Worker, sin FK obligatoria)
+              reported_by: string (username de Worker, sin FK obligatoria)
 
 MERCHANDISE ──── (N) MERCHANDISE_SALE_ITEM ──── (1) MERCHANDISE_SALE
 
-AUDIT_LOG ──── (referencia a USER por username/nombre, no FK obligatoria)
+AUDIT_LOG ──── user: string (username de Worker, referencia por nombre — no FK)
 ```
 
 ---
 
-## Apéndice C — Endpoints que NO existen aún en el backend (pendientes de implementar)
+## Apéndice C — Endpoints pendientes de implementar
 
-| Endpoint | Usado en | Prioridad |
-|----------|----------|-----------|
-| `GET /reports/incidents-by-category` | ReportsPage (gráfico tarta) | Alta |
-| `GET /reports/format-performance` | ReportsPage (tabla rendimiento) | Alta |
-| `POST /merchandise/sales` | CajaPage (venta concesión) | Alta |
-| `GET /screenings/:id/seats` | TaquillaPage (mapa asientos) | Crítica |
-| `PUT /seats/:id` | TaquillaPage (marcar ocupado al vender) | Crítica |
-| `POST /auth/logout` | AuthContext (cierre de sesión) | Media |
-| `GET /auth/me` | AuthContext (restaurar sesión) | Media |
-| `GET /reports/kpis` | Dashboard | Alta |
+### Críticos (el frontend los llama y fallará sin ellos)
+
+| Endpoint | Página que lo usa | Motivo |
+|----------|-------------------|--------|
+| `GET /workers` | UsersPage, ShiftsPage, IncidentsPage, AuditPage | Sustituye a `/users` para empleados — **ya no existe `/users`** |
+| `POST /workers` | UsersPage | Crear nuevo trabajador |
+| `PUT /workers/:id` | UsersPage | Editar trabajador |
+| `DELETE /workers/:id` | UsersPage | Eliminar trabajador |
+| `GET /clients` | ClientsPage | Listar clientes externos |
+| `GET /clients/search` | ClientsPage | Búsqueda en tiempo real |
+| `POST /clients` | ClientsPage | Crear cliente (antes usaba `/users`) |
+| `PUT /clients/:id` | ClientsPage | Editar cliente (antes usaba `/users`) |
+| `DELETE /clients/:id` | ClientsPage | Eliminar cliente (antes usaba `/users`) |
+| `GET /screenings/:id/seats` | TaquillaPage | Mapa de asientos |
+| `PUT /seats/:id` | TaquillaPage | Marcar ocupado al vender |
+
+### Alta prioridad
+
+| Endpoint | Página que lo usa | Motivo |
+|----------|-------------------|--------|
+| `GET /socios` | SociosPage / ClientsPage | Listar socios con membresía |
+| `GET /socios/search` | SociosPage | Búsqueda por número de socio o email |
+| `POST /socios` | SociosPage | Registrar cliente como socio |
+| `PUT /socios/:id` | SociosPage | Actualizar datos de membresía |
+| `DELETE /socios/:id` | SociosPage | Dar de baja membresía |
+| `GET /reports/kpis` | Dashboard | KPIs del día |
+| `GET /reports/incidents-by-category` | ReportsPage | Gráfico tarta incidencias |
+| `GET /reports/format-performance` | ReportsPage | Tabla rendimiento por formato |
+
+### Media prioridad
+
+| Endpoint | Página que lo usa | Motivo |
+|----------|-------------------|--------|
+| `POST /merchandise/sales` | CajaPage | Venta de concesión |
+| `POST /auth/logout` | AuthContext | Cierre de sesión correcto |
+| `GET /auth/me` | AuthContext | Restaurar sesión al recargar |
+
+### Refactorización requerida en el backend existente
+
+| Acción | Motivo |
+|--------|--------|
+| Revisar `SecurityConfig` para `GET /incidents` — debe incluir OPERATOR, TICKET, READONLY | Actualmente solo ADMIN/SUPERVISOR/MAINTENANCE pueden hacer GET, los demás reciben 403 y la página aparece vacía |
+| Renombrar o añadir alias `/workers` sobre la lógica actual de `/users` filtrando por rol != CLIENT | El frontend ha migrado completamente de `/users` a `/workers` |
+| Añadir endpoint `/clients` con filtro `role = CLIENT` sobre la entidad User existente | El frontend usa `/clients` para todo el CRUD de clientes |
+| Crear entidad `Socio` con FK a `User(CLIENT)` o añadir tabla de membresía | El frontend espera `/socios` como endpoint propio |
 
 ---
 
-*Documento generado desde el análisis del código fuente del frontend FrontCine.*
-*Proyecto: Lumen Cinema Management System*
+*Documento actualizado tras refactorización de arquitectura de usuarios — Mayo 2026.*
+*Proyecto: Lumen Cinema Management System — Frontend: FrontCine (React + Vite)*

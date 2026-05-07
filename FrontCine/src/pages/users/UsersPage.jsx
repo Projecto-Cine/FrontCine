@@ -8,7 +8,7 @@ import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import KPICard from '../../components/shared/KPICard';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { usersService } from '../../services/usersService';
+import { workersService } from '../../services/workersService';
 import styles from './UsersPage.module.css';
 
 const ROLES = {
@@ -43,7 +43,7 @@ export default function UsersPage() {
   const isAdmin = ['admin', 'ADMIN'].includes(me?.role);
 
   useEffect(() => {
-    usersService.getAll()
+    workersService.getAll()
       .then(data => setUsers(
         (data ?? []).map(normalizeUser).filter(u => EMPLOYEE_ROLES.includes(u.role))
       ))
@@ -65,11 +65,11 @@ export default function UsersPage() {
       dateOfBirth: form.dateOfBirth || null,
     };
     if (editing) {
-      const saved = normalizeUser(await usersService.update(editing.id, payload));
+      const saved = normalizeUser(await workersService.update(editing.id, payload));
       setUsers(prev => prev.map(user => user.id === editing.id ? saved : user));
       toast('Usuario actualizado.', 'success');
     } else {
-      const saved = normalizeUser(await usersService.create(payload));
+      const saved = normalizeUser(await workersService.create(payload));
       setUsers(prev => [...prev, saved]);
       toast('Usuario creado.', 'success');
     }
@@ -77,7 +77,7 @@ export default function UsersPage() {
   };
 
   const handleDelete = async () => {
-    await usersService.remove(deleteTarget.id);
+    await workersService.remove(deleteTarget.id);
     setUsers(prev => prev.filter(user => user.id !== deleteTarget.id));
     toast('Usuario eliminado.', 'warning');
     setDeleteTarget(null);
@@ -102,7 +102,7 @@ export default function UsersPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Usuarios"
+        title="Trabajadores"
         subtitle={`${users.length} trabajadores · ${users.filter(user => user.role === 'ADMIN').length} administradores`}
         actions={isAdmin && <Button icon={Plus} onClick={openCreate}>Nuevo trabajador</Button>}
       />

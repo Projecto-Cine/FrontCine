@@ -23,14 +23,13 @@ async function request(path, options = {}) {
   });
 
   if (res.status === 401) {
-    if (path.includes('/auth/login')) {
-      // Let the login page handle its own 401
-    } else {
+    if (!path.includes('/auth/login')) {
       localStorage.removeItem('lumen_token');
-      // Throw first so callers can show a toast, then redirect after 1.5 s
+      localStorage.removeItem('lumen_user');
+      // Notificar a AuthContext via evento para que actualice el estado React
+      window.dispatchEvent(new CustomEvent('auth:expired'));
       const err = new Error('Sesión expirada. Vuelve a iniciar sesión.');
       err.status = 401;
-      setTimeout(() => { window.location.href = '/login'; }, 1500);
       throw err;
     }
   }

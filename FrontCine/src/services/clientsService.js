@@ -1,9 +1,10 @@
 import { api } from './api';
 
+// Los clientes son usuarios con role CLIENTE — se gestiona desde /api/users
 export const clientsService = {
-  search:  (q)        => api.get(`/clients/search?q=${encodeURIComponent(q)}`),
-  getById: (id)       => api.get(`/clients/${id}`),
-  create:  (data)     => api.post('/auth/register', data),
-  update:  (id, data) => api.put(`/clients/${id}`, data),
-  remove:  (id)       => api.delete(`/clients/${id}`),
+  getAll:  ()         => api.get('/users'),
+  getById: (id)       => api.get(`/users/${id}`),
+  create:  (data)     => api.post('/users', data),
+  update:  (id, data) => api.put(`/users/${id}`, data),
+  remove:  (id)       => api.delete(`/users/${id}`),
 };

@@ -57,16 +57,14 @@ export default function IncidentsPage() {
         setIncidents(p => p.map(i => i.id === editing.id ? (updated ?? { ...i, ...form }) : i));
         toast('Incidencia actualizada.', 'success');
       } else {
-        const now = new Date().toLocaleString('es-ES');
-        const fallback = { ...form, id: 'INC-' + Date.now(), created_at: now, updated_at: now };
-        const created = await incidentsService.create(form).catch(() => fallback);
-        setIncidents(p => [...p, created ?? fallback]);
+        const created = await incidentsService.create(form);
+        setIncidents(p => [...p, created]);
         toast('Incidencia registrada.', 'success');
       }
-    } catch {
-      toast('Error al guardar la incidencia.', 'error');
+      setModal(null);
+    } catch (err) {
+      toast(err?.status === 401 ? 'Sesión expirada.' : 'Error al guardar la incidencia.', 'error');
     }
-    setModal(null);
   };
 
   const resolve = async (inc) => {

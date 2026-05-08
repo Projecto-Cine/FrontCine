@@ -14,6 +14,7 @@ import KPICard      from '../../components/shared/KPICard';
 import { useApp }   from '../../contexts/AppContext';
 import { purchasesService } from '../../services/reservationsService';
 import { screeningsService } from '../../services/sessionsService';
+import { usersService }      from '../../services/usersService';
 import styles from './ReservationsPage.module.css';
 
 /* ── Constants ───────────────────────────────────────── */
@@ -55,12 +56,13 @@ const getScreeningLabel = (s) => {
   return `${title}${theater}${date}`;
 };
 
-const EMPTY_FORM = { clientName: '', clientEmail: '', screeningId: '', totalAmount: '' };
+const EMPTY_FORM = { userId: '', screeningId: '', totalAmount: '' };
 
 /* ── Component ───────────────────────────────────────── */
 export default function ReservationsPage() {
   const [purchases,  setPurchases]  = useState([]);
   const [screenings, setScreenings] = useState([]);
+  const [users,      setUsers]      = useState([]);
   const [modal,      setModal]      = useState(null);
   const [editing,    setEditing]    = useState(null);
   const [form,       setForm]       = useState(EMPTY_FORM);
@@ -86,8 +88,12 @@ export default function ReservationsPage() {
   const { toast } = useApp();
 
   useEffect(() => {
-    Promise.all([purchasesService.getAll(), screeningsService.getAll()])
-      .then(([pd, sd]) => { setPurchases(pd ?? []); setScreenings(sd ?? []); })
+    Promise.all([purchasesService.getAll(), screeningsService.getAll(), usersService.getAll()])
+      .then(([pd, sd, ud]) => {
+        setPurchases(pd ?? []);
+        setScreenings(sd ?? []);
+        setUsers(ud ?? []);
+      })
       .catch(() => toast('No se pudieron cargar las reservas.', 'error'));
   }, [toast]);
 
@@ -105,8 +111,7 @@ export default function ReservationsPage() {
   const openEdit   = (row) => {
     setEditing(row);
     setForm({
-      clientName:  getClientName(row),
-      clientEmail: getClientEmail(row),
+      userId:      String(row.user?.id ?? row.userId ?? ''),
       screeningId: String(getScreening(row, screenings)?.id ?? row.screeningId ?? ''),
       totalAmount: String(getAmount(row)),
     });
@@ -115,13 +120,12 @@ export default function ReservationsPage() {
 
   /* ── Save reservation ────────────────────────────── */
   const handleSave = async () => {
-    if (!form.clientName.trim()) { toast('El nombre del cliente es obligatorio.', 'error'); return; }
+    if (!form.userId) { toast('Selecciona un cliente.', 'error'); return; }
     setSaving(true);
     const payload = {
-      clientName:  form.clientName,
-      clientEmail: form.clientEmail,
+      userId:      Number(form.userId),
       screeningId: form.screeningId ? Number(form.screeningId) : undefined,
-      totalAmount: form.totalAmount ? Number(form.totalAmount) : undefined,
+      total:       form.totalAmount  ? Number(form.totalAmount) : undefined,
       status:      editing ? getStatus(editing) : 'PENDING',
     };
     try {
@@ -131,23 +135,9 @@ export default function ReservationsPage() {
         toast('Reserva actualizada.', 'success');
         setModal(null);
       } else {
-        let created;
-        try {
-          created = await purchasesService.create(payload);
-        } catch (err) {
-          if (err?.status === 401) {
-            toast('Sesión expirada. Vuelve a iniciar sesión.', 'error');
-            setSaving(false);
-            return;
-          }
-          // Fallback local so the worker doesn't lose the context
-          created = { ...payload, id: 'RES-' + Date.now(), createdAt: new Date().toISOString() };
-          toast('Reserva guardada localmente (sin conexión).', 'warning');
-        }
-        const newPurchase = created ?? { ...payload, id: 'RES-' + Date.now() };
-        setPurchases(prev => [...prev, newPurchase]);
-        // Always go straight to payment after creation
-        setPayTarget(newPurchase);
+        const created = await purchasesService.create(payload);
+        setPurchases(prev => [...prev, created]);
+        setPayTarget(created);
         setPayMethod('CARD');
         setCashGiven('');
         setModal('pay');
@@ -155,8 +145,7 @@ export default function ReservationsPage() {
       }
     } catch (err) {
       if (err?.status === 401) toast('Sesión expirada. Vuelve a iniciar sesión.', 'error');
-      else toast('Error al guardar la reserva.', 'error');
-      setModal(null);
+      else toast(`Error al guardar la reserva: ${err?.message ?? 'Inténtalo de nuevo.'}`, 'error');
     }
     setSaving(false);
   };
@@ -325,15 +314,17 @@ export default function ReservationsPage() {
         }
       >
         <div className={styles.formGrid}>
-          <div>
-            <label className={styles.label}>Nombre cliente *</label>
-            <input className={styles.input} value={form.clientName}
-              onChange={e => setField('clientName', e.target.value)} placeholder="Nombre completo" />
-          </div>
-          <div>
-            <label className={styles.label}>Email cliente</label>
-            <input className={styles.input} type="email" value={form.clientEmail}
-              onChange={e => setField('clientEmail', e.target.value)} placeholder="email@ejemplo.com" />
+          <div className={styles.fieldFull}>
+            <label className={styles.label}>Cliente *</label>
+            <select className={styles.input} value={form.userId}
+              onChange={e => setField('userId', e.target.value)}>
+              <option value="">Seleccionar cliente</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.name ?? u.email} — {u.role}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className={styles.label}>Proyección</label>
@@ -344,7 +335,7 @@ export default function ReservationsPage() {
             </select>
           </div>
           <div>
-            <label className={styles.label}>Importe (€)</label>
+            <label className={styles.label}>Importe total (€)</label>
             <input className={styles.input} type="number" step="0.01" min="0" value={form.totalAmount}
               onChange={e => setField('totalAmount', e.target.value)} placeholder="0.00" />
           </div>

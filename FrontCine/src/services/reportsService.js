@@ -1,12 +1,9 @@
 import { api } from './api';
 
 export const reportsService = {
+  // → [{ date, totalPurchases, revenue }]
   salesWeek: () => api.get('/reports/sales-week'),
-  // → [{ day: string, ventas: number, entradas: number }]
 
+  // → [{ screeningId, movieTitle, theaterName, dateTime, totalSeats, occupiedSeats, occupancyPercentage }]
   occupancy: () => api.get('/reports/occupancy'),
-  // → [{ sala: string, pct: number }]
-
-  kpis: () => api.get('/reports/kpis'),
-  // → { revenue_today, tickets_today, occupancy_avg, incidents_open }
 };

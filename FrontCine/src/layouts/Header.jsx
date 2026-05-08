@@ -20,7 +20,6 @@ const ROUTE_LABELS = {
   '/reports':      'Informes',
   '/employees':    'Trabajadores',
   '/clients':      'Clientes',
-  '/audit':        'Auditoría y Seguridad',
 };
 
 const ROLE_LABELS = {

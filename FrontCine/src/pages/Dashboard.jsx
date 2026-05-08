@@ -6,6 +6,7 @@ import KPICard from '../components/shared/KPICard';
 import PageHeader from '../components/shared/PageHeader';
 import Badge from '../components/ui/Badge';
 import SkeletonPage from '../components/shared/Skeleton';
+import { dashboardService } from '../services/dashboardService';
 import { reportsService } from '../services/reportsService';
 import { sessionsService } from '../services/sessionsService';
 import { incidentsService } from '../services/incidentsService';
@@ -39,21 +40,54 @@ export default function Dashboard() {
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     Promise.all([
-      reportsService.kpis().catch(() => null),
+      dashboardService.get().catch(() => null),
       reportsService.salesWeek().catch(() => []),
       reportsService.occupancy().catch(() => []),
-      sessionsService.getAll({ date: today }).catch(() => []),
+      sessionsService.getUpcoming().catch(() => []),
       incidentsService.getAll().catch(() => []),
-    ]).then(([k, sw, occ, scr, inc]) => {
-      setKpis(k);
+    ]).then(([dash, sw, occ, scr, inc]) => {
+      // Mapear dashboard → shape que usa el componente
+      setKpis(dash ? {
+        revenue_today:      dash.weeklyRevenue ?? 0,
+        active_sessions:    dash.activeScreenings ?? 0,
+        occupancy_avg:      0,
+        reservations_today: dash.paidPurchases ?? 0,
+        incidents_open:     dash.unresolvedIncidents ?? 0,
+        operational_rooms:  dash.activeMovies ?? '—',
+      } : null);
+
+      // Backend: { date, totalPurchases, revenue }
       setSalesWeek((sw ?? []).map(d => ({
-        day:     d.day,
-        revenue: d.ventas   ?? d.revenue ?? 0,
-        tickets: d.entradas ?? d.tickets ?? 0,
+        day:     d.date ?? d.day,
+        revenue: d.revenue ?? 0,
+        tickets: d.totalPurchases ?? d.tickets ?? 0,
       })));
-      setOccupancy((occ ?? []).map(d => ({ room: d.sala ?? d.room, pct: d.pct })));
-      setSessions(Array.isArray(scr) ? scr.filter(s => s.status !== 'CANCELLED') : []);
-      setIncidents(Array.isArray(inc) ? inc.filter(i => i.status !== 'resolved') : []);
+
+      // Backend: [{ theaterName, occupancyPercentage, ... }]
+      // Agrupar por sala tomando el % más alto de sus proyecciones
+      const byRoom = {};
+      (occ ?? []).forEach(d => {
+        const room = d.theaterName ?? d.sala ?? d.room ?? '—';
+        const pct  = d.occupancyPercentage ?? d.pct ?? 0;
+        if (!byRoom[room] || pct > byRoom[room]) byRoom[room] = pct;
+      });
+      setOccupancy(Object.entries(byRoom).map(([room, pct]) => ({ room, pct: Math.round(pct) })));
+
+      // Filtrar proyecciones de hoy
+      const todaySessions = (Array.isArray(scr) ? scr : [])
+        .filter(s => s.dateTime?.startsWith(today));
+      setSessions(todaySessions);
+
+      // Backend: { severity, resolved } — mapear a { priority, status }
+      const SEVERITY_MAP = { HIGH: 'critical', MEDIUM: 'high', LOW: 'medium' };
+      const mapped = (Array.isArray(inc) ? inc : [])
+        .filter(i => !i.resolved)
+        .map(i => ({
+          ...i,
+          priority: SEVERITY_MAP[i.severity] ?? 'low',
+          status:   'open',
+        }));
+      setIncidents(mapped);
     }).finally(() => setLoading(false));
   }, []);
 

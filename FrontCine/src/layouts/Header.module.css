@@ -30,6 +30,29 @@
 
 .pageTitle { font-size: 13px; font-weight: 600; color: var(--text-1); }
 
+.searchTrigger {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-l);
+  border-radius: var(--r-lg);
+  padding: 6px 12px;
+  color: var(--text-3);
+  font-size: 12px;
+  transition: border-color var(--t), color var(--t), box-shadow var(--t);
+  min-width: 160px;
+}
+.searchTrigger:hover { border-color: var(--accent); color: var(--text-2); box-shadow: 0 0 0 3px rgba(196,154,108,0.10); }
+.searchTrigger span { flex: 1; text-align: left; }
+.searchKbd {
+  background: var(--bg-4);
+  border: 1px solid var(--border-l);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--text-3);
+}
+
 .clock {
   display: flex; align-items: center; gap: 5px;
   font-size: 11px;

@@ -6,6 +6,7 @@ import Badge      from '../../components/ui/Badge';
 import KPICard    from '../../components/shared/KPICard';
 import { auditService }  from '../../services/auditService';
 import { usersService }  from '../../services/usersService';
+import SkeletonPage from '../../components/shared/Skeleton';
 import styles from './AuditPage.module.css';
 
 const SEVERITY_MAP = {
@@ -68,7 +69,7 @@ export default function AuditPage() {
     }},
   ];
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-3)', fontSize: 13 }}>Cargando auditoría...</div>;
+  if (loading) return <SkeletonPage />;
 
   return (
     <div className={styles.page}>

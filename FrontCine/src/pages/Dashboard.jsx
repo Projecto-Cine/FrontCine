@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Ticket, Building2, AlertTriangle, Euro, Film } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import KPICard from '../components/shared/KPICard';
 import PageHeader from '../components/shared/PageHeader';
 import Badge from '../components/ui/Badge';
+import SkeletonPage from '../components/shared/Skeleton';
+import { dashboardService } from '../services/dashboardService';
 import { reportsService } from '../services/reportsService';
 import { sessionsService } from '../services/sessionsService';
 import { incidentsService } from '../services/incidentsService';
@@ -26,6 +29,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [kpis, setKpis]             = useState(null);
   const [salesWeek, setSalesWeek]   = useState([]);
   const [occupancy, setOccupancy]   = useState([]);
@@ -36,25 +40,58 @@ export default function Dashboard() {
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     Promise.all([
-      reportsService.kpis().catch(() => null),
+      dashboardService.get().catch(() => null),
       reportsService.salesWeek().catch(() => []),
       reportsService.occupancy().catch(() => []),
-      sessionsService.getAll({ date: today }).catch(() => []),
+      sessionsService.getUpcoming().catch(() => []),
       incidentsService.getAll().catch(() => []),
-    ]).then(([k, sw, occ, scr, inc]) => {
-      setKpis(k);
+    ]).then(([dash, sw, occ, scr, inc]) => {
+      // Mapear dashboard → shape que usa el componente
+      setKpis(dash ? {
+        revenue_today:      dash.weeklyRevenue ?? 0,
+        active_sessions:    dash.activeScreenings ?? 0,
+        occupancy_avg:      0,
+        reservations_today: dash.paidPurchases ?? 0,
+        incidents_open:     dash.unresolvedIncidents ?? 0,
+        operational_rooms:  dash.activeMovies ?? '—',
+      } : null);
+
+      // Backend: { date, totalPurchases, revenue }
       setSalesWeek((sw ?? []).map(d => ({
-        day:     d.day,
-        revenue: d.ventas   ?? d.revenue ?? 0,
-        tickets: d.entradas ?? d.tickets ?? 0,
+        day:     d.date ?? d.day,
+        revenue: d.revenue ?? 0,
+        tickets: d.totalPurchases ?? d.tickets ?? 0,
       })));
-      setOccupancy((occ ?? []).map(d => ({ room: d.sala ?? d.room, pct: d.pct })));
-      setSessions(Array.isArray(scr) ? scr.filter(s => s.status !== 'CANCELLED') : []);
-      setIncidents(Array.isArray(inc) ? inc.filter(i => i.status !== 'resolved') : []);
+
+      // Backend: [{ theaterName, occupancyPercentage, ... }]
+      // Agrupar por sala tomando el % más alto de sus proyecciones
+      const byRoom = {};
+      (occ ?? []).forEach(d => {
+        const room = d.theaterName ?? d.sala ?? d.room ?? '—';
+        const pct  = d.occupancyPercentage ?? d.pct ?? 0;
+        if (!byRoom[room] || pct > byRoom[room]) byRoom[room] = pct;
+      });
+      setOccupancy(Object.entries(byRoom).map(([room, pct]) => ({ room, pct: Math.round(pct) })));
+
+      // Filtrar proyecciones de hoy
+      const todaySessions = (Array.isArray(scr) ? scr : [])
+        .filter(s => s.dateTime?.startsWith(today));
+      setSessions(todaySessions);
+
+      // Backend: { severity, resolved } — mapear a { priority, status }
+      const SEVERITY_MAP = { HIGH: 'critical', MEDIUM: 'high', LOW: 'medium' };
+      const mapped = (Array.isArray(inc) ? inc : [])
+        .filter(i => !i.resolved)
+        .map(i => ({
+          ...i,
+          priority: SEVERITY_MAP[i.severity] ?? 'low',
+          status:   'open',
+        }));
+      setIncidents(mapped);
     }).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-3)', fontSize: 13 }}>Cargando dashboard...</div>;
+  if (loading) return <SkeletonPage />;
 
   const criticalInc = incidents.filter(i => i.priority === 'critical');
 
@@ -66,12 +103,12 @@ export default function Dashboard() {
       />
 
       <div className={styles.kpiGrid}>
-        <KPICard label="Ingresos hoy"        value={`€${(kpis?.revenue_today ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 0 })}`} icon={Euro}          color="green"  trend={12} sub="vs. ayer" />
-        <KPICard label="Sesiones activas"    value={kpis?.active_sessions ?? sessions.length}                                                 icon={Film}          color="accent" sub={`${sessions.filter(s => s.status === 'ACTIVE').length} en marcha`} />
-        <KPICard label="Ocupación media"     value={`${kpis?.occupancy_avg ?? 0}%`}                                                           icon={Building2}     color="cyan"   trend={-3} sub="sesiones de hoy" />
-        <KPICard label="Reservas hoy"        value={kpis?.reservations_today ?? 0}                                                            icon={Ticket}        color="purple" trend={8} />
-        <KPICard label="Incidencias abiertas" value={kpis?.incidents_open ?? incidents.length}                                                icon={AlertTriangle} color={criticalInc.length > 0 ? 'red' : 'yellow'} sub={`${criticalInc.length} crítica(s)`} />
-        <KPICard label="Salas operativas"    value={kpis?.operational_rooms ?? '—'}                                                           icon={Building2}     color="green"  sub="en servicio" />
+        <KPICard label="Ingresos hoy"        value={`€${(kpis?.revenue_today ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 0 })}`} icon={Euro}          color="green"  trend={12} sub="vs. ayer" onClick={() => navigate('/informes')} />
+        <KPICard label="Sesiones activas"    value={kpis?.active_sessions ?? sessions.length}                                                 icon={Film}          color="accent" sub={`${sessions.filter(s => s.status === 'ACTIVE').length} en marcha`} onClick={() => navigate('/horarios')} />
+        <KPICard label="Ocupación media"     value={`${kpis?.occupancy_avg ?? 0}%`}                                                           icon={Building2}     color="cyan"   trend={-3} sub="sesiones de hoy" onClick={() => navigate('/salas')} />
+        <KPICard label="Reservas hoy"        value={kpis?.reservations_today ?? 0}                                                            icon={Ticket}        color="purple" trend={8} onClick={() => navigate('/reservas')} />
+        <KPICard label="Incidencias abiertas" value={kpis?.incidents_open ?? incidents.length}                                                icon={AlertTriangle} color={criticalInc.length > 0 ? 'red' : 'yellow'} sub={`${criticalInc.length} crítica(s)`} onClick={() => navigate('/incidencias')} />
+        <KPICard label="Salas operativas"    value={kpis?.operational_rooms ?? '—'}                                                           icon={Building2}     color="green"  sub="en servicio" onClick={() => navigate('/salas')} />
       </div>
 
       <div className={styles.chartsRow}>

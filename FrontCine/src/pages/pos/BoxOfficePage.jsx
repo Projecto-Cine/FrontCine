@@ -30,6 +30,17 @@ const TICKET_TYPES = [
 const PAY_METHOD_MAP = { card: 'CARD', cash: 'CASH', online: 'QR' };
 
 const FORMAT_BADGE = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', VIP: 'yellow', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
+
+const MOV_IMG_KEY = 'lumen_movie_posters';
+const getStoredPosters = () => { try { return JSON.parse(localStorage.getItem(MOV_IMG_KEY) ?? '{}'); } catch { return {}; } };
+const mergeSessionPosters = (sessions) => {
+  const s = getStoredPosters();
+  return sessions.map(sess => {
+    if (!sess.movie) return sess;
+    const imgUrl = s[String(sess.movie.id)] || sess.movie.imageUrl || sess.movie.poster || '';
+    return imgUrl ? { ...sess, movie: { ...sess.movie, imageUrl: imgUrl } } : sess;
+  });
+};
 const OCC_COLOR = (pct) => pct >= 95 ? 'var(--red)' : pct >= 80 ? 'var(--yellow)' : 'var(--green)';
 
 const GENRE_GRADIENT = {
@@ -79,7 +90,7 @@ export default function TaquillaPage() {
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     sessionsService.getAll({ date: today })
-      .then(data => setSessions(Array.isArray(data) ? data.filter(s => s.status !== 'CANCELLED') : []))
+      .then(data => setSessions(mergeSessionPosters(Array.isArray(data) ? data.filter(s => s.status !== 'CANCELLED') : [])))
       .catch(() => toast('Error al cargar sesiones.', 'error'))
       .finally(() => setLoadingSessions(false));
   }, []);
@@ -260,8 +271,11 @@ export default function TaquillaPage() {
                     >
                       {viewMode === 'grid' ? (
                         <>
-                          <div className={styles.sessionPoster} style={{ background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
-                            <span className={styles.sessionPosterInitials}>{getInitials(mv.title)}</span>
+                          <div className={styles.sessionPoster} style={mv.imageUrl ? {} : { background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
+                            {mv.imageUrl
+                              ? <img src={mv.imageUrl} alt={mv.title} className={styles.sessionPosterImg} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.style.background = GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT; }} />
+                              : <span className={styles.sessionPosterInitials}>{getInitials(mv.title)}</span>
+                            }
                             <div className={styles.sessionPosterBadges}>
                               <Badge variant={FORMAT_BADGE[mv.format] || 'default'}>{mv.format}</Badge>
                               <Badge variant="default">{mv.language}</Badge>
@@ -287,8 +301,11 @@ export default function TaquillaPage() {
                         </>
                       ) : (
                         <>
-                          <div className={styles.sessionListThumb} style={{ background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
-                            <span className={styles.sessionListInitials}>{getInitials(mv.title)}</span>
+                          <div className={styles.sessionListThumb} style={mv.imageUrl ? {} : { background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
+                            {mv.imageUrl
+                              ? <img src={mv.imageUrl} alt={mv.title} className={styles.sessionListThumbImg} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.style.background = GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT; }} />
+                              : <span className={styles.sessionListInitials}>{getInitials(mv.title)}</span>
+                            }
                           </div>
                           <div className={styles.sessionCardTop}>
                             <div className={styles.sessionTime}>{time}</div>

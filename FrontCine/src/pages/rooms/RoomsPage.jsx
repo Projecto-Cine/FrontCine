@@ -95,12 +95,12 @@ export default function RoomsPage() {
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
-            <label className={styles.label}>Nombre de sala *</label>
-            <input className={styles.input} value={form.name} onChange={e => set('name', e.target.value)} placeholder="Ej: Sala 1" />
+            <label className={styles.label} htmlFor="room-name">Nombre de sala *</label>
+            <input id="room-name" className={styles.input} value={form.name} onChange={e => set('name', e.target.value)} placeholder="Ej: Sala 1" />
           </div>
           <div>
-            <label className={styles.label}>Capacidad (butacas) *</label>
-            <input className={styles.input} type="number" value={form.capacity} onChange={e => set('capacity', e.target.value)} />
+            <label className={styles.label} htmlFor="room-cap">Capacidad (butacas) *</label>
+            <input id="room-cap" className={styles.input} type="number" value={form.capacity} onChange={e => set('capacity', e.target.value)} />
           </div>
         </div>
       </Modal>

@@ -17,34 +17,34 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 18px 14px;
+  padding: 22px 14px;
   height: auto;
-  min-height: 100px;
+  min-height: 110px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   overflow: hidden;
-  background: radial-gradient(ellipse at center, rgba(184,150,106,0.1) 0%, transparent 72%);
+  background: radial-gradient(ellipse at center, rgba(196,154,108,0.08) 0%, transparent 70%);
 }
 
 .logoImg {
-  width: 76px;
-  height: 76px;
+  width: 84px;
+  height: 84px;
   object-fit: cover;
   border-radius: 50%;
   flex-shrink: 0;
   transition: width var(--t), height var(--t), box-shadow var(--t), transform var(--t);
-  border: 2.5px solid rgba(184,150,106,0.8);
+  border: 2px solid rgba(196,154,108,0.7);
   box-shadow:
-    0 0 0 5px rgba(184,150,106,0.14),
-    0 0 22px rgba(184,150,106,0.5),
-    0 0 44px rgba(184,150,106,0.18);
+    0 0 0 6px rgba(196,154,108,0.10),
+    0 0 28px rgba(196,154,108,0.45),
+    0 0 56px rgba(196,154,108,0.15);
 }
 .logoImg:hover {
-  transform: scale(1.06);
+  transform: scale(1.05);
   box-shadow:
-    0 0 0 6px rgba(184,150,106,0.24),
-    0 0 30px rgba(184,150,106,0.65),
-    0 0 60px rgba(184,150,106,0.25);
+    0 0 0 8px rgba(196,154,108,0.18),
+    0 0 36px rgba(196,154,108,0.60),
+    0 0 72px rgba(196,154,108,0.22);
 }
 .logoImgCollapsed {
   width: 38px;

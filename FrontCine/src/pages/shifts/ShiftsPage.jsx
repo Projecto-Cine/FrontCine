@@ -225,7 +225,9 @@ export default function CuadrantePage() {
   });
 
   const [allUsers, setAllUsers] = useState([]);
-  const [scheduleMap, setScheduleMap] = useState({});
+  const [scheduleMap, setScheduleMap] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('lumen_schedule_map') ?? '{}'); } catch { return {}; }
+  });
   const [editCell, setEditCell] = useState(null);
 
   useEffect(() => {
@@ -234,8 +236,9 @@ export default function CuadrantePage() {
     }).catch(() => {});
   }, []);
 
+  // El backend no tiene campo status → usar todos los usuarios con rol de trabajo
   const activeEmployees = useMemo(
-    () => allUsers.filter(u => u.status === 'active'),
+    () => allUsers.filter(u => u.role && u.role.toLowerCase() !== 'client'),
     [allUsers]
   );
 
@@ -272,10 +275,11 @@ export default function CuadrantePage() {
   const handleGenerate = () => {
     const genKey = Date.now();
     if (mode === 'week') {
-      setScheduleMap(prev => ({
-        ...prev,
-        [currentKey]: generateWeekSchedule(activeEmployees, weekStart, genKey),
-      }));
+      setScheduleMap(prev => {
+        const next = { ...prev, [currentKey]: generateWeekSchedule(activeEmployees, weekStart, genKey) };
+        try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
+        return next;
+      });
       toast('Cuadrante semanal generado', 'success');
     } else {
       const updates = {};
@@ -288,7 +292,11 @@ export default function CuadrantePage() {
         updates[weekKey(cursor)] = generateWeekSchedule(activeEmployees, cursor, genKey + w);
         cursor = addDays(cursor, 7);
       }
-      setScheduleMap(prev => ({ ...prev, ...updates }));
+      setScheduleMap(prev => {
+        const next = { ...prev, ...updates };
+        try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
+        return next;
+      });
       toast(`Cuadrante mensual generado: ${Object.keys(updates).length} semanas`, 'success');
     }
     setEditCell(null);
@@ -298,7 +306,7 @@ export default function CuadrantePage() {
   const handleShiftChange = (empId, dayIdx, newShift) => {
     setScheduleMap(prev => {
       const rows = prev[currentKey] ?? generateWeekSchedule(activeEmployees, weekStart, 0);
-      return {
+      const next = {
         ...prev,
         [currentKey]: rows.map(emp =>
           emp.id === empId
@@ -306,6 +314,8 @@ export default function CuadrantePage() {
             : emp
         ),
       };
+      try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
+      return next;
     });
     setEditCell(null);
   };
@@ -373,7 +383,7 @@ export default function CuadrantePage() {
             Generar {mode === 'week' ? 'semana' : 'mes'}
           </button>
 
-          <button className={styles.exportBtn} title="Exportar PDF">
+          <button className={styles.exportBtn} title="Imprimir / Exportar PDF" onClick={() => window.print()}>
             <Download size={13} />
           </button>
         </div>

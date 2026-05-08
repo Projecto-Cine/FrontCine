@@ -1,4 +1,4 @@
-.card {
+﻿.card {
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--r-xl);
@@ -10,7 +10,7 @@
 .clickable:hover { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,154,108,0.08); }
 
 .top { display: flex; align-items: center; justify-content: space-between; }
-.label { font-size: 11px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.label { font-size: var(--fs-sm); font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 
 .icon {
   width: 28px; height: 28px;
@@ -26,7 +26,7 @@
 
 .value { font-size: 26px; font-weight: 700; color: var(--text-1); line-height: 1.1; }
 .bottom { display: flex; align-items: center; justify-content: space-between; }
-.sub { font-size: 11px; color: var(--text-3); }
-.trend { font-size: 11px; font-weight: 600; }
+.sub { font-size: var(--fs-sm); color: var(--text-3); }
+.trend { font-size: var(--fs-sm); font-weight: 600; }
 .up { color: var(--green); }
 .down { color: var(--red); }

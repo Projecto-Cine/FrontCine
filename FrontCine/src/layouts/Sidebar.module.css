@@ -1,4 +1,4 @@
-.sidebar {
+﻿.sidebar {
   position: fixed;
   top: 0; left: 0; bottom: 0;
   width: var(--sidebar-w);
@@ -74,7 +74,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 4px 8px;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 800;
   color: var(--text-3);
   letter-spacing: 0.1em;
@@ -96,7 +96,7 @@
   padding: 7px 10px;
   border-radius: var(--r);
   color: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-weight: 500;
   transition: background var(--t), color var(--t);
   white-space: nowrap;
@@ -137,20 +137,20 @@
   background: var(--accent-dim2);
   color: var(--accent);
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 800;
+  font-size: var(--fs-md); font-weight: 800;
   flex-shrink: 0;
   border: 1px solid rgba(184,150,106,0.3);
 }
 .userMeta { display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
-.userName { font-size: 12px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.userRole { font-size: 10px; color: var(--text-3); white-space: nowrap; text-transform: capitalize; }
+.userName { font-size: var(--fs-md); font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.userRole { font-size: var(--fs-xs); color: var(--text-3); white-space: nowrap; text-transform: capitalize; }
 
 .logoutBtn {
   display: flex; align-items: center; gap: 8px;
   padding: 7px 10px;
   border-radius: var(--r);
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-md);
   transition: background var(--t), color var(--t);
   width: 100%;
 }

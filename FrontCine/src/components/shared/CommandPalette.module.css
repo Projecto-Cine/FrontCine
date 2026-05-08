@@ -1,4 +1,4 @@
-.overlay {
+﻿.overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.65);
@@ -43,7 +43,7 @@
   background: none;
   border: none;
   outline: none;
-  font-size: 14px;
+  font-size: var(--fs-lg);
   color: var(--text-1);
   font-family: var(--font);
 }
@@ -54,7 +54,7 @@
   border: 1px solid var(--border-l);
   border-radius: 4px;
   padding: 2px 6px;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   font-family: var(--mono);
   flex-shrink: 0;
@@ -67,7 +67,7 @@
 }
 
 .section {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--text-3);
   text-transform: uppercase;
@@ -90,14 +90,14 @@
 .item.active .itemIcon, .item.active .itemLabel { color: var(--accent); }
 
 .itemIcon { color: var(--text-3); flex-shrink: 0; }
-.itemLabel { flex: 1; font-size: 13px; color: var(--text-1); font-weight: 500; }
+.itemLabel { flex: 1; font-size: var(--fs-base); color: var(--text-1); font-weight: 500; }
 .itemArrow { color: var(--text-3); opacity: 0; transition: opacity var(--t); }
 .item.active .itemArrow { opacity: 1; color: var(--accent); }
 
 .noResult {
   padding: 28px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--fs-md);
   color: var(--text-3);
 }
 
@@ -108,7 +108,7 @@
   padding: 8px 16px;
   border-top: 1px solid var(--border);
   background: var(--bg-1);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 
@@ -117,7 +117,7 @@
   border: 1px solid var(--border-l);
   border-radius: 3px;
   padding: 1px 5px;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-family: var(--mono);
   color: var(--text-2);
   margin-right: 3px;

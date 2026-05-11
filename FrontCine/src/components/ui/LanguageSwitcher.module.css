@@ -1,0 +1,52 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 2px;
+  gap: 1px;
+}
+
+.btn {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: color var(--t), background var(--t);
+}
+
+.btn:hover:not(.active) {
+  color: var(--text-1);
+  background: var(--bg-3);
+}
+
+.active {
+  background: var(--accent);
+  color: #000;
+  pointer-events: none;
+}
+
+/* ── Login floating variant ── */
+.login {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.login .btn {
+  padding: 5px 13px;
+  font-size: var(--fs-sm);
+}
+
+.login .active {
+  background: var(--accent);
+  color: #000;
+}

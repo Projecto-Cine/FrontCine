@@ -1,12 +1,14 @@
 import { useState, useMemo, useId } from 'react';
 import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Search, Inbox } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import styles from './DataTable.module.css';
 
 export default function DataTable({
   columns, data, pageSize = 15, searchable = true,
-  searchKeys = [], onRowClick, rowActions, emptyText = 'Sin resultados',
+  searchKeys = [], onRowClick, rowActions, emptyText,
   bulkActions, rowKey = 'id', tableLabel = 'Tabla de datos',
 }) {
+  const { t } = useLanguage();
   const uid = useId();
   const [query, setQuery]     = useState('');
   const [sort, setSort]       = useState({ key: null, dir: 'asc' });
@@ -54,7 +56,7 @@ export default function DataTable({
     const isAsc = sort.dir === 'asc';
     return (
       <>
-        <span className="sr-only">{isAsc ? `Ordenado por ${label} ascendente` : `Ordenado por ${label} descendente`}</span>
+        <span className="sr-only">{isAsc ? t('common.sortAsc', { col: label }) : t('common.sortDesc', { col: label })}</span>
         {isAsc
           ? <ChevronUp size={12} className={`${styles.sortIcon} ${styles.active}`} aria-hidden="true" />
           : <ChevronDown size={12} className={`${styles.sortIcon} ${styles.active}`} aria-hidden="true" />
@@ -65,6 +67,7 @@ export default function DataTable({
 
   const searchId = `${uid}-search`;
   const statusId = `${uid}-status`;
+  const empty    = emptyText ?? t('common.noResults');
 
   return (
     <div className={styles.wrapper}>
@@ -73,11 +76,11 @@ export default function DataTable({
           {searchable && (
             <div className={styles.searchWrap}>
               <Search size={13} className={styles.searchIcon} aria-hidden="true" />
-              <label htmlFor={searchId} className="sr-only">Buscar en tabla</label>
+              <label htmlFor={searchId} className="sr-only">{t('common.searchTable')}</label>
               <input
                 id={searchId}
                 className={styles.search}
-                placeholder="Buscar..."
+                placeholder={t('common.searchPlaceholder')}
                 value={query}
                 onChange={e => { setQuery(e.target.value); setPage(1); }}
                 type="search"
@@ -87,7 +90,7 @@ export default function DataTable({
           )}
           {bulkActions && selected.size > 0 && (
             <div className={styles.bulkBar} role="status" aria-live="polite">
-              <span className={styles.bulkCount}>{selected.size} seleccionado{selected.size !== 1 ? 's' : ''}</span>
+              <span className={styles.bulkCount}>{t('common.selected', { count: selected.size })}</span>
               {bulkActions(Array.from(selected), () => setSelected(new Set()))}
             </div>
           )}
@@ -110,7 +113,7 @@ export default function DataTable({
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleAll}
-                    aria-label={allSelected ? 'Deseleccionar todos' : 'Seleccionar todos en esta página'}
+                    aria-label={allSelected ? t('common.deselectAll') : t('common.selectAll')}
                   />
                 </th>
               )}
@@ -127,14 +130,14 @@ export default function DataTable({
                   {col.sortable !== false && <SortIcon colKey={col.key} label={col.label} />}
                 </th>
               ))}
-              {rowActions && <th scope="col" className={styles.th} style={{ width: 80 }}><span className="sr-only">Acciones</span></th>}
+              {rowActions && <th scope="col" className={styles.th} style={{ width: 80 }}><span className="sr-only">{t('common.actions')}</span></th>}
             </tr>
           </thead>
           <tbody>
             {pageData.length === 0 ? (
               <tr><td colSpan={columns.length + (bulkActions ? 1 : 0) + (rowActions ? 1 : 0)} className={styles.empty}>
                 <Inbox size={28} className={styles.emptyIcon} />
-                {emptyText}
+                {empty}
               </td></tr>
             ) : pageData.map(row => (
               <tr
@@ -152,7 +155,7 @@ export default function DataTable({
                       type="checkbox"
                       checked={selected.has(row[rowKey])}
                       onChange={() => toggleRow(row[rowKey])}
-                      aria-label={`Seleccionar fila ${row[rowKey]}`}
+                      aria-label={t('common.selectRow', { id: row[rowKey] })}
                     />
                   </td>
                 )}
@@ -172,27 +175,27 @@ export default function DataTable({
         </table>
       </div>
 
-      <div className={styles.pagination} role="navigation" aria-label="Paginación">
+      <div className={styles.pagination} role="navigation" aria-label={t('common.pagination')}>
         <span id={statusId} className={styles.pgInfo} aria-live="polite" aria-atomic="true">
-          {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
+          {t('common.records', { count: filtered.length })}
         </span>
         <div className={styles.pgControls}>
           <button
             className={styles.pgBtn}
             disabled={currentPage <= 1}
             onClick={() => setPage(p => p - 1)}
-            aria-label="Página anterior"
+            aria-label={t('common.prevPage')}
           >
             <ChevronLeft size={14} aria-hidden="true" />
           </button>
           <span className={styles.pgNum} aria-live="polite" aria-atomic="true">
-            Pág. {currentPage} / {totalPages}
+            {t('common.pageShort', { current: currentPage, total: totalPages })}
           </span>
           <button
             className={styles.pgBtn}
             disabled={currentPage >= totalPages}
             onClick={() => setPage(p => p + 1)}
-            aria-label="Página siguiente"
+            aria-label={t('common.nextPage')}
           >
             <ChevronRight size={14} aria-hidden="true" />
           </button>

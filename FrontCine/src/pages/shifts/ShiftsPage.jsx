@@ -2,15 +2,10 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Users, RefreshCw, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
 import { usersService } from '../../services/usersService';
 import { useApp } from '../../contexts/AppContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import styles from './ShiftsPage.module.css';
 
-// ── Turno config ─────────────────────────────────────────────
-const SHIFTS = {
-  M: { label: 'Mañana',  hours: '08–16' },
-  T: { label: 'Tarde',   hours: '14–22' },
-  N: { label: 'Noche',   hours: '18–02' },
-  L: { label: 'Libre',   hours: '—'     },
-};
+// ── Shift codes (stable — not translated) ──────────────
 const SHIFT_ORDER = ['M', 'T', 'N', 'L'];
 
 const ROLE_SHIFTS = {
@@ -22,14 +17,7 @@ const ROLE_SHIFTS = {
   readonly:    ['M'],
 };
 
-const ROLE_LABELS = {
-  admin: 'Administrador', supervisor: 'Supervisor', operator: 'Operador',
-  ticket: 'Taquilla', maintenance: 'Mantenimiento', readonly: 'Consulta',
-};
-
-const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-
-// ── Helpers de fecha ─────────────────────────────────────────
+// ── Date helpers ───────────────────────────────────────
 function getWeekStart(date) {
   const d = new Date(date);
   const day = d.getDay() || 7;
@@ -44,8 +32,8 @@ function addDays(date, n) {
   return d;
 }
 
-function fmtDate(date) {
-  return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+function fmtDate(date, lang) {
+  return date.toLocaleDateString(lang === 'en' ? 'en-GB' : 'es-ES', { day: '2-digit', month: 'short' });
 }
 
 function weekNum(date) {
@@ -57,10 +45,9 @@ function weekKey(date) {
   return getWeekStart(date).toISOString().split('T')[0];
 }
 
-// ── Generador — genKey varía el resultado para la misma semana ─
+// ── Schedule generator ─────────────────────────────────
 function generateWeekSchedule(employees, weekStartDate, genKey = 0) {
   const wn = weekNum(weekStartDate) + weekStartDate.getFullYear() * 100;
-  // genKey hace que el mismo período produzca distribuciones diferentes
   let seed = ((wn * 31337 + 7 + genKey * 999983) >>> 0);
 
   const rand = () => {
@@ -68,15 +55,13 @@ function generateWeekSchedule(employees, weekStartDate, genKey = 0) {
     return seed / 0xffffffff;
   };
 
-  const weights = [2, 1, 1, 1, 1, 3, 3]; // pesos días libres (sáb/dom más probables)
+  const weights = [2, 1, 1, 1, 1, 3, 3];
   const totalW = weights.reduce((a, b) => a + b, 0);
 
   return employees.map((emp) => {
-    // Semilla independiente por empleado + genKey
     let es = ((seed ^ (emp.id * 2654435761 + genKey * 40503)) >>> 0);
     const erand = () => { es = ((es * 1664525 + 1013904223) >>> 0); return es / 0xffffffff; };
 
-    // Elegir 2 días libres con pesos
     const daysOff = new Set();
     let attempts = 0;
     while (daysOff.size < 2 && attempts < 50) {
@@ -97,15 +82,15 @@ function generateWeekSchedule(employees, weekStartDate, genKey = 0) {
   });
 }
 
-// ── Cobertura diaria ─────────────────────────────────────────
+// ── Coverage stats ─────────────────────────────────────
 function coverageStats(rows) {
   const counts = { M: 0, T: 0, N: 0, L: 0 };
   rows.forEach(r => r.days.forEach(d => { if (counts[d] !== undefined) counts[d]++; }));
   return counts;
 }
 
-// ── Picker inline de turno ───────────────────────────────────
-function ShiftPicker({ onSelect, onClose }) {
+// ── ShiftPicker sub-component ──────────────────────────
+function ShiftPicker({ onSelect, onClose, shifts }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -121,52 +106,52 @@ function ShiftPicker({ onSelect, onClose }) {
           key={s}
           className={`${styles.pickerOpt} ${styles[`cell${s}`]}`}
           onClick={() => onSelect(s)}
-          title={`${SHIFTS[s].label} ${SHIFTS[s].hours}`}
+          title={`${shifts[s].label} ${shifts[s].hours}`}
         >
           <span className={styles.pickerShort}>{s}</span>
-          <span className={styles.pickerHours}>{SHIFTS[s].hours}</span>
+          <span className={styles.pickerHours}>{shifts[s].hours}</span>
         </button>
       ))}
     </div>
   );
 }
 
-// ── Celda de turno editable ──────────────────────────────────
-function ShiftCell({ shift, isEditing, onEdit, onSelect, onClose }) {
+// ── ShiftCell sub-component ────────────────────────────
+function ShiftCell({ shift, isEditing, onEdit, onSelect, onClose, shifts }) {
   return (
     <div className={styles.cellWrap}>
       <button
         className={`${styles.cell} ${styles[`cell${shift}`]} ${isEditing ? styles.cellActive : ''}`}
         onClick={onEdit}
-        title={`${SHIFTS[shift]?.label} ${SHIFTS[shift]?.hours} — clic para cambiar`}
+        title={`${shifts[shift]?.label} ${shifts[shift]?.hours}`}
       >
         {shift}
       </button>
-      {isEditing && <ShiftPicker onSelect={onSelect} onClose={onClose} />}
+      {isEditing && <ShiftPicker onSelect={onSelect} onClose={onClose} shifts={shifts} />}
     </div>
   );
 }
 
-// ── Tabla semanal ────────────────────────────────────────────
-function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onCloseEdit }) {
+// ── WeekTable sub-component ────────────────────────────
+function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onCloseEdit, dayNames, shifts, roleLabels, colLabels, lang }) {
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
         <thead>
           <tr>
-            <th className={styles.thEmployee}>Empleado</th>
-            <th className={styles.thRole}>Rol</th>
+            <th className={styles.thEmployee}>{colLabels.employee}</th>
+            <th className={styles.thRole}>{colLabels.role}</th>
             {Array.from({ length: 7 }, (_, i) => {
               const d = addDays(weekStart, i);
               const isToday = d.toDateString() === new Date().toDateString();
               return (
                 <th key={i} className={`${styles.thDay} ${isToday ? styles.thToday : ''}`}>
-                  <span className={styles.dayName}>{DAY_NAMES[i]}</span>
+                  <span className={styles.dayName}>{dayNames[i]}</span>
                   <span className={styles.dayNum}>{d.getDate()}</span>
                 </th>
               );
             })}
-            <th className={styles.thStats}>Horas est.</th>
+            <th className={styles.thStats}>{colLabels.hours}</th>
           </tr>
         </thead>
         <tbody>
@@ -182,7 +167,7 @@ function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onClo
                 </td>
                 <td className={styles.tdRole}>
                   <span className={`${styles.roleBadge} ${styles[`role_${emp.role}`]}`}>
-                    {ROLE_LABELS[emp.role]}
+                    {roleLabels[emp.role] ?? emp.role}
                   </span>
                 </td>
                 {emp.days.map((shift, d) => {
@@ -197,6 +182,7 @@ function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onClo
                         onEdit={() => onEditCell(emp.id, d)}
                         onSelect={(s) => onShiftChange(emp.id, d, s)}
                         onClose={onCloseEdit}
+                        shifts={shifts}
                       />
                     </td>
                   );
@@ -214,9 +200,10 @@ function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onClo
   );
 }
 
-// ── Página principal ─────────────────────────────────────────
+// ── Main page ──────────────────────────────────────────
 export default function CuadrantePage() {
   const { toast } = useApp();
+  const { t, language } = useLanguage();
   const [mode, setMode] = useState('week');
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [monthStart, setMonthStart] = useState(() => {
@@ -230,26 +217,45 @@ export default function CuadrantePage() {
   });
   const [editCell, setEditCell] = useState(null);
 
+  // Reactive translations for shift labels and day names
+  const SHIFTS = {
+    M: { label: t('shifts.shift.M'), hours: t('shifts.hours.M') },
+    T: { label: t('shifts.shift.T'), hours: t('shifts.hours.T') },
+    N: { label: t('shifts.shift.N'), hours: t('shifts.hours.N') },
+    L: { label: t('shifts.shift.L'), hours: t('shifts.hours.L') },
+  };
+  const DAY_NAMES  = t('shifts.day');
+  const ROLE_LABELS = {
+    admin:       t('shifts.role.admin'),
+    supervisor:  t('shifts.role.supervisor'),
+    operator:    t('shifts.role.operator'),
+    ticket:      t('shifts.role.ticket'),
+    maintenance: t('shifts.role.maintenance'),
+    readonly:    t('shifts.role.readonly'),
+  };
+  const COL_LABELS = {
+    employee: t('shifts.col.employee'),
+    role:     t('shifts.col.role'),
+    hours:    t('shifts.col.hours'),
+  };
+
   useEffect(() => {
     usersService.getAll().then(data => {
       setAllUsers(Array.isArray(data) ? data : []);
     }).catch(() => {});
   }, []);
 
-  // El backend no tiene campo status → usar todos los usuarios con rol de trabajo
   const activeEmployees = useMemo(
     () => allUsers.filter(u => u.role && u.role.toLowerCase() !== 'client'),
     [allUsers]
   );
 
-  // Cuadrante de la semana actual (auto-generado si no existe)
   const currentKey = weekKey(weekStart);
   const weekRows = useMemo(
     () => scheduleMap[currentKey] ?? generateWeekSchedule(activeEmployees, weekStart, 0),
     [currentKey, scheduleMap, activeEmployees, weekStart]
   );
 
-  // Semanas del mes actual (auto-generadas si no existen)
   const monthWeeks = useMemo(() => {
     const weeks = [];
     let cursor = getWeekStart(monthStart);
@@ -271,7 +277,6 @@ export default function CuadrantePage() {
 
   const stats = coverageStats(weekRows);
 
-  // Genera nuevo cuadrante para semana o mes (genKey = timestamp → siempre diferente)
   const handleGenerate = () => {
     const genKey = Date.now();
     if (mode === 'week') {
@@ -280,7 +285,7 @@ export default function CuadrantePage() {
         try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
         return next;
       });
-      toast('Cuadrante semanal generado', 'success');
+      toast(t('shifts.weekGenerated'), 'success');
     } else {
       const updates = {};
       let cursor = getWeekStart(monthStart);
@@ -297,12 +302,11 @@ export default function CuadrantePage() {
         try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
         return next;
       });
-      toast(`Cuadrante mensual generado: ${Object.keys(updates).length} semanas`, 'success');
+      toast(t('shifts.monthGenerated', { count: Object.keys(updates).length }), 'success');
     }
     setEditCell(null);
   };
 
-  // Edición manual de una celda
   const handleShiftChange = (empId, dayIdx, newShift) => {
     setScheduleMap(prev => {
       const rows = prev[currentKey] ?? generateWeekSchedule(activeEmployees, weekStart, 0);
@@ -337,9 +341,10 @@ export default function CuadrantePage() {
     else setMonthStart(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
   };
 
+  const lang = language ?? 'es';
   const periodLabel = mode === 'week'
-    ? `Sem ${weekNum(weekStart)} · ${fmtDate(weekStart)} — ${fmtDate(addDays(weekStart, 6))}`
-    : monthStart.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+    ? `${t('shifts.weekPrefix')} ${weekNum(weekStart)} · ${fmtDate(weekStart, lang)} — ${fmtDate(addDays(weekStart, 6), lang)}`
+    : monthStart.toLocaleDateString(lang === 'en' ? 'en-GB' : 'es-ES', { month: 'long', year: 'numeric' })
         .replace(/^\w/, c => c.toUpperCase());
 
   return (
@@ -349,9 +354,9 @@ export default function CuadrantePage() {
         <div className={styles.topLeft}>
           <Users size={18} className={styles.titleIcon} />
           <div>
-            <h1 className={styles.title}>Cuadrante de Turnos</h1>
+            <h1 className={styles.title}>{t('shifts.title')}</h1>
             <p className={styles.sub}>
-              {activeEmployees.length} empleados activos · Clic en cualquier celda para editar
+              {t('shifts.subtitle', { count: activeEmployees.length })}
             </p>
           </div>
         </div>
@@ -362,13 +367,13 @@ export default function CuadrantePage() {
               className={`${styles.modeBtn} ${mode === 'week' ? styles.modeBtnActive : ''}`}
               onClick={() => setMode('week')}
             >
-              <Calendar size={12} />Semana
+              <Calendar size={12} />{t('shifts.mode.week')}
             </button>
             <button
               className={`${styles.modeBtn} ${mode === 'month' ? styles.modeBtnActive : ''}`}
               onClick={() => setMode('month')}
             >
-              <Calendar size={12} />Mes
+              <Calendar size={12} />{t('shifts.mode.month')}
             </button>
           </div>
 
@@ -380,7 +385,7 @@ export default function CuadrantePage() {
 
           <button className={styles.generateBtn} onClick={handleGenerate}>
             <RefreshCw size={13} />
-            Generar {mode === 'week' ? 'semana' : 'mes'}
+            {mode === 'week' ? t('shifts.generate.week') : t('shifts.generate.month')}
           </button>
 
           <button className={styles.exportBtn} title="Imprimir / Exportar PDF" onClick={() => window.print()}>
@@ -389,7 +394,7 @@ export default function CuadrantePage() {
         </div>
       </div>
 
-      {/* ── Cobertura semanal ── */}
+      {/* ── Weekly coverage bar ── */}
       {mode === 'week' && (
         <div className={styles.coverageBar}>
           <div className={styles.coverageItems}>
@@ -413,7 +418,7 @@ export default function CuadrantePage() {
         </div>
       )}
 
-      {/* ── Vista semanal ── */}
+      {/* ── Week view ── */}
       {mode === 'week' && (
         <WeekTable
           rows={weekRows}
@@ -422,17 +427,22 @@ export default function CuadrantePage() {
           onEditCell={handleEditCell}
           onShiftChange={handleShiftChange}
           onCloseEdit={() => setEditCell(null)}
+          dayNames={DAY_NAMES}
+          shifts={SHIFTS}
+          roleLabels={ROLE_LABELS}
+          colLabels={COL_LABELS}
+          lang={lang}
         />
       )}
 
-      {/* ── Vista mensual ── */}
+      {/* ── Month view ── */}
       {mode === 'month' && (
         <div className={styles.monthView}>
           {monthWeeks.map((week) => (
             <div key={week.key} className={styles.monthWeek}>
               <div className={styles.monthWeekHeader}>
                 <span className={styles.monthWeekLabel}>
-                  Semana {weekNum(week.start)} · {fmtDate(week.start)} — {fmtDate(addDays(week.start, 6))}
+                  {t('shifts.weekPrefix')} {weekNum(week.start)} · {fmtDate(week.start, lang)} — {fmtDate(addDays(week.start, 6), lang)}
                 </span>
                 <div className={styles.monthWeekStats}>
                   {Object.entries(coverageStats(week.rows)).map(([k, v]) => (
@@ -445,7 +455,7 @@ export default function CuadrantePage() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th className={styles.thEmployee}>Empleado</th>
+                      <th className={styles.thEmployee}>{t('shifts.col.employee')}</th>
                       {Array.from({ length: 7 }, (_, i) => {
                         const d = addDays(week.start, i);
                         const inMonth = d.getMonth() === monthStart.getMonth();
@@ -494,14 +504,14 @@ export default function CuadrantePage() {
       {/* ── Footer ── */}
       <div className={styles.footer}>
         <span className={styles.footerNote}>
-          Generación automática por rol · Clic en cualquier celda para cambiar el turno manualmente
+          {t('shifts.footer.note')}
         </span>
         <div className={styles.footerStats}>
-          <span>Empleados: <strong>{activeEmployees.length}</strong></span>
+          <span>{t('shifts.footer.employees')}: <strong>{activeEmployees.length}</strong></span>
           <span>·</span>
-          <span>Horas/semana: <strong>{weekRows.reduce((a, r) => a + r.days.filter(d => d !== 'L').length * 8, 0)}h</strong></span>
+          <span>{t('shifts.footer.hoursPerWeek')}: <strong>{weekRows.reduce((a, r) => a + r.days.filter(d => d !== 'L').length * 8, 0)}h</strong></span>
           <span>·</span>
-          <span>Libres semana: <strong>{stats.L}</strong></span>
+          <span>{t('shifts.footer.daysOff')}: <strong>{stats.L}</strong></span>
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import SkeletonPage from '../../components/shared/Skeleton';
 import { reportsService }   from '../../services/reportsService';
 import { moviesService }    from '../../services/moviesService';
 import { incidentsService } from '../../services/incidentsService';
+import { useLanguage } from '../../i18n/LanguageContext';
 import styles from './ReportsPage.module.css';
 
 const PIE_COLORS = ['var(--accent)', 'var(--purple)', 'var(--cyan)', 'var(--green)', 'var(--red)', 'var(--yellow)'];
@@ -25,6 +26,7 @@ export default function ReportsPage() {
   const [incidentByCat, setIncidentByCat] = useState([]);
   const [activeMovies, setActiveMovies] = useState(0);
   const [loading, setLoading]           = useState(true);
+  const { t, fmt } = useLanguage();
 
   useEffect(() => {
     Promise.all([
@@ -43,7 +45,6 @@ export default function ReportsPage() {
       const activeMov = Array.isArray(movies) ? movies.filter(m => m.active !== false && m.status !== 'inactive').length : 0;
       setActiveMovies(activeMov);
 
-      // Agrupar incidencias por categoría
       const cats = {};
       (Array.isArray(incidents) ? incidents : []).forEach(i => {
         const cat = i.category ?? 'Otros';
@@ -53,13 +54,13 @@ export default function ReportsPage() {
     }).finally(() => setLoading(false));
   }, []);
 
-  const totalWeek   = salesWeek.reduce((s, d) => s + d.revenue, 0);
+  const totalWeek    = salesWeek.reduce((s, d) => s + d.revenue, 0);
   const totalTickets = salesWeek.reduce((s, d) => s + d.tickets, 0);
-  const bestDay     = salesWeek.length > 0 ? salesWeek.reduce((a, b) => b.revenue > a.revenue ? b : a) : { day: '—', revenue: 0 };
+  const bestDay      = salesWeek.length > 0 ? salesWeek.reduce((a, b) => b.revenue > a.revenue ? b : a) : { day: '—', revenue: 0 };
 
   const exportCSV = () => {
     const rows = [
-      ['Día', 'Ingresos (€)', 'Entradas'],
+      [t('reports.csv.day'), t('reports.csv.revenue'), t('reports.csv.tickets')],
       ...salesWeek.map(d => [d.day, d.revenue, d.tickets]),
     ];
     const csv = rows.map(r => r.join(',')).join('\n');
@@ -72,41 +73,43 @@ export default function ReportsPage() {
 
   if (loading) return <SkeletonPage />;
 
+  const period = fmt.date(new Date(), { month: 'long', year: 'numeric' });
+
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Informes y Estadísticas"
-        subtitle={`Datos de los últimos 7 días · ${new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}`}
-        actions={<Button variant="secondary" icon={Download} onClick={exportCSV}>Exportar CSV</Button>}
+        title={t('reports.title')}
+        subtitle={t('reports.subtitle', { period })}
+        actions={<Button variant="secondary" icon={Download} onClick={exportCSV}>{t('reports.exportCSV')}</Button>}
       />
 
       <div className={styles.kpiRow}>
-        <KPICard label="Ingresos semana"   value={`€${totalWeek.toLocaleString('es-ES')}`}    icon={Euro}       color="green"  trend={8} sub="vs. semana anterior" />
-        <KPICard label="Entradas vendidas" value={totalTickets.toLocaleString()}                icon={Users}      color="accent" trend={5} />
-        <KPICard label="Mejor día"         value={bestDay.day}                                  icon={TrendingUp} color="cyan"   sub={`€${bestDay.revenue.toLocaleString()}`} />
-        <KPICard label="Películas activas" value={activeMovies}                                 icon={Film}       color="purple" />
+        <KPICard label={t('reports.kpi.weekRevenue')}   value={`€${totalWeek.toLocaleString('es-ES')}`}    icon={Euro}       color="green"  trend={8} sub={t('reports.kpi.vsPrevWeek')} />
+        <KPICard label={t('reports.kpi.ticketsSold')}   value={totalTickets.toLocaleString()}                icon={Users}      color="accent" trend={5} />
+        <KPICard label={t('reports.kpi.bestDay')}       value={bestDay.day}                                  icon={TrendingUp} color="cyan"   sub={`€${bestDay.revenue.toLocaleString()}`} />
+        <KPICard label={t('reports.kpi.activeMovies')}  value={activeMovies}                                 icon={Film}       color="purple" />
       </div>
 
       <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Ingresos diarios — semana</h3>
+          <h3 className={styles.chartTitle}>{t('reports.chart.dailyRevenue')}</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={salesWeek} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
               <XAxis dataKey="day"     tick={{ fontSize: 11, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
               <YAxis                   tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
               <Tooltip content={<CustomTT />} />
-              <Bar dataKey="revenue" name="€ Ingresos" fill="var(--accent)" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="revenue" name={t('reports.chart.revenue')} fill="var(--accent)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Entradas vendidas — semana</h3>
+          <h3 className={styles.chartTitle}>{t('reports.chart.ticketsSold')}</h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={salesWeek} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
               <XAxis dataKey="day"    tick={{ fontSize: 11, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
               <YAxis                  tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
               <Tooltip content={<CustomTT />} />
-              <Line type="monotone" dataKey="tickets" name="Entradas" stroke="var(--cyan)" strokeWidth={2} dot={{ r: 3, fill: 'var(--cyan)' }} />
+              <Line type="monotone" dataKey="tickets" name={t('reports.chart.tickets')} stroke="var(--cyan)" strokeWidth={2} dot={{ r: 3, fill: 'var(--cyan)' }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -114,7 +117,7 @@ export default function ReportsPage() {
 
       <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Ocupación por sala (%)</h3>
+          <h3 className={styles.chartTitle}>{t('reports.chart.occupancy')}</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={occupancy} layout="vertical" margin={{ top: 0, right: 8, left: 20, bottom: 0 }}>
               <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
@@ -132,7 +135,7 @@ export default function ReportsPage() {
         </div>
 
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Incidencias por categoría</h3>
+          <h3 className={styles.chartTitle}>{t('reports.chart.incidentsByCat')}</h3>
           {incidentByCat.length > 0 ? (
             <div style={{ display: 'flex', alignItems: 'center' }}>
               <ResponsiveContainer width="50%" height={200}>
@@ -153,7 +156,7 @@ export default function ReportsPage() {
               </div>
             </div>
           ) : (
-            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>Sin incidencias registradas</div>
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>{t('reports.chart.noIncidents')}</div>
           )}
         </div>
       </div>

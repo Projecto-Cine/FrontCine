@@ -6,11 +6,11 @@ import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useApp } from '../../contexts/AppContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { moviesService } from '../../services/moviesService';
 import { uploadImage } from '../../services/cloudinaryService';
 import styles from './MoviesPage.module.css';
 
-const STATUS_MAP = { active: { label: 'Activa', v: 'green' }, inactive: { label: 'Baja', v: 'default' } };
 const FORMAT_COLOR = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
 const RATING_COLOR = { 'PG': 'green', 'PG-13': 'yellow', 'R': 'red' };
 
@@ -46,6 +46,12 @@ export default function MoviesPage() {
   const [uploadingImg, setUploadingImg] = useState(false);
   const fileInputRef = useRef(null);
   const { toast } = useApp();
+  const { t } = useLanguage();
+
+  const STATUS_MAP = {
+    active:   { label: t('movies.status.active'),   v: 'green' },
+    inactive: { label: t('movies.status.inactive'), v: 'default' },
+  };
 
   useEffect(() => {
     moviesService.getAll()
@@ -102,21 +108,21 @@ export default function MoviesPage() {
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
   const columns = [
-    { key: 'title', label: 'Título', render: (v) => <span className={styles.title}>{v}</span> },
-    { key: 'genre', label: 'Género' },
-    { key: 'durationMin', label: 'Duración', render: v => <span className={styles.mono}>{v} min</span>, width: 90 },
-    { key: 'language', label: 'Idioma', width: 80, render: v => <Badge variant="default">{v}</Badge> },
-    { key: 'format', label: 'Formato', width: 90, render: v => <Badge variant={FORMAT_COLOR[v] || 'default'}>{v}</Badge> },
-    { key: 'ageRating', label: 'Clasificación', width: 100, render: v => <Badge variant={RATING_COLOR[v] || 'default'}>{v}</Badge> },
-    { key: 'active', label: 'Estado', width: 120, render: v => <Badge variant={v ? STATUS_MAP.active.v : STATUS_MAP.inactive.v} dot>{v ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</Badge> },
+    { key: 'title',     label: t('movies.col.title'),    render: (v) => <span className={styles.title}>{v}</span> },
+    { key: 'genre',     label: t('movies.col.genre') },
+    { key: 'durationMin', label: t('movies.col.duration'), render: v => <span className={styles.mono}>{v} min</span>, width: 90 },
+    { key: 'language',  label: t('movies.col.language'), width: 80, render: v => <Badge variant="default">{v}</Badge> },
+    { key: 'format',    label: t('movies.col.format'),   width: 90, render: v => <Badge variant={FORMAT_COLOR[v] || 'default'}>{v}</Badge> },
+    { key: 'ageRating', label: t('movies.col.rating'),   width: 100, render: v => <Badge variant={RATING_COLOR[v] || 'default'}>{v}</Badge> },
+    { key: 'active',    label: t('movies.col.status'),   width: 120, render: v => <Badge variant={v ? STATUS_MAP.active.v : STATUS_MAP.inactive.v} dot>{v ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</Badge> },
   ];
 
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Películas"
-        subtitle={`${movies.filter(m => m.active).length} activas · ${movies.filter(m => !m.active).length} inactivas`}
-        actions={<Button icon={Plus} onClick={openCreate}>Nueva película</Button>}
+        title={t('movies.title')}
+        subtitle={t('movies.subtitle', { active: movies.filter(m => m.active).length, inactive: movies.filter(m => !m.active).length })}
+        actions={<Button icon={Plus} onClick={openCreate}>{t('movies.createBtn')}</Button>}
       />
 
       <div className={styles.filters}>
@@ -135,99 +141,99 @@ export default function MoviesPage() {
         onRowClick={openDetail}
         rowActions={(row) => (
           <div className={styles.rowActions}>
-            <Button variant="ghost" size="sm" icon={Eye} onClick={() => openDetail(row)} title="Ver detalle" />
-            <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)} title="Editar" />
-            <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setDeleteTarget(row)} title="Eliminar" />
+            <Button variant="ghost" size="sm" icon={Eye}   onClick={() => openDetail(row)} title={t('common.edit')} />
+            <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)}   title={t('common.edit')} />
+            <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setDeleteTarget(row)} title={t('common.delete')} />
           </div>
         )}
         bulkActions={(ids, clear) => (
           <Button variant="danger" size="sm" onClick={() => setBulkDeleteIds({ ids, clear })}>
-            Eliminar selección ({ids.length})
+            {t('movies.deleteSelected', { count: ids.length })}
           </Button>
         )}
       />
 
-      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar película' : 'Nueva película'}
+      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? t('movies.modalEdit') : t('movies.modalCreate')}
         footer={
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
-            <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar cambios' : 'Crear película'}</Button>
+            <Button variant="secondary" onClick={() => setModal(null)}>{t('common.cancel')}</Button>
+            <Button variant="primary" onClick={handleSave}>{editing ? t('common.saveChanges') : t('movies.createMovie')}</Button>
           </div>
         }
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
-            <label className={styles.label} htmlFor="mov-title">Título *</label>
-            <input id="mov-title" className={styles.input} value={form.title} onChange={e => set('title', e.target.value)} placeholder="Título de la película" />
+            <label className={styles.label} htmlFor="mov-title">{t('movies.form.title')}</label>
+            <input id="mov-title" className={styles.input} value={form.title} onChange={e => set('title', e.target.value)} placeholder={t('movies.form.titlePh')} />
           </div>
           <div>
-            <label className={styles.label} htmlFor="mov-director">Director</label>
+            <label className={styles.label} htmlFor="mov-director">{t('movies.form.director')}</label>
             <input id="mov-director" className={styles.input} value={form.director} onChange={e => set('director', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label} htmlFor="mov-year">Año</label>
+            <label className={styles.label} htmlFor="mov-year">{t('movies.form.year')}</label>
             <input id="mov-year" className={styles.input} type="number" value={form.year} onChange={e => set('year', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label} htmlFor="mov-genre">Género</label>
+            <label className={styles.label} htmlFor="mov-genre">{t('movies.form.genre')}</label>
             <input id="mov-genre" className={styles.input} value={form.genre} onChange={e => set('genre', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label} htmlFor="mov-duration">Duración (min) *</label>
+            <label className={styles.label} htmlFor="mov-duration">{t('movies.form.duration')}</label>
             <input id="mov-duration" className={styles.input} type="number" value={form.durationMin} onChange={e => set('durationMin', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label} htmlFor="mov-language">Idioma</label>
+            <label className={styles.label} htmlFor="mov-language">{t('movies.form.language')}</label>
             <select id="mov-language" className={styles.input} value={form.language} onChange={e => set('language', e.target.value)}>
-              <option value="ES">ES — Doblada</option>
-              <option value="VO">VO — Original</option>
-              <option value="VOSE">VOSE — Subtitulada</option>
+              <option value="ES">{t('movies.form.langES')}</option>
+              <option value="VO">{t('movies.form.langVO')}</option>
+              <option value="VOSE">{t('movies.form.langVOSE')}</option>
             </select>
           </div>
           <div>
-            <label className={styles.label} htmlFor="mov-format">Formato</label>
+            <label className={styles.label} htmlFor="mov-format">{t('movies.form.format')}</label>
             <select id="mov-format" className={styles.input} value={form.format} onChange={e => set('format', e.target.value)}>
               {['2D', '3D', 'IMAX', '4DX', 'IMAX 3D', '2D/3D'].map(f => <option key={f}>{f}</option>)}
             </select>
           </div>
           <div>
-            <label className={styles.label} htmlFor="mov-rating">Clasificación</label>
+            <label className={styles.label} htmlFor="mov-rating">{t('movies.form.rating')}</label>
             <select id="mov-rating" className={styles.input} value={form.ageRating} onChange={e => set('ageRating', e.target.value)}>
               {['G', 'PG', 'PG-13', 'R', 'NC-17'].map(r => <option key={r}>{r}</option>)}
             </select>
           </div>
           <div>
-            <label className={styles.label} htmlFor="mov-status">Estado</label>
+            <label className={styles.label} htmlFor="mov-status">{t('movies.form.status')}</label>
             <select id="mov-status" className={styles.input} value={form.active ? 'active' : 'inactive'} onChange={e => set('active', e.target.value === 'active')}>
-              <option value="active">Activa</option>
-              <option value="inactive">Baja</option>
+              <option value="active">{t('movies.status.active')}</option>
+              <option value="inactive">{t('movies.status.inactive')}</option>
             </select>
           </div>
           <div>
-            <label className={styles.label}>Póster</label>
+            <label className={styles.label}>{t('movies.form.poster')}</label>
             <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
             {form.imageUrl ? (
               <div className={styles.posterPreviewWrap}>
                 <img src={form.imageUrl} alt="Vista previa" className={styles.imagePreview} onError={e => { e.currentTarget.style.display = 'none'; }} />
                 <button type="button" className={styles.imgRemoveBtn} onClick={() => set('imageUrl', '')}>
-                  <X size={11} /> Quitar
+                  <X size={11} /> {t('movies.poster.remove')}
                 </button>
               </div>
             ) : (
               <button type="button" className={styles.imgUploadBtn} onClick={() => fileInputRef.current?.click()} disabled={uploadingImg}>
                 {uploadingImg ? <Loader size={14} className={styles.spin} /> : <Upload size={14} />}
-                {uploadingImg ? 'Subiendo...' : 'Seleccionar póster'}
+                {uploadingImg ? t('movies.poster.uploading') : t('movies.poster.select')}
               </button>
             )}
           </div>
           <div className={styles.fieldFull}>
-            <label className={styles.label} htmlFor="mov-desc">Descripción</label>
+            <label className={styles.label} htmlFor="mov-desc">{t('movies.form.description')}</label>
             <textarea id="mov-desc" className={styles.input} rows={3} value={form.description} onChange={e => set('description', e.target.value)} />
           </div>
         </div>
       </Modal>
 
-      <Modal open={modal === 'detail'} onClose={() => setModal(null)} title="Detalle de película" size="sm">
+      <Modal open={modal === 'detail'} onClose={() => setModal(null)} title={t('movies.modalDetail')} size="sm">
         {editing && (
           <div className={styles.detail}>
             <h2 className={styles.detailTitle}>{editing.title}</h2>
@@ -238,10 +244,10 @@ export default function MoviesPage() {
               <Badge variant={editing.active ? STATUS_MAP.active.v : STATUS_MAP.inactive.v} dot>{editing.active ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</Badge>
             </div>
             <div className={styles.detailGrid}>
-              <div><span className={styles.detailLbl}>Género</span><span>{editing.genre}</span></div>
-              <div><span className={styles.detailLbl}>Duración</span><span>{editing.durationMin} min</span></div>
-              <div><span className={styles.detailLbl}>Idioma</span><span>{editing.language}</span></div>
-              <div><span className={styles.detailLbl}>Estado</span><span>{editing.active ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</span></div>
+              <div><span className={styles.detailLbl}>{t('movies.detail.genre')}</span><span>{editing.genre}</span></div>
+              <div><span className={styles.detailLbl}>{t('movies.detail.duration')}</span><span>{editing.durationMin} min</span></div>
+              <div><span className={styles.detailLbl}>{t('movies.detail.language')}</span><span>{editing.language}</span></div>
+              <div><span className={styles.detailLbl}>{t('movies.detail.status')}</span><span>{editing.active ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</span></div>
             </div>
             {editing.description && <p style={{ marginTop: 12, color: 'var(--text-2)', fontSize: 12 }}>{editing.description}</p>}
           </div>
@@ -249,9 +255,9 @@ export default function MoviesPage() {
       </Modal>
 
       <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete}
-        title="Eliminar película" danger
-        message={`¿Seguro que quieres eliminar "${deleteTarget?.title}"? Esta acción no se puede deshacer.`}
-        confirmLabel="Eliminar" />
+        title={t('movies.deleteTitle')} danger
+        message={t('movies.deleteMsg', { title: deleteTarget?.title ?? '' })}
+        confirmLabel={t('common.delete')} />
 
       <ConfirmModal
         open={!!bulkDeleteIds}
@@ -262,9 +268,9 @@ export default function MoviesPage() {
           bulkDeleteIds.clear();
           setBulkDeleteIds(null);
         }}
-        title="Eliminar selección" danger
-        message={`¿Eliminar ${bulkDeleteIds?.ids.length} película(s)? Esta acción no se puede deshacer.`}
-        confirmLabel="Eliminar todas" />
+        title={t('movies.deleteBulkTitle')} danger
+        message={t('movies.deleteBulkMsg', { count: bulkDeleteIds?.ids.length })}
+        confirmLabel={t('movies.deleteAll')} />
     </div>
   );
 }

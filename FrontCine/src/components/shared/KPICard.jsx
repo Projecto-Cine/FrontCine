@@ -1,6 +1,8 @@
+import { useLanguage } from '../../i18n/LanguageContext';
 import styles from './KPICard.module.css';
 
 export default function KPICard({ label, value, sub, icon: Icon, color = 'accent', trend, onClick }) {
+  const { t } = useLanguage();
   const interactive = Boolean(onClick);
 
   const handleKeyDown = interactive
@@ -25,7 +27,7 @@ export default function KPICard({ label, value, sub, icon: Icon, color = 'accent
         <div className={styles.bottom}>
           {sub && <span className={styles.sub}>{sub}</span>}
           {trend !== undefined && (
-            <span className={`${styles.trend} ${trend >= 0 ? styles.up : styles.down}`} aria-label={`Tendencia: ${trend >= 0 ? '+' : ''}${trend}%`}>
+            <span className={`${styles.trend} ${trend >= 0 ? styles.up : styles.down}`} aria-label={t('common.trend', { value: `${trend >= 0 ? '+' : ''}${trend}` })}>
               {trend >= 0 ? '+' : ''}{trend}%
             </span>
           )}

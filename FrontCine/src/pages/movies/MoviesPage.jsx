@@ -168,7 +168,6 @@ export default function MoviesPage() {
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
             <label className={styles.label} htmlFor="mov-title">{t('movies.form.title')}</label>
-<<<<<<< HEAD
             <input id="mov-title"
               className={`${styles.input} ${errors.title ? styles.inputError : ''}`}
               value={form.title} onChange={e => set('title', e.target.value)}
@@ -177,9 +176,6 @@ export default function MoviesPage() {
               aria-invalid={!!errors.title} aria-describedby={errors.title ? 'err-mov-title' : undefined}
             />
             {errors.title && <span id="err-mov-title" role="alert" className={styles.fieldError}>{errors.title}</span>}
-=======
-            <input id="mov-title" className={styles.input} value={form.title} onChange={e => set('title', e.target.value)} placeholder={t('movies.form.titlePh')} />
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
           </div>
           <div>
             <label className={styles.label} htmlFor="mov-director">{t('movies.form.director')}</label>
@@ -195,7 +191,6 @@ export default function MoviesPage() {
           </div>
           <div>
             <label className={styles.label} htmlFor="mov-duration">{t('movies.form.duration')}</label>
-<<<<<<< HEAD
             <input id="mov-duration"
               className={`${styles.input} ${errors.durationMin ? styles.inputError : ''}`}
               type="number" value={form.durationMin} onChange={e => set('durationMin', e.target.value)}
@@ -203,9 +198,6 @@ export default function MoviesPage() {
               aria-invalid={!!errors.durationMin} aria-describedby={errors.durationMin ? 'err-mov-dur' : undefined}
             />
             {errors.durationMin && <span id="err-mov-dur" role="alert" className={styles.fieldError}>{errors.durationMin}</span>}
-=======
-            <input id="mov-duration" className={styles.input} type="number" value={form.durationMin} onChange={e => set('durationMin', e.target.value)} />
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
           </div>
           <div>
             <label className={styles.label} htmlFor="mov-language">{t('movies.form.language')}</label>

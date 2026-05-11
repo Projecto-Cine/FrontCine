@@ -156,11 +156,7 @@ export default function ReportsPage() {
               </div>
             </div>
           ) : (
-<<<<<<< HEAD
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--fs-md)' }}>{t('reports.chart.noIncidents')}</div>
-=======
-            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>{t('reports.chart.noIncidents')}</div>
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
           )}
         </div>
       </div>

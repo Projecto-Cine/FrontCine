@@ -76,10 +76,7 @@ export default {
     create:          'Create',
     search:          'Search…',
     loading:         'Loading…',
-<<<<<<< HEAD
     fieldRequired:   'This field is required',
-=======
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
     noResults:       'No results',
     confirm:         'Confirm',
     close:           'Close',

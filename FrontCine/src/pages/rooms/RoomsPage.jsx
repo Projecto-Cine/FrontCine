@@ -102,7 +102,6 @@ export default function RoomsPage() {
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
             <label className={styles.label} htmlFor="room-name">{t('rooms.form.name')}</label>
-<<<<<<< HEAD
             <input id="room-name"
               className={`${styles.input} ${errors.name ? styles.inputError : ''}`}
               value={form.name} onChange={e => set('name', e.target.value)}
@@ -121,13 +120,6 @@ export default function RoomsPage() {
               aria-invalid={!!errors.capacity} aria-describedby={errors.capacity ? 'err-room-cap' : undefined}
             />
             {errors.capacity && <span id="err-room-cap" role="alert" className={styles.fieldError}>{errors.capacity}</span>}
-=======
-            <input id="room-name" className={styles.input} value={form.name} onChange={e => set('name', e.target.value)} placeholder={t('rooms.form.namePh')} />
-          </div>
-          <div>
-            <label className={styles.label} htmlFor="room-cap">{t('rooms.form.capacity')}</label>
-            <input id="room-cap" className={styles.input} type="number" value={form.capacity} onChange={e => set('capacity', e.target.value)} />
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
           </div>
         </div>
       </Modal>

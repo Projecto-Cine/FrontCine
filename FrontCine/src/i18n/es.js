@@ -76,10 +76,7 @@ export default {
     create:          'Crear',
     search:          'Buscar...',
     loading:         'Cargando...',
-<<<<<<< HEAD
     fieldRequired:   'Este campo es obligatorio',
-=======
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
     noResults:       'Sin resultados',
     confirm:         'Confirmar',
     close:           'Cerrar',

@@ -224,11 +224,7 @@ export default function ReservationsPage() {
   /* ── Columns ─────────────────────────────────────── */
   const columns = [
     { key: 'id', label: t('reservations.col.ref'), width: 120, render: v =>
-<<<<<<< HEAD
       <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)', color: 'var(--text-2)' }}>{v}</span> },
-=======
-      <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-2)' }}>{v}</span> },
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
     { key: 'client', label: t('reservations.col.client'), render: (_, row) => (
       <div>
         <div style={{ fontWeight: 500 }}>{getClientName(row)}</div>
@@ -236,19 +232,11 @@ export default function ReservationsPage() {
       </div>
     )},
     { key: 'screening', label: t('reservations.col.screening'), render: (_, row) =>
-<<<<<<< HEAD
       <span style={{ fontSize: 'var(--fs-sm)' }}>{getScreeningLabel(getScreening(row, screenings), noScreeningText)}</span> },
     { key: 'seats', label: t('reservations.col.seats'), width: 110, render: (_, row) =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)' }}>{getSeats(row).join(', ') || '-'}</span> },
     { key: 'amount', label: t('reservations.col.amount'), width: 90, render: (_, row) =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>€{getAmount(row).toFixed(2)}</span> },
-=======
-      <span style={{ fontSize: 11 }}>{getScreeningLabel(getScreening(row, screenings), noScreeningText)}</span> },
-    { key: 'seats', label: t('reservations.col.seats'), width: 110, render: (_, row) =>
-      <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{getSeats(row).join(', ') || '-'}</span> },
-    { key: 'amount', label: t('reservations.col.amount'), width: 90, render: (_, row) =>
-      <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600 }}>€{getAmount(row).toFixed(2)}</span> },
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
     { key: 'paymentMethod', label: t('reservations.col.payment'), width: 90, render: v =>
       <Badge variant={PAYMENT_COLOR[v] || 'default'}>{PAYMENT_LABEL[v] || v || '-'}</Badge> },
     { key: 'status', label: t('reservations.col.status'), width: 130, render: (_, row) => {
@@ -368,11 +356,7 @@ export default function ReservationsPage() {
           </div>
         </div>
         {!editing && (
-<<<<<<< HEAD
           <p style={{ marginTop: 12, fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>
-=======
-          <p style={{ marginTop: 12, fontSize: 11, color: 'var(--text-3)' }}>
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
             {t('reservations.form.saveHint')}
           </p>
         )}
@@ -402,26 +386,16 @@ export default function ReservationsPage() {
         {payTarget && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ padding: '10px 14px', background: 'var(--bg-3)', borderRadius: 'var(--r)', border: '1px solid var(--border)' }}>
-<<<<<<< HEAD
               <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('reservations.detail.reservation')}</div>
               <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-1)' }}>{getClientName(payTarget)}</div>
               <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)', marginTop: 2 }}>{getScreeningLabel(getScreening(payTarget, screenings), noScreeningText)}</div>
-=======
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('reservations.detail.reservation')}</div>
-              <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-1)' }}>{getClientName(payTarget)}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{getScreeningLabel(getScreening(payTarget, screenings), noScreeningText)}</div>
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
               <div style={{ marginTop: 8, fontFamily: 'var(--mono)', fontSize: 20, fontWeight: 800, color: 'var(--green)' }}>
                 €{payTotal.toFixed(2)}
               </div>
             </div>
 
             <div>
-<<<<<<< HEAD
               <p style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-=======
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
                 {t('reservations.pay.method')}
               </p>
               <div className={styles.payMethodGrid}>
@@ -492,11 +466,7 @@ export default function ReservationsPage() {
                 </Badge>
               </div>
               {paidTickets.change && parseFloat(paidTickets.change) >= 0 && (
-<<<<<<< HEAD
                 <div style={{ marginTop: 6, padding: '6px 8px', background: 'var(--bg-4)', borderRadius: 'var(--r-sm)', display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-md)', fontWeight: 600 }}>
-=======
-                <div style={{ marginTop: 6, padding: '6px 8px', background: 'var(--bg-4)', borderRadius: 'var(--r-sm)', display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 600 }}>
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
                   <span style={{ color: 'var(--text-3)' }}>{t('reservations.detail.changeReturned')}</span>
                   <span style={{ color: 'var(--yellow)' }}>€{paidTickets.change}</span>
                 </div>
@@ -508,22 +478,14 @@ export default function ReservationsPage() {
                 {paidTickets.qrs.map((qr, i) => (
                   <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                     <QRCodeSVG value={qr} size={120} bgColor="transparent" fgColor="var(--text-1)" level="M" />
-<<<<<<< HEAD
                     <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-=======
-                    <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
                       {t('reservations.detail.seatLabel', { seat: getSeats(paidTickets.purchase)[i] ?? i + 1 })}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-<<<<<<< HEAD
               <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)', textAlign: 'center' }}>
-=======
-              <p style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'center' }}>
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
                 {t('reservations.detail.emailTickets')}
               </p>
             )}
@@ -573,11 +535,7 @@ export default function ReservationsPage() {
               </div>
               <div>
                 <p className={styles.detailLbl}>{t('reservations.detail.created')}</p>
-<<<<<<< HEAD
                 <p style={{ fontSize: 'var(--fs-sm)', fontFamily: 'var(--mono)', color: 'var(--text-3)', marginTop: 3 }}>{detail.createdAt ?? '-'}</p>
-=======
-                <p style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-3)', marginTop: 3 }}>{detail.createdAt ?? '-'}</p>
->>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 4 }}>
                 <Button variant="secondary" size="sm" icon={Edit2}

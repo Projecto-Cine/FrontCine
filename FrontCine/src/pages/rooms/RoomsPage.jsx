@@ -17,6 +17,7 @@ export default function RoomsPage() {
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
+  const [errors, setErrors] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { toast } = useApp();
   const { t } = useLanguage();
@@ -27,9 +28,13 @@ export default function RoomsPage() {
       .catch(() => toast('No se pudieron cargar las salas del backend.', 'error'));
   }, [toast]);
 
-  const openEdit = (room) => { setEditing(room); setForm({ ...room }); setModal('form'); };
-  const openCreate = () => { setEditing(null); setForm(EMPTY); setModal('form'); };
+  const openEdit = (room) => { setEditing(room); setForm({ ...room }); setErrors({}); setModal('form'); };
+  const openCreate = () => { setEditing(null); setForm(EMPTY); setErrors({}); setModal('form'); };
   const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+  const validateField = (name, value) => {
+    const required = name === 'name' ? !String(value).trim() : !value;
+    setErrors(e => ({ ...e, [name]: required ? t('common.fieldRequired') : undefined }));
+  };
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.capacity) {
@@ -97,11 +102,24 @@ export default function RoomsPage() {
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
             <label className={styles.label} htmlFor="room-name">{t('rooms.form.name')}</label>
-            <input id="room-name" className={styles.input} value={form.name} onChange={e => set('name', e.target.value)} placeholder={t('rooms.form.namePh')} />
+            <input id="room-name"
+              className={`${styles.input} ${errors.name ? styles.inputError : ''}`}
+              value={form.name} onChange={e => set('name', e.target.value)}
+              onBlur={e => validateField('name', e.target.value)}
+              placeholder={t('rooms.form.namePh')}
+              aria-invalid={!!errors.name} aria-describedby={errors.name ? 'err-room-name' : undefined}
+            />
+            {errors.name && <span id="err-room-name" role="alert" className={styles.fieldError}>{errors.name}</span>}
           </div>
           <div>
             <label className={styles.label} htmlFor="room-cap">{t('rooms.form.capacity')}</label>
-            <input id="room-cap" className={styles.input} type="number" value={form.capacity} onChange={e => set('capacity', e.target.value)} />
+            <input id="room-cap"
+              className={`${styles.input} ${errors.capacity ? styles.inputError : ''}`}
+              type="number" value={form.capacity} onChange={e => set('capacity', e.target.value)}
+              onBlur={e => validateField('capacity', e.target.value)}
+              aria-invalid={!!errors.capacity} aria-describedby={errors.capacity ? 'err-room-cap' : undefined}
+            />
+            {errors.capacity && <span id="err-room-cap" role="alert" className={styles.fieldError}>{errors.capacity}</span>}
           </div>
         </div>
       </Modal>

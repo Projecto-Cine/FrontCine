@@ -41,6 +41,7 @@ export default function MoviesPage() {
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_MOVIE);
+  const [errors, setErrors] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [bulkDeleteIds, setBulkDeleteIds] = useState(null);
   const [uploadingImg, setUploadingImg] = useState(false);
@@ -74,8 +75,11 @@ export default function MoviesPage() {
     setUploadingImg(false);
   };
 
-  const openCreate = () => { setEditing(null); setForm(EMPTY_MOVIE); setModal('form'); };
-  const openEdit = (movie) => { setEditing(movie); setForm({ ...movie }); setModal('form'); };
+  const openCreate = () => { setEditing(null); setForm(EMPTY_MOVIE); setErrors({}); setModal('form'); };
+  const openEdit = (movie) => { setEditing(movie); setForm({ ...movie }); setErrors({}); setModal('form'); };
+  const validateField = (name, value) => {
+    setErrors(e => ({ ...e, [name]: !String(value).trim() ? t('common.fieldRequired') : undefined }));
+  };
   const openDetail = (movie) => { setEditing(movie); setModal('detail'); };
 
   const handleSave = async () => {
@@ -164,7 +168,14 @@ export default function MoviesPage() {
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
             <label className={styles.label} htmlFor="mov-title">{t('movies.form.title')}</label>
-            <input id="mov-title" className={styles.input} value={form.title} onChange={e => set('title', e.target.value)} placeholder={t('movies.form.titlePh')} />
+            <input id="mov-title"
+              className={`${styles.input} ${errors.title ? styles.inputError : ''}`}
+              value={form.title} onChange={e => set('title', e.target.value)}
+              onBlur={e => validateField('title', e.target.value)}
+              placeholder={t('movies.form.titlePh')}
+              aria-invalid={!!errors.title} aria-describedby={errors.title ? 'err-mov-title' : undefined}
+            />
+            {errors.title && <span id="err-mov-title" role="alert" className={styles.fieldError}>{errors.title}</span>}
           </div>
           <div>
             <label className={styles.label} htmlFor="mov-director">{t('movies.form.director')}</label>
@@ -180,7 +191,13 @@ export default function MoviesPage() {
           </div>
           <div>
             <label className={styles.label} htmlFor="mov-duration">{t('movies.form.duration')}</label>
-            <input id="mov-duration" className={styles.input} type="number" value={form.durationMin} onChange={e => set('durationMin', e.target.value)} />
+            <input id="mov-duration"
+              className={`${styles.input} ${errors.durationMin ? styles.inputError : ''}`}
+              type="number" value={form.durationMin} onChange={e => set('durationMin', e.target.value)}
+              onBlur={e => validateField('durationMin', e.target.value)}
+              aria-invalid={!!errors.durationMin} aria-describedby={errors.durationMin ? 'err-mov-dur' : undefined}
+            />
+            {errors.durationMin && <span id="err-mov-dur" role="alert" className={styles.fieldError}>{errors.durationMin}</span>}
           </div>
           <div>
             <label className={styles.label} htmlFor="mov-language">{t('movies.form.language')}</label>

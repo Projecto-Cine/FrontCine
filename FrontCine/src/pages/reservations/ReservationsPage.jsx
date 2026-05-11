@@ -224,19 +224,19 @@ export default function ReservationsPage() {
   /* ── Columns ─────────────────────────────────────── */
   const columns = [
     { key: 'id', label: t('reservations.col.ref'), width: 120, render: v =>
-      <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-2)' }}>{v}</span> },
+      <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)', color: 'var(--text-2)' }}>{v}</span> },
     { key: 'client', label: t('reservations.col.client'), render: (_, row) => (
       <div>
         <div style={{ fontWeight: 500 }}>{getClientName(row)}</div>
-        <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{getClientEmail(row)}</div>
+        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>{getClientEmail(row)}</div>
       </div>
     )},
     { key: 'screening', label: t('reservations.col.screening'), render: (_, row) =>
-      <span style={{ fontSize: 11 }}>{getScreeningLabel(getScreening(row, screenings), noScreeningText)}</span> },
+      <span style={{ fontSize: 'var(--fs-sm)' }}>{getScreeningLabel(getScreening(row, screenings), noScreeningText)}</span> },
     { key: 'seats', label: t('reservations.col.seats'), width: 110, render: (_, row) =>
-      <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{getSeats(row).join(', ') || '-'}</span> },
+      <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)' }}>{getSeats(row).join(', ') || '-'}</span> },
     { key: 'amount', label: t('reservations.col.amount'), width: 90, render: (_, row) =>
-      <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600 }}>€{getAmount(row).toFixed(2)}</span> },
+      <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>€{getAmount(row).toFixed(2)}</span> },
     { key: 'paymentMethod', label: t('reservations.col.payment'), width: 90, render: v =>
       <Badge variant={PAYMENT_COLOR[v] || 'default'}>{PAYMENT_LABEL[v] || v || '-'}</Badge> },
     { key: 'status', label: t('reservations.col.status'), width: 130, render: (_, row) => {
@@ -356,7 +356,7 @@ export default function ReservationsPage() {
           </div>
         </div>
         {!editing && (
-          <p style={{ marginTop: 12, fontSize: 11, color: 'var(--text-3)' }}>
+          <p style={{ marginTop: 12, fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>
             {t('reservations.form.saveHint')}
           </p>
         )}
@@ -386,16 +386,16 @@ export default function ReservationsPage() {
         {payTarget && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ padding: '10px 14px', background: 'var(--bg-3)', borderRadius: 'var(--r)', border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('reservations.detail.reservation')}</div>
+              <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('reservations.detail.reservation')}</div>
               <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-1)' }}>{getClientName(payTarget)}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{getScreeningLabel(getScreening(payTarget, screenings), noScreeningText)}</div>
+              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)', marginTop: 2 }}>{getScreeningLabel(getScreening(payTarget, screenings), noScreeningText)}</div>
               <div style={{ marginTop: 8, fontFamily: 'var(--mono)', fontSize: 20, fontWeight: 800, color: 'var(--green)' }}>
                 €{payTotal.toFixed(2)}
               </div>
             </div>
 
             <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+              <p style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
                 {t('reservations.pay.method')}
               </p>
               <div className={styles.payMethodGrid}>
@@ -454,7 +454,7 @@ export default function ReservationsPage() {
               <span style={{ fontSize: 14, fontWeight: 700 }}>{t('reservations.success.confirmed')}</span>
             </div>
 
-            <div style={{ width: '100%', padding: '10px 14px', background: 'var(--bg-3)', borderRadius: 'var(--r)', border: '1px solid var(--border)', fontSize: 12 }}>
+            <div style={{ width: '100%', padding: '10px 14px', background: 'var(--bg-3)', borderRadius: 'var(--r)', border: '1px solid var(--border)', fontSize: 'var(--fs-md)' }}>
               <div style={{ fontWeight: 600, color: 'var(--text-1)' }}>{getClientName(paidTickets.purchase)}</div>
               <div style={{ color: 'var(--text-3)', marginTop: 2 }}>{getScreeningLabel(paidTickets.scr, noScreeningText)}</div>
               <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -466,7 +466,7 @@ export default function ReservationsPage() {
                 </Badge>
               </div>
               {paidTickets.change && parseFloat(paidTickets.change) >= 0 && (
-                <div style={{ marginTop: 6, padding: '6px 8px', background: 'var(--bg-4)', borderRadius: 'var(--r-sm)', display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 600 }}>
+                <div style={{ marginTop: 6, padding: '6px 8px', background: 'var(--bg-4)', borderRadius: 'var(--r-sm)', display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-md)', fontWeight: 600 }}>
                   <span style={{ color: 'var(--text-3)' }}>{t('reservations.detail.changeReturned')}</span>
                   <span style={{ color: 'var(--yellow)' }}>€{paidTickets.change}</span>
                 </div>
@@ -478,14 +478,14 @@ export default function ReservationsPage() {
                 {paidTickets.qrs.map((qr, i) => (
                   <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                     <QRCodeSVG value={qr} size={120} bgColor="transparent" fgColor="var(--text-1)" level="M" />
-                    <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
                       {t('reservations.detail.seatLabel', { seat: getSeats(paidTickets.purchase)[i] ?? i + 1 })}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'center' }}>
+              <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)', textAlign: 'center' }}>
                 {t('reservations.detail.emailTickets')}
               </p>
             )}
@@ -509,7 +509,7 @@ export default function ReservationsPage() {
               <div className={styles.detailSection}>
                 <p className={styles.detailLbl}>{t('reservations.detail.client')}</p>
                 <p className={styles.detailVal}>{getClientName(detail)}</p>
-                <p style={{ fontSize: 11, color: 'var(--text-3)' }}>{getClientEmail(detail)}</p>
+                <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>{getClientEmail(detail)}</p>
               </div>
               <div className={styles.detailSection}>
                 <p className={styles.detailLbl}>{t('reservations.detail.screening')}</p>
@@ -535,7 +535,7 @@ export default function ReservationsPage() {
               </div>
               <div>
                 <p className={styles.detailLbl}>{t('reservations.detail.created')}</p>
-                <p style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-3)', marginTop: 3 }}>{detail.createdAt ?? '-'}</p>
+                <p style={{ fontSize: 'var(--fs-sm)', fontFamily: 'var(--mono)', color: 'var(--text-3)', marginTop: 3 }}>{detail.createdAt ?? '-'}</p>
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 4 }}>
                 <Button variant="secondary" size="sm" icon={Edit2}

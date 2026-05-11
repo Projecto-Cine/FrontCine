@@ -36,6 +36,10 @@ export function SkeletonTable({ rows = 6, cols = 5 }) {
   );
 }
 
+export function SkeletonChart({ height = 200 }) {
+  return <div className={styles.chartWrap} style={{ height }} aria-hidden="true" />;
+}
+
 export function SkeletonKpiGrid({ count = 4 }) {
   return (
     <div className={styles.kpiGrid} aria-hidden="true">

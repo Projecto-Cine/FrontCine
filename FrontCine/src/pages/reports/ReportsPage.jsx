@@ -4,7 +4,8 @@ import PageHeader from '../../components/shared/PageHeader';
 import KPICard    from '../../components/shared/KPICard';
 import { Euro, TrendingUp, Users, Film, Download } from 'lucide-react';
 import Button from '../../components/ui/Button';
-import SkeletonPage from '../../components/shared/Skeleton';
+import { SkeletonKpiGrid, SkeletonChart } from '../../components/shared/Skeleton';
+import EmptyState from '../../components/shared/EmptyState';
 import { reportsService }   from '../../services/reportsService';
 import { moviesService }    from '../../services/moviesService';
 import { incidentsService } from '../../services/incidentsService';
@@ -71,7 +72,19 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (loading) return <SkeletonPage />;
+  if (loading) return (
+    <div className={styles.page}>
+      <SkeletonKpiGrid count={4} />
+      <div className={styles.chartsRow}>
+        <SkeletonChart height={200} />
+        <SkeletonChart height={200} />
+      </div>
+      <div className={styles.chartsRow}>
+        <SkeletonChart height={200} />
+        <SkeletonChart height={200} />
+      </div>
+    </div>
+  );
 
   const period = fmt.date(new Date(), { month: 'long', year: 'numeric' });
 
@@ -156,7 +169,7 @@ export default function ReportsPage() {
               </div>
             </div>
           ) : (
-            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--fs-md)' }}>{t('reports.chart.noIncidents')}</div>
+            <EmptyState subtitle={t('reports.chart.noIncidents')} />
           )}
         </div>
       </div>

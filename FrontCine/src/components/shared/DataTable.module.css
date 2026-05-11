@@ -53,3 +53,14 @@
 
 .empty { padding: 48px 40px; text-align: center; color: var(--text-3); font-size: var(--fs-md); }
 .emptyIcon { display: block; margin: 0 auto 10px; opacity: 0.35; }
+
+@media (max-width: 768px) {
+  .thead { display: none; }
+  .table { display: block; }
+  .tr { display: block; border-bottom: 1px solid var(--border-l); }
+  .td { display: flex; justify-content: space-between; align-items: center; white-space: normal; }
+  .td[data-label]::before { content: attr(data-label); color: var(--text-3); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; margin-right: 8px; }
+  .actionsTd::before { content: none; }
+  .actionsTd { justify-content: flex-end; }
+  .checkTd { display: none; }
+}

@@ -135,6 +135,7 @@ export default function UsersPage() {
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
             <label className={styles.label} htmlFor="usr-email">{t('users.form.email')}</label>
+<<<<<<< HEAD
             <input id="usr-email"
               className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
               type="email" value={form.email} onChange={e => set('email', e.target.value)}
@@ -142,6 +143,9 @@ export default function UsersPage() {
               aria-invalid={!!errors.email} aria-describedby={errors.email ? 'err-usr-email' : undefined}
             />
             {errors.email && <span id="err-usr-email" role="alert" className={styles.fieldError}>{errors.email}</span>}
+=======
+            <input id="usr-email" className={styles.input} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+>>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
           </div>
           <div>
             <label className={styles.label} htmlFor="usr-role">{t('users.form.role')}</label>

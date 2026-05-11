@@ -9,7 +9,11 @@ import { salesService }     from '../../services/salesService';
 import { uploadImage }      from '../../services/cloudinaryService';
 import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
+<<<<<<< HEAD
 import StripePaymentModal   from '../../components/shared/StripePaymentModal';
+=======
+import { useLanguage } from '../../i18n/LanguageContext';
+>>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
 import styles from './ConcessionPage.module.css';
 
 const CATEGORY_EMOJI = { Palomitas: '🍿', Bebidas: '🥤', Snacks: '🌮', Combos: '🎁', Concesión: '🛒' };
@@ -26,12 +30,6 @@ const saveStoredImg = (id, url) => { try { const s = getStoredImgs(); if (url) s
 const mergeImgs = (prods) => { const s = getStoredImgs(); return prods.map(p => ({ ...p, imageUrl: s[String(p.id)] || p.imageUrl || '' })); };
 
 
-const PAY_METHODS = [
-  { id: 'card',   label: 'Tarjeta', Icon: CreditCard  },
-  { id: 'cash',   label: 'Efectivo', Icon: Banknote   },
-  { id: 'online', label: 'QR / App', Icon: Smartphone },
-];
-
 function generateReceiptId() {
   return 'RCP-' + Date.now().toString(36).toUpperCase();
 }
@@ -39,6 +37,7 @@ function generateReceiptId() {
 export default function CajaPage() {
   const { toast } = useApp();
   const { user }  = useAuth();
+  const { t }     = useLanguage();
 
   const [products, setProducts]       = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -286,6 +285,7 @@ export default function CajaPage() {
     setDeletingId(null);
   };
 
+<<<<<<< HEAD
   useEffect(() => {
     if (!receipt) return;
     const t = setTimeout(() => window.print(), 500);
@@ -293,6 +293,18 @@ export default function CajaPage() {
   }, [receipt]);
 
   const PAY_LABEL = { card: 'Tarjeta', cash: 'Efectivo', online: 'QR / App' };
+=======
+  const PAY_METHODS = [
+    { id: 'card',   label: t('concession.pay_methods.card'),   Icon: CreditCard },
+    { id: 'cash',   label: t('concession.pay_methods.cash'),   Icon: Banknote   },
+    { id: 'online', label: t('concession.pay_methods.online'), Icon: Smartphone },
+  ];
+  const PAY_LABEL = {
+    card:   t('concession.pay_methods.card'),
+    cash:   t('concession.pay_methods.cash'),
+    online: t('concession.pay_methods.online'),
+  };
+>>>>>>> b80d8bd (feat(i18n): traducción completa de todas las páginas y componentes)
 
   return (
     <div className={styles.shell}>
@@ -304,21 +316,22 @@ export default function CajaPage() {
             <input
               ref={searchRef}
               className={styles.searchInput}
-              placeholder="Buscar producto... (F2)"
+              placeholder={t('concession.search')}
               value={search}
               onChange={e => { setSearch(e.target.value); setCategory('Todo'); }}
             />
             {search && <button className={styles.searchClear} onClick={() => setSearch('')}><X size={12} /></button>}
           </div>
           <div className={styles.shortcuts}>
-            <kbd>F2</kbd> Buscar
-            <kbd>F4</kbd> Cobrar
-            <kbd>Esc</kbd> Vaciar
+            {t('concession.shortcuts').split(' · ').map((s, i) => [
+              <kbd key={`k${i}`}>{['F2','F4','Esc'][i]}</kbd>,
+              ` ${s} `,
+            ])}
           </div>
           {canManage && (
-            <button className={styles.manageBtn} onClick={() => { setShowManager(true); setProductForm(null); setEditingProduct(null); }} title="Gestionar productos">
+            <button className={styles.manageBtn} onClick={() => { setShowManager(true); setProductForm(null); setEditingProduct(null); }} title={t('concession.manage')}>
               <Settings size={14} />
-              <span>Productos</span>
+              <span>{t('concession.manage')}</span>
             </button>
           )}
         </div>
@@ -330,14 +343,14 @@ export default function CajaPage() {
               className={`${styles.catTab} ${category === c && !search ? styles.catActive : ''}`}
               onClick={() => { setCategory(c); setSearch(''); }}
             >
-              {CATEGORY_EMOJI[c] ?? '🔲'} {c}
+              {CATEGORY_EMOJI[c] ?? '🔲'} {c === 'Todo' ? t('concession.all') : c}
             </button>
           ))}
         </div>
 
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)' }}>
-            <Loader size={18} /> Cargando productos...
+            <Loader size={18} /> {t('common.loading')}
           </div>
         ) : (
           <div className={styles.productGrid}>
@@ -361,7 +374,7 @@ export default function CajaPage() {
               );
             })}
             {filteredProducts.length === 0 && (
-              <div className={styles.noResults}>Sin productos para "{search || category}"</div>
+              <div className={styles.noResults}>{t('concession.noProducts', { query: search || (category === 'Todo' ? t('concession.all') : category) })}</div>
             )}
           </div>
         )}
@@ -371,10 +384,10 @@ export default function CajaPage() {
       <div className={styles.right}>
         <div className={styles.cartHeader}>
           <ShoppingCart size={15} />
-          <span>Pedido</span>
-          <span className={styles.cartCount}>{totalItems} art.</span>
+          <span>{t('concession.order')}</span>
+          <span className={styles.cartCount}>{t('concession.items', { n: totalItems })}</span>
           {cart.length > 0 && (
-            <button className={styles.clearBtn} onClick={() => setCart([])} title="Vaciar pedido (Esc)">
+            <button className={styles.clearBtn} onClick={() => setCart([])} title={t('concession.cancel')}>
               <Trash2 size={13} />
             </button>
           )}
@@ -384,8 +397,8 @@ export default function CajaPage() {
           {cart.length === 0 ? (
             <div className={styles.cartEmpty}>
               <ShoppingCart size={30} opacity={0.15} />
-              <p>Toca un producto para añadir</p>
-              <p className={styles.cartEmptySub}>o pulsa <kbd>F2</kbd> para buscar</p>
+              <p>{t('concession.tapToAdd')}</p>
+              <p className={styles.cartEmptySub}>{t('concession.pressSearch')}</p>
             </div>
           ) : (
             cart.map(({ product, qty }) => (
@@ -442,7 +455,7 @@ export default function CajaPage() {
               <input
                 className={styles.cashInput}
                 type="number" step="0.50" min={total}
-                placeholder={`Entrega (mín €${total.toFixed(2)})`}
+                placeholder={t('concession.cashDelivery', { min: total.toFixed(2) })}
                 value={cashGiven}
                 onChange={e => setCashGiven(e.target.value)}
               />
@@ -453,7 +466,7 @@ export default function CajaPage() {
               </div>
               {change !== null && parseFloat(change) >= 0 && (
                 <div className={styles.changeRow}>
-                  <span>Cambio</span>
+                  <span>{t('concession.change')}</span>
                   <span className={styles.changeAmount}>€{change}</span>
                 </div>
               )}
@@ -466,7 +479,7 @@ export default function CajaPage() {
             onClick={() => setShowPayModal(true)}
           >
             <CheckCircle size={20} />
-            Cobrar €{total.toFixed(2)} &nbsp;<kbd className={styles.kbdInline}>F4</kbd>
+            {t('concession.pay', { total: total.toFixed(2) })} &nbsp;<kbd className={styles.kbdInline}>F4</kbd>
           </button>
         </div>
       </div>
@@ -476,14 +489,14 @@ export default function CajaPage() {
         <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && setShowPayModal(false)}>
           <div className={styles.payModal}>
             <div className={styles.payModalHeader}>
-              <span>Confirmar cobro</span>
+              <span>{t('concession.confirmPay')}</span>
               <button onClick={() => setShowPayModal(false)}><X size={16} /></button>
             </div>
             <div className={styles.payModalBody}>
               <div className={styles.payModalTotal}>€{total.toFixed(2)}</div>
               <div className={styles.payModalMethod}>{PAY_LABEL[payMethod]}</div>
               {payMethod === 'cash' && change !== null && (
-                <div className={styles.payModalChange}>Cambio a devolver: <strong>€{change}</strong></div>
+                <div className={styles.payModalChange}>{t('concession.change')}: <strong>€{change}</strong></div>
               )}
               <div className={styles.payModalLines}>
                 {cart.map(({ product, qty }) => (
@@ -495,9 +508,9 @@ export default function CajaPage() {
               </div>
             </div>
             <div className={styles.payModalFooter}>
-              <button className={styles.payModalCancel} onClick={() => setShowPayModal(false)}>Cancelar</button>
+              <button className={styles.payModalCancel} onClick={() => setShowPayModal(false)}>{t('concession.cancel')}</button>
               <button className={styles.payModalConfirm} onClick={handlePay} disabled={paying}>
-                {paying ? <Loader size={16} /> : <CheckCircle size={16} />} Confirmar cobro
+                {paying ? <Loader size={16} /> : <CheckCircle size={16} />} {t('concession.confirmPay')}
               </button>
             </div>
           </div>
@@ -510,7 +523,7 @@ export default function CajaPage() {
           <div className={styles.receiptModal}>
             <div className={styles.receiptHeader}>
               <CheckCircle size={22} className={styles.receiptOk} />
-              <span>Cobro realizado</span>
+              <span>{t('concession.paid')}</span>
             </div>
             <div className={styles.receiptBody}>
               <div className={styles.receiptMeta}>
@@ -531,21 +544,21 @@ export default function CajaPage() {
                 <span>€{receipt.total.toFixed(2)}</span>
               </div>
               <div className={styles.receiptPayInfo}>
-                <span>Método: <strong>{PAY_LABEL[receipt.payMethod]}</strong></span>
+                <span>{t('concession.method')}: <strong>{PAY_LABEL[receipt.payMethod]}</strong></span>
                 {receipt.payMethod === 'cash' && (
                   <>
-                    <span>Entregado: <strong>€{receipt.cashGiven?.toFixed(2)}</strong></span>
-                    <span>Cambio: <strong className={styles.receiptChange}>€{receipt.change?.toFixed(2)}</strong></span>
+                    <span>{t('concession.given')}: <strong>€{receipt.cashGiven?.toFixed(2)}</strong></span>
+                    <span>{t('concession.change')}: <strong className={styles.receiptChange}>€{receipt.change?.toFixed(2)}</strong></span>
                   </>
                 )}
               </div>
             </div>
             <div className={styles.receiptFooter}>
               <button className={styles.receiptPrint} onClick={() => window.print()}>
-                <Printer size={14} /> Imprimir
+                <Printer size={14} /> {t('concession.print')}
               </button>
               <button className={styles.receiptNew} onClick={resetAll}>
-                <RotateCcw size={14} /> Nueva venta
+                <RotateCcw size={14} /> {t('concession.newSale')}
               </button>
             </div>
           </div>
@@ -556,7 +569,7 @@ export default function CajaPage() {
         <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && setShowManager(false)}>
           <div className={styles.managerModal}>
             <div className={styles.managerHeader}>
-              <span>Gestionar productos</span>
+              <span>{t('concession.manageTitle')}</span>
               <button onClick={() => setShowManager(false)}><X size={16} /></button>
             </div>
 
@@ -564,7 +577,7 @@ export default function CajaPage() {
               /* ── Lista ── */
               <div className={styles.managerBody}>
                 <button className={styles.managerNewBtn} onClick={openNewProduct}>
-                  <Plus size={14} /> Nuevo producto
+                  <Plus size={14} /> {t('concession.newProduct')}
                 </button>
                 <div className={styles.managerList}>
                   {products.map(p => (
@@ -592,7 +605,7 @@ export default function CajaPage() {
                     </div>
                   ))}
                   {products.length === 0 && (
-                    <p className={styles.managerEmpty}>No hay productos. Añade el primero.</p>
+                    <p className={styles.managerEmpty}>{t('concession.noList')}</p>
                   )}
                 </div>
               </div>
@@ -600,16 +613,16 @@ export default function CajaPage() {
               /* ── Formulario ── */
               <div className={styles.managerBody}>
                 <button className={styles.managerBackBtn} onClick={() => { setProductForm(null); setEditingProduct(null); }}>
-                  ← Volver a la lista
+                  {t('concession.backToList')}
                 </button>
-                <h3 className={styles.managerFormTitle}>{editingProduct ? 'Editar producto' : 'Nuevo producto'}</h3>
+                <h3 className={styles.managerFormTitle}>{editingProduct ? t('concession.editProduct') : t('concession.newProduct')}</h3>
                 <div className={styles.managerFormGrid}>
                   <div className={styles.managerFieldFull}>
-                    <label className={styles.managerLabel}>Nombre *</label>
-                    <input className={styles.managerInput} value={productForm.name} onChange={e => setField('name', e.target.value)} placeholder="Ej: Palomitas grandes" />
+                    <label className={styles.managerLabel}>{t('concession.form.name')}</label>
+                    <input className={styles.managerInput} value={productForm.name} onChange={e => setField('name', e.target.value)} placeholder={t('concession.form.imgPh')} />
                   </div>
                   <div>
-                    <label className={styles.managerLabel}>Categoría</label>
+                    <label className={styles.managerLabel}>{t('concession.form.category')}</label>
                     <select className={styles.managerInput} value={productForm.category} onChange={e => setField('category', e.target.value)}>
                       {[...new Set([...DEFAULT_CATEGORIES, ...products.map(p => p.category)])].map(c => (
                         <option key={c}>{c}</option>
@@ -617,25 +630,25 @@ export default function CajaPage() {
                     </select>
                   </div>
                   <div>
-                    <label className={styles.managerLabel}>Precio (€) *</label>
+                    <label className={styles.managerLabel}>{t('concession.form.price')}</label>
                     <input className={styles.managerInput} type="number" step="0.10" min="0" value={productForm.price} onChange={e => setField('price', e.target.value)} placeholder="0.00" />
                   </div>
                   <div>
-                    <label className={styles.managerLabel}>Stock (unidades)</label>
-                    <input className={styles.managerInput} type="number" min="0" value={productForm.quantity} onChange={e => setField('quantity', e.target.value)} placeholder="Sin límite" />
+                    <label className={styles.managerLabel}>{t('concession.form.stock')}</label>
+                    <input className={styles.managerInput} type="number" min="0" value={productForm.quantity} onChange={e => setField('quantity', e.target.value)} placeholder={t('concession.form.noLimit')} />
                   </div>
                   <div>
-                    <label className={styles.managerLabel}>Emoji (si no hay imagen)</label>
+                    <label className={styles.managerLabel}>{t('concession.form.emoji')}</label>
                     <input className={styles.managerInput} value={productForm.emoji} onChange={e => setField('emoji', e.target.value)} placeholder="🍿" maxLength={4} />
                   </div>
                   <div className={styles.managerFieldFull}>
-                    <label className={styles.managerLabel}>Imagen</label>
+                    <label className={styles.managerLabel}>{t('concession.form.image')}</label>
                     <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
                     {productForm.imageUrl ? (
                       <div className={styles.imgPreviewWrap}>
                         <img src={productForm.imageUrl} alt="preview" className={styles.managerImgPreview} />
-                        <button type="button" className={styles.imgRemoveBtn} onClick={() => setField('imageUrl', '')} title="Quitar imagen">
-                          <X size={11} /> Quitar
+                        <button type="button" className={styles.imgRemoveBtn} onClick={() => setField('imageUrl', '')} title={t('concession.form.removeImg')}>
+                          <X size={11} /> {t('concession.form.removeImg')}
                         </button>
                       </div>
                     ) : (
@@ -646,20 +659,20 @@ export default function CajaPage() {
                         disabled={uploadingImg}
                       >
                         {uploadingImg ? <Loader size={14} className={styles.spin} /> : <Upload size={14} />}
-                        {uploadingImg ? 'Subiendo...' : 'Seleccionar imagen'}
+                        {uploadingImg ? t('concession.form.uploading') : t('concession.form.selectImg')}
                       </button>
                     )}
                   </div>
                   <div className={styles.managerFieldFull}>
-                    <label className={styles.managerLabel}>Descripción</label>
-                    <input className={styles.managerInput} value={productForm.description} onChange={e => setField('description', e.target.value)} placeholder="Descripción breve (opcional)" />
+                    <label className={styles.managerLabel}>{t('concession.form.desc')}</label>
+                    <input className={styles.managerInput} value={productForm.description} onChange={e => setField('description', e.target.value)} placeholder={t('concession.form.descPh')} />
                   </div>
                 </div>
                 <div className={styles.managerFormActions}>
-                  <button className={styles.managerCancelBtn} onClick={() => { setProductForm(null); setEditingProduct(null); }}>Cancelar</button>
+                  <button className={styles.managerCancelBtn} onClick={() => { setProductForm(null); setEditingProduct(null); }}>{t('concession.cancel')}</button>
                   <button className={styles.managerSaveBtn} onClick={handleSaveProduct} disabled={savingProduct}>
                     {savingProduct ? <Loader size={14} /> : <Save size={14} />}
-                    {editingProduct ? 'Guardar cambios' : 'Crear producto'}
+                    {editingProduct ? t('common.saveChanges') : t('concession.createProduct')}
                   </button>
                 </div>
               </div>

@@ -26,6 +26,7 @@ export default function UsersPage() {
   const [modal, setModal] = useState(null);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
+  const [errors, setErrors] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { toast } = useApp();
   const { user: me } = useAuth();
@@ -44,9 +45,12 @@ export default function UsersPage() {
       .catch(() => toast('No se pudieron cargar los usuarios del backend.', 'error'));
   }, [toast]);
 
-  const openCreate = () => { if (!isAdmin) return; setEditing(null); setForm(EMPTY); setModal('form'); };
-  const openEdit = (user) => { if (!isAdmin) return; setEditing(user); setForm(normalizeUser(user)); setModal('form'); };
+  const openCreate = () => { if (!isAdmin) return; setEditing(null); setForm(EMPTY); setErrors({}); setModal('form'); };
+  const openEdit = (user) => { if (!isAdmin) return; setEditing(user); setForm(normalizeUser(user)); setErrors({}); setModal('form'); };
   const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+  const validateField = (name, value) => {
+    setErrors(e => ({ ...e, [name]: !String(value).trim() ? t('common.fieldRequired') : undefined }));
+  };
 
   const handleSave = async () => {
     if (!form.email.trim()) {
@@ -131,7 +135,13 @@ export default function UsersPage() {
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
             <label className={styles.label} htmlFor="usr-email">{t('users.form.email')}</label>
-            <input id="usr-email" className={styles.input} type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+            <input id="usr-email"
+              className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
+              type="email" value={form.email} onChange={e => set('email', e.target.value)}
+              onBlur={e => validateField('email', e.target.value)}
+              aria-invalid={!!errors.email} aria-describedby={errors.email ? 'err-usr-email' : undefined}
+            />
+            {errors.email && <span id="err-usr-email" role="alert" className={styles.fieldError}>{errors.email}</span>}
           </div>
           <div>
             <label className={styles.label} htmlFor="usr-role">{t('users.form.role')}</label>

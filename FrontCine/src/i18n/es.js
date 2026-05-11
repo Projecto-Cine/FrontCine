@@ -76,6 +76,7 @@ export default {
     create:          'Crear',
     search:          'Buscar...',
     loading:         'Cargando...',
+    fieldRequired:   'Este campo es obligatorio',
     noResults:       'Sin resultados',
     confirm:         'Confirmar',
     close:           'Cerrar',

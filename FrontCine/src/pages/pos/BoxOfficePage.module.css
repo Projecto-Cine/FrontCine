@@ -321,7 +321,9 @@
   font-size: var(--fs-base); font-weight: 600; cursor: pointer;
   transition: all var(--t);
 }
+.payMethod { min-height: 44px; }
 .payMethod:hover { border-color: var(--border-l); color: var(--text-1); }
+.payMethod:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .payActive { border-color: var(--accent) !important; color: var(--accent) !important; background: var(--accent-dim) !important; }
 
 .cashSection { display: flex; flex-direction: column; gap: 8px; }

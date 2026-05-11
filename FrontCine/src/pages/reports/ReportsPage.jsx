@@ -14,7 +14,7 @@ import styles from './ReportsPage.module.css';
 const PIE_COLORS = ['var(--accent)', 'var(--purple)', 'var(--cyan)', 'var(--green)', 'var(--red)', 'var(--yellow)'];
 
 const CustomTT = ({ active, payload, label }) => active && payload?.length ? (
-  <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border-l)', borderRadius: 6, padding: '8px 12px', fontSize: 11 }}>
+  <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border-l)', borderRadius: 6, padding: '8px 12px', fontSize: 'var(--fs-sm)' }}>
     <p style={{ color: 'var(--text-2)', marginBottom: 4 }}>{label}</p>
     {payload.map((p, i) => <p key={i} style={{ color: p.color || 'var(--text-1)' }}>{p.name}: {typeof p.value === 'number' ? (p.name?.includes('€') || p.dataKey === 'revenue' ? `€${p.value.toLocaleString()}` : p.value) : p.value}</p>)}
   </div>
@@ -95,8 +95,8 @@ export default function ReportsPage() {
           <h3 className={styles.chartTitle}>{t('reports.chart.dailyRevenue')}</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={salesWeek} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-              <XAxis dataKey="day"     tick={{ fontSize: 11, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
-              <YAxis                   tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="day"     tick={{ fontSize: 'var(--fs-sm)', fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
+              <YAxis                   tick={{ fontSize: 'var(--fs-xs)', fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
               <Tooltip content={<CustomTT />} />
               <Bar dataKey="revenue" name={t('reports.chart.revenue')} fill="var(--accent)" radius={[3, 3, 0, 0]} />
             </BarChart>
@@ -106,8 +106,8 @@ export default function ReportsPage() {
           <h3 className={styles.chartTitle}>{t('reports.chart.ticketsSold')}</h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={salesWeek} margin={{ top: 8, right: 8, left: -10, bottom: 0 }}>
-              <XAxis dataKey="day"    tick={{ fontSize: 11, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
-              <YAxis                  tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="day"    tick={{ fontSize: 'var(--fs-sm)', fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
+              <YAxis                  tick={{ fontSize: 'var(--fs-xs)', fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
               <Tooltip content={<CustomTT />} />
               <Line type="monotone" dataKey="tickets" name={t('reports.chart.tickets')} stroke="var(--cyan)" strokeWidth={2} dot={{ r: 3, fill: 'var(--cyan)' }} />
             </LineChart>
@@ -120,10 +120,10 @@ export default function ReportsPage() {
           <h3 className={styles.chartTitle}>{t('reports.chart.occupancy')}</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={occupancy} layout="vertical" margin={{ top: 0, right: 8, left: 20, bottom: 0 }}>
-              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
-              <YAxis dataKey="room" type="category" tick={{ fontSize: 11, fill: 'var(--text-2)' }} axisLine={false} tickLine={false} width={60} />
+              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 'var(--fs-xs)', fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
+              <YAxis dataKey="room" type="category" tick={{ fontSize: 'var(--fs-sm)', fill: 'var(--text-2)' }} axisLine={false} tickLine={false} width={60} />
               <Tooltip content={({ active, payload, label }) => active && payload?.length ? (
-                <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border-l)', borderRadius: 6, padding: '8px 12px', fontSize: 11 }}>
+                <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border-l)', borderRadius: 6, padding: '8px 12px', fontSize: 'var(--fs-sm)' }}>
                   <p style={{ color: 'var(--text-2)' }}>{label}</p><p style={{ color: 'var(--text-1)' }}>{payload[0].value}%</p>
                 </div>
               ) : null} />
@@ -147,7 +147,7 @@ export default function ReportsPage() {
               </ResponsiveContainer>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {incidentByCat.map((e, i) => (
-                  <div key={e.name} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
+                  <div key={e.name} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-sm)' }}>
                     <span style={{ width: 8, height: 8, borderRadius: 2, background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
                     <span style={{ color: 'var(--text-2)' }}>{e.name}</span>
                     <span style={{ color: 'var(--text-3)', marginLeft: 'auto', fontFamily: 'var(--mono)' }}>{e.value}</span>
@@ -156,7 +156,7 @@ export default function ReportsPage() {
               </div>
             </div>
           ) : (
-            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>{t('reports.chart.noIncidents')}</div>
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)', fontSize: 'var(--fs-md)' }}>{t('reports.chart.noIncidents')}</div>
           )}
         </div>
       </div>

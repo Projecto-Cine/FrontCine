@@ -7,7 +7,7 @@ import logoSrc from '../assets/logoLumen.png';
 import styles from './Login.module.css';
 
 export default function Login() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
@@ -17,14 +17,14 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const ok = await login(username.trim(), password);
+    const ok = await login(email.trim(), password);
     setLoading(false);
     if (ok) navigate('/', { replace: true });
   };
 
-  const fillDemo = (u) => {
-    setUsername(u);
-    setPassword('lumen2026');
+  const fillDemo = (e) => {
+    setEmail(e);
+    setPassword('lumen2024');
     setError('');
   };
 
@@ -41,15 +41,15 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className={styles.form} noValidate>
           <div className={styles.field}>
-            <label htmlFor="login-username" className={styles.label}>Usuario</label>
+            <label htmlFor="login-email" className={styles.label}>Email</label>
             <input
-              id="login-username"
+              id="login-email"
               className={`${styles.input} ${error ? styles.inputError : ''}`}
-              type="text"
-              autoComplete="username"
-              placeholder="nombre.usuario"
-              value={username}
-              onChange={e => { setUsername(e.target.value); setError(''); }}
+              type="email"
+              autoComplete="email"
+              placeholder="correo@ejemplo.com"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setError(''); }}
               aria-describedby={error ? 'login-error' : undefined}
               aria-invalid={error ? 'true' : undefined}
             />
@@ -94,26 +94,24 @@ export default function Login() {
 
         <div className={styles.hint}>
           <ShieldCheck size={12} aria-hidden="true" />
-          <span>Acceso restringido a personal autorizado. Demo: <strong>admin1</strong> / <strong>lumen2026</strong></span>
+          <span>Acceso restringido a personal autorizado. Demo: <strong>admin@lumen.com</strong> / <strong>lumen2024</strong></span>
         </div>
 
         <div className={styles.demoAccounts}>
           <p className={styles.demoTitle} id="demo-accounts-label">Cuentas de demo</p>
           <div className={styles.demoGrid} role="group" aria-labelledby="demo-accounts-label">
             {[
-              { u: 'admin1',      r: 'Administrador' },
-              { u: 'supervisor1', r: 'Supervisor' },
-              { u: 'operador1',   r: 'Operador' },
-              { u: 'taquilla1',   r: 'Taquilla' },
-            ].map(({ u, r }) => (
+              { e: 'admin@lumen.com',   r: 'Administrador' },
+              { e: 'cliente@lumen.com', r: 'Cliente' },
+            ].map(({ e, r }) => (
               <button
-                key={u}
+                key={e}
                 className={styles.demoBtn}
                 type="button"
-                onClick={() => fillDemo(u)}
-                aria-label={`Usar cuenta ${r}: ${u}`}
+                onClick={() => fillDemo(e)}
+                aria-label={`Usar cuenta ${r}: ${e}`}
               >
-                <span className={styles.demoUser}>{u}</span>
+                <span className={styles.demoUser}>{e}</span>
                 <span className={styles.demoRole}>{r}</span>
               </button>
             ))}

@@ -19,3 +19,11 @@
 .detailLbl { font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 .detailGrid > div > span:last-child { font-size: var(--fs-base); color: var(--text-1); }
 .imagePreview { display: block; margin-top: 8px; max-height: 120px; max-width: 100%; border-radius: var(--r); border: 1px solid var(--border); object-fit: cover; }
+.posterPreviewWrap { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.imgUploadBtn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; background: var(--bg-3); border: 1px dashed var(--border-l); border-radius: var(--r); color: var(--text-2); font-size: var(--fs-md); font-weight: 600; cursor: pointer; transition: all var(--t); margin-top: 4px; }
+.imgUploadBtn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.imgUploadBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.imgRemoveBtn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; background: var(--red-dim); border: 1px solid rgba(239,68,68,0.3); border-radius: var(--r-sm); color: var(--red); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; transition: all var(--t); align-self: flex-start; }
+.imgRemoveBtn:hover { background: rgba(239,68,68,0.2); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.8s linear infinite; }

@@ -12,7 +12,6 @@ import IncidentsPage from './pages/incidents/IncidentsPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import InventoryPage from './pages/inventory/InventoryPage';
 import UsersPage from './pages/users/UsersPage';
-import AuditPage from './pages/audit/AuditPage';
 import BoxOfficePage from './pages/pos/BoxOfficePage';
 import ConcessionPage from './pages/pos/ConcessionPage';
 import ShiftsPage from './pages/shifts/ShiftsPage';
@@ -49,7 +48,6 @@ export default function App() {
               <Route path="shifts"       element={<ShiftsPage />} />
               <Route path="employees"    element={<UsersPage />} />
               <Route path="clients"      element={<ClientsPage />} />
-              <Route path="audit"        element={<AuditPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

@@ -236,8 +236,9 @@ export default function CuadrantePage() {
     }).catch(() => {});
   }, []);
 
+  // El backend no tiene campo status → usar todos los usuarios con rol de trabajo
   const activeEmployees = useMemo(
-    () => allUsers.filter(u => u.status === 'active'),
+    () => allUsers.filter(u => u.role && u.role.toLowerCase() !== 'client'),
     [allUsers]
   );
 

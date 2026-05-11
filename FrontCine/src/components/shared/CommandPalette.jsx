@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Film, Building2, CalendarDays, Ticket,
-  AlertTriangle, Package, Users, ShieldCheck, UserSearch,
+  AlertTriangle, Package, Users, UserSearch,
   TicketCheck, ShoppingCart, ClipboardList, Search, ArrowRight,
 } from 'lucide-react';
 import styles from './CommandPalette.module.css';
@@ -20,7 +20,6 @@ const COMMANDS = [
   { label: 'Cuadrante de Turnos',    icon: ClipboardList,   to: '/shifts',       section: 'Gestión' },
   { label: 'Trabajadores',           icon: Users,           to: '/employees',    section: 'Administración' },
   { label: 'Clientes',               icon: UserSearch,      to: '/clients',      section: 'Administración' },
-  { label: 'Auditoría y Seguridad',  icon: ShieldCheck,     to: '/audit',        section: 'Administración' },
 ];
 
 export default function CommandPalette({ open, onClose }) {

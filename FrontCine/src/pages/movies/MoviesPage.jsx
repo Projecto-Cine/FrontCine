@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, Eye } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Plus, Edit2, Trash2, Eye, Upload, Loader, X } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
 import Badge from '../../components/ui/Badge';
@@ -7,6 +7,7 @@ import Button from '../../components/ui/Button';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useApp } from '../../contexts/AppContext';
 import { moviesService } from '../../services/moviesService';
+import { uploadImage } from '../../services/cloudinaryService';
 import styles from './MoviesPage.module.css';
 
 const STATUS_MAP = { active: { label: 'Activa', v: 'green' }, inactive: { label: 'Baja', v: 'default' } };
@@ -14,6 +15,11 @@ const FORMAT_COLOR = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'defaul
 const RATING_COLOR = { 'PG': 'green', 'PG-13': 'yellow', 'R': 'red' };
 
 const EMPTY_MOVIE = { title: '', durationMin: '', genre: '', language: 'ES', format: '2D', ageRating: 'PG-13', active: true, director: '', year: new Date().getFullYear(), description: '', imageUrl: '' };
+
+const MOV_IMG_KEY = 'lumen_movie_posters';
+const getStoredPosters = () => { try { return JSON.parse(localStorage.getItem(MOV_IMG_KEY) ?? '{}'); } catch { return {}; } };
+const saveStoredPoster = (id, url) => { try { const s = getStoredPosters(); if (url) s[String(id)] = url; else delete s[String(id)]; localStorage.setItem(MOV_IMG_KEY, JSON.stringify(s)); } catch {} };
+const mergePosters = (list) => { const s = getStoredPosters(); return list.map(m => ({ ...m, imageUrl: s[String(m.id)] || m.imageUrl || '' })); };
 
 const normalizeMovie = (movie) => ({
   ...movie,
@@ -37,13 +43,30 @@ export default function MoviesPage() {
   const [form, setForm] = useState(EMPTY_MOVIE);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [bulkDeleteIds, setBulkDeleteIds] = useState(null);
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const fileInputRef = useRef(null);
   const { toast } = useApp();
 
   useEffect(() => {
     moviesService.getAll()
-      .then(data => setMovies((data ?? []).map(normalizeMovie)))
+      .then(data => setMovies(mergePosters((data ?? []).map(normalizeMovie))))
       .catch(() => toast('No se pudieron cargar las películas.', 'error'));
   }, [toast]);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploadingImg(true);
+    try {
+      const url = await uploadImage(file);
+      set('imageUrl', url);
+      toast('Póster subido correctamente.', 'success');
+    } catch (err) {
+      toast(err.message ?? 'Error al subir el póster.', 'error');
+    }
+    setUploadingImg(false);
+  };
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_MOVIE); setModal('form'); };
   const openEdit = (movie) => { setEditing(movie); setForm({ ...movie }); setModal('form'); };
@@ -54,11 +77,15 @@ export default function MoviesPage() {
     const payload = toPayload(form);
     if (editing) {
       const saved = normalizeMovie(await moviesService.update(editing.id, payload));
-      setMovies(prev => prev.map(m => m.id === editing.id ? saved : m));
+      const merged = { ...saved, imageUrl: form.imageUrl || saved.imageUrl };
+      saveStoredPoster(editing.id, merged.imageUrl);
+      setMovies(prev => prev.map(m => m.id === editing.id ? merged : m));
       toast(`"${form.title}" actualizada.`, 'success');
     } else {
       const saved = normalizeMovie(await moviesService.create(payload));
-      setMovies(prev => [...prev, saved]);
+      const merged = { ...saved, imageUrl: form.imageUrl || saved.imageUrl };
+      saveStoredPoster(saved.id, merged.imageUrl);
+      setMovies(prev => [...prev, merged]);
       toast(`"${form.title}" añadida.`, 'success');
     }
     setModal(null);
@@ -66,6 +93,7 @@ export default function MoviesPage() {
 
   const handleDelete = async () => {
     await moviesService.remove(deleteTarget.id);
+    saveStoredPoster(deleteTarget.id, '');
     setMovies(prev => prev.filter(m => m.id !== deleteTarget.id));
     toast(`"${deleteTarget.title}" eliminada.`, 'warning');
     setDeleteTarget(null);
@@ -176,10 +204,20 @@ export default function MoviesPage() {
             </select>
           </div>
           <div>
-            <label className={styles.label} htmlFor="mov-image">Imagen URL</label>
-            <input id="mov-image" className={styles.input} value={form.imageUrl} onChange={e => set('imageUrl', e.target.value)} />
-            {form.imageUrl && (
-              <img src={form.imageUrl} alt="Vista previa" className={styles.imagePreview} onError={e => { e.target.style.display = 'none'; }} />
+            <label className={styles.label}>Póster</label>
+            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+            {form.imageUrl ? (
+              <div className={styles.posterPreviewWrap}>
+                <img src={form.imageUrl} alt="Vista previa" className={styles.imagePreview} onError={e => { e.currentTarget.style.display = 'none'; }} />
+                <button type="button" className={styles.imgRemoveBtn} onClick={() => set('imageUrl', '')}>
+                  <X size={11} /> Quitar
+                </button>
+              </div>
+            ) : (
+              <button type="button" className={styles.imgUploadBtn} onClick={() => fileInputRef.current?.click()} disabled={uploadingImg}>
+                {uploadingImg ? <Loader size={14} className={styles.spin} /> : <Upload size={14} />}
+                {uploadingImg ? 'Subiendo...' : 'Seleccionar póster'}
+              </button>
             )}
           </div>
           <div className={styles.fieldFull}>

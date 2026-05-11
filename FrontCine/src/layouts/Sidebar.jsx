@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Film, Building2, CalendarDays, Ticket,
-  AlertTriangle, Package, Users, UserSearch, ShieldCheck,
+  AlertTriangle, Package, Users, UserSearch,
   ChevronDown, ChevronRight, LogOut, ShoppingCart, TicketCheck, ClipboardList
 } from 'lucide-react';
 import { useState } from 'react';
@@ -39,9 +39,8 @@ const NAV = [
   {
     section: 'ADMINISTRACIÓN',
     items: [
-      { label: 'Trabajadores', icon: Users,       to: '/employees' },
-      { label: 'Clientes',     icon: UserSearch,  to: '/clients' },
-      { label: 'Auditoría',    icon: ShieldCheck, to: '/audit' },
+      { label: 'Trabajadores', icon: Users,      to: '/employees' },
+      { label: 'Clientes',     icon: UserSearch, to: '/clients' },
     ],
   },
 ];

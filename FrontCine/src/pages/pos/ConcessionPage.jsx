@@ -10,6 +10,7 @@ import { uploadImage }      from '../../services/cloudinaryService';
 import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
+import EmptyState from '../../components/shared/EmptyState';
 import styles from './ConcessionPage.module.css';
 
 const CATEGORY_EMOJI = { Palomitas: '🍿', Bebidas: '🥤', Snacks: '🌮', Combos: '🎁', Concesión: '🛒' };
@@ -317,7 +318,9 @@ export default function CajaPage() {
               );
             })}
             {filteredProducts.length === 0 && (
-              <div className={styles.noResults}>{t('concession.noProducts', { query: search || (category === 'Todo' ? t('concession.all') : category) })}</div>
+              <EmptyState
+                title={t('concession.noProducts', { query: search || (category === 'Todo' ? t('concession.all') : category) })}
+              />
             )}
           </div>
         )}

@@ -13,9 +13,10 @@ import { clientsService }  from '../../services/clientsService';
 import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
-import Badge    from '../../components/ui/Badge';
-import SeatMap  from '../../components/shared/SeatMap';
-import styles   from './BoxOfficePage.module.css';
+import Badge      from '../../components/ui/Badge';
+import SeatMap    from '../../components/shared/SeatMap';
+import EmptyState from '../../components/shared/EmptyState';
+import styles     from './BoxOfficePage.module.css';
 
 const TICKET_TYPES = [
   { id: 'adult',    price: 13.50, backendType: 'ADULT'   },
@@ -324,7 +325,7 @@ export default function TaquillaPage() {
                     </button>
                   );
                 })}
-                {filteredSessions.length === 0 && <div className={styles.emptyMsg}>{t('box_office.noSessions')}</div>}
+                {filteredSessions.length === 0 && <EmptyState icon={Film} title={t('box_office.noSessions')} />}
               </div>
             )}
           </>

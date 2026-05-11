@@ -105,7 +105,7 @@ export default function DataTable({
           aria-rowcount={filtered.length}
           aria-describedby={statusId}
         >
-          <thead>
+          <thead className={styles.thead}>
             <tr>
               {bulkActions && (
                 <th className={styles.checkTh} scope="col">
@@ -160,7 +160,7 @@ export default function DataTable({
                   </td>
                 )}
                 {columns.map(col => (
-                  <td key={col.key} className={styles.td} style={{ width: col.width }}>
+                  <td key={col.key} className={styles.td} style={{ width: col.width }} data-label={col.label}>
                     {col.render ? col.render(row[col.key], row) : row[col.key] ?? '—'}
                   </td>
                 ))}

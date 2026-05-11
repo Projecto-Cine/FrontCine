@@ -1,4 +1,4 @@
-.bar {
+﻿.bar {
   height: 22px;
   background: var(--bg-sidebar);
   border-top: 1px solid var(--border);
@@ -17,7 +17,7 @@
 }
 
 .item {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   font-family: var(--mono);
   white-space: nowrap;
@@ -25,14 +25,14 @@
 
 .sep {
   color: var(--border-l);
-  font-size: 10px;
+  font-size: var(--fs-xs);
 }
 
 .conn {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-family: var(--mono);
 }
 

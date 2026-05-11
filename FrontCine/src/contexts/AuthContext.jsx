@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
     }
 
     authService.me()
-      .then(res => setUser(res?.user ?? null))
+      .then(res => { const u = res?.user ?? res; setUser(u ? { ...u, name: u.name ?? u.nombre } : null); })
       .catch(() => localStorage.removeItem('lumen_token'))
       .finally(() => setLoading(false));
   }, []);
@@ -38,14 +38,15 @@ export function AuthProvider({ children }) {
     setError('');
     try {
       // Intentar login real con el backend
-      const res = await authService.login(username, password);
+      const res = await authService.login({ email: username, password });
+      const userData = res?.user ? { ...res.user, name: res.user.name ?? res.user.nombre } : null;
       if (res?.token) localStorage.setItem('lumen_token', res.token);
-      if (res?.user) localStorage.setItem('lumen_user', JSON.stringify(res.user));
-      if (res?.user?.status === 'inactive') {
+      if (userData) localStorage.setItem('lumen_user', JSON.stringify(userData));
+      if (userData?.status === 'inactive') {
         setError('Cuenta desactivada. Contacta con el administrador.');
         return false;
       }
-      setUser(res?.user ?? null);
+      setUser(userData);
       return true;
     } catch {
       // Fallback: backend no disponible o endpoint pendiente → usar mock

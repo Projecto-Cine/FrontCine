@@ -92,6 +92,10 @@
   font-weight: 700;
 }
 
+.langFloat {
+  position: absolute; top: 20px; right: 24px; z-index: 10;
+}
+
 .hint { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--text-3); }
 .hint strong { color: var(--text-2); }
 

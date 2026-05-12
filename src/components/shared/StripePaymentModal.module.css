@@ -24,7 +24,6 @@
   animation: slideUp 0.18s ease;
 }
 
-/* ── Header ───────────────────────────────────────────── */
 .header {
   display: flex;
   align-items: center;
@@ -57,7 +56,6 @@
 }
 .closeBtn:hover { background: var(--red-dim); color: var(--red); }
 
-/* ── Form ─────────────────────────────────────────────── */
 .form {
   padding: 22px 22px 18px;
   display: flex;
@@ -103,7 +101,6 @@
   padding: 8px 0;
 }
 
-/* ── Error ────────────────────────────────────────────── */
 .errorBox {
   display: flex;
   align-items: center;
@@ -116,7 +113,6 @@
   font-size: 13px;
 }
 
-/* ── Actions ──────────────────────────────────────────── */
 .actions {
   display: flex;
   gap: 10px;
@@ -162,7 +158,6 @@
 .payBtn:active:not(:disabled) { transform: translateY(0); }
 .payBtn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; transform: none; }
 
-/* ── Secure notice ────────────────────────────────────── */
 .secure {
   display: flex;
   align-items: center;
@@ -173,6 +168,5 @@
   padding-bottom: 2px;
 }
 
-/* ── Spinner ──────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin 0.7s linear infinite; }

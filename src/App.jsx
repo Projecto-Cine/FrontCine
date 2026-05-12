@@ -17,6 +17,7 @@ import BoxOfficePage from './pages/pos/BoxOfficePage';
 import ConcessionPage from './pages/pos/ConcessionPage';
 import ShiftsPage from './pages/shifts/ShiftsPage';
 import ClientsPage from './pages/clients/ClientsPage';
+import EmployeesPage from './pages/employees/EmployeesPage';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -48,7 +49,7 @@ export default function App() {
               <Route path="reports"      element={<ReportsPage />} />
               <Route path="inventory"    element={<InventoryPage />} />
               <Route path="shifts"       element={<ShiftsPage />} />
-              <Route path="employees"    element={<UsersPage />} />
+              <Route path="employees"    element={<EmployeesPage />} />
               <Route path="clients"      element={<ClientsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

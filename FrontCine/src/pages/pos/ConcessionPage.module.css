@@ -258,9 +258,7 @@ kbd { background: var(--bg-4); border: 1px solid var(--border-l); border-radius:
   font-size: 10px; font-weight: 600; cursor: pointer;
   transition: all var(--t);
 }
-.payTab { min-height: 44px; }
 .payTab:hover { color: var(--text-2); border-color: var(--border-l); }
-.payTab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .payTabActive { background: var(--accent-dim2) !important; border-color: var(--accent) !important; color: var(--accent) !important; }
 
 .cashRow { display: flex; flex-direction: column; gap: 6px; }

@@ -88,8 +88,6 @@ export default function ReportsPage() {
 
   const period = fmt.date(new Date(), { month: 'long', year: 'numeric' });
 
-  const period = fmt.date(new Date(), { month: 'long', year: 'numeric' });
-
   return (
     <div className={styles.page}>
       <PageHeader

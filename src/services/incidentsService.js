@@ -1,13 +1,23 @@
 import { api } from './api';
 
-// Spring Boot devuelve camelCase; la página usa assigned_to → normalizar
-const norm = (i) => i ? { ...i, assigned_to: i.assignedTo ?? i.assigned_to } : i;
+const SEV_TO_PRI = { ALTA: 'critical', MEDIA: 'high', BAJA: 'low', HIGH: 'critical', MEDIUM: 'high', LOW: 'low' };
+const PRI_TO_SEV = { critical: 'ALTA', high: 'MEDIA', medium: 'MEDIA', low: 'BAJA' };
+
+const norm = (i) => {
+  if (!i) return i;
+  const priority = SEV_TO_PRI[i.severity] ?? i.priority ?? 'low';
+  const status   = i.resolved === true
+    ? 'resolved'
+    : (i.status ?? 'open').toLowerCase().replace(' ', '_');
+  return { ...i, priority, status, assigned_to: i.assignedTo ?? i.assigned_to };
+};
 const normList = (data) => Array.isArray(data) ? data.map(norm) : data;
 
-// Convierte el payload al camelCase que espera Spring Boot
 const toBackend = (data) => ({
   ...data,
-  assignedTo: data.assigned_to ?? data.assignedTo,
+  severity:    PRI_TO_SEV[data.priority] ?? data.severity,
+  priority:    undefined,
+  assignedTo:  data.assigned_to ?? data.assignedTo,
   assigned_to: undefined,
 });
 

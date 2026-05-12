@@ -122,31 +122,39 @@ export default function Dashboard() {
         .map(i => ({ ...i, priority: SEVERITY_MAP[i.severity] ?? SEVERITY_MAP[i.priority] ?? 'low', status: 'open' }));
       setIncidents(mapped);
 
-      // ── Purchases → top movies + ticket revenue ────────────
+      console.log('📊 Dashboard API raw:', { purchases, merchSales, allScreenings: allScreenings?.length });
+
+      const confirmed   = s => ['CONFIRMED','PAID','COMPLETED','confirmed','paid','completed'].includes(s?.status);
+      const normTotal   = p => Number(p?.totalAmount ?? p?.total ?? p?.amount ?? p?.price ?? 0);
+      const normQty     = s => Number(s?.quantity ?? s?.qty ?? 1);
+      const normUPrice  = s => Number(s?.unitPrice ?? s?.unit_price ?? s?.price ?? 0);
+      const normDate    = p => p?.createdAt ?? p?.created_at ?? p?.saleDate ?? p?.date ?? '';
+      const normTitle   = p => p?.movieTitle ?? p?.screening?.movie?.title ?? p?.movie?.title ?? p?.movie_name ?? p?.title ?? String(p?.movie ?? p?.screening?.movie ?? '');
+      const normName    = s => s?.merchandiseName ?? s?.merchandise?.name ?? s?.product?.name ?? s?.product_name ?? s?.name ?? String(s?.merchandise ?? s?.product ?? '');
+      const normStart   = s => s?.startTime ?? s?.start_time ?? s?.dateTime ?? s?.date_time ?? '';
+      const normMid     = s => s?.movie?.id ?? s?.movieId ?? s?.movie_id ?? null;
+
       const purchaseList = Array.isArray(purchases) ? purchases : [];
-      const confirmedPurchases = purchaseList.filter(p =>
-        p.status === 'CONFIRMED' || p.status === 'PAID' || p.status === 'COMPLETED'
-      );
-      const ticketRevenue = confirmedPurchases.reduce((sum, p) => sum + Number(p.total ?? 0), 0);
+      const confirmedPurchases = purchaseList.filter(confirmed);
+      const ticketRevenue = confirmedPurchases.reduce((sum, p) => sum + normTotal(p), 0);
 
       const movieRevMap = {};
-      confirmedPurchases
-        .filter(p => (p.createdAt ?? '').startsWith(currentYear))
-        .forEach(p => {
-          const title = p.screening?.movie?.title ?? p.movie?.title;
-          if (title) movieRevMap[title] = (movieRevMap[title] ?? 0) + Number(p.total ?? 0);
-        });
+      confirmedPurchases.forEach(p => {
+        const title = normTitle(p);
+        if (title) movieRevMap[title] = (movieRevMap[title] ?? 0) + normTotal(p);
+      });
       const top3Movies = Object.entries(movieRevMap)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
         .map(([title, revenue]) => ({ title, revenue }));
 
-      // ── Merch sales → top products + merch revenue ─────────
+      console.log('📊 Movie revenue map:', movieRevMap, 'top3:', top3Movies);
+
       const merchList = Array.isArray(merchSales) ? merchSales : [];
       const productRevMap = {};
       merchList.forEach(sale => {
-        const name = sale.merchandise?.name ?? sale.product?.name;
-        const total = Number(sale.total ?? (sale.quantity ?? 1) * (sale.unitPrice ?? sale.price ?? 0));
+        const name = normName(sale);
+        const total = normTotal(sale) || (normQty(sale) * normUPrice(sale));
         if (name) productRevMap[name] = (productRevMap[name] ?? 0) + total;
       });
       const top3Products = Object.entries(productRevMap)
@@ -155,14 +163,15 @@ export default function Dashboard() {
         .map(([name, revenue]) => ({ name, revenue }));
       const merchandiseRevenue = Object.values(productRevMap).reduce((s, v) => s + v, 0);
 
+      console.log('📊 Product revenue map:', productRevMap, 'top3:', top3Products);
+
       setRevenueSplit({ tickets: ticketRevenue, merch: merchandiseRevenue });
       setTopMovies(top3Movies);
       setTopProducts(top3Products);
 
-      // ── Year stats (screenings count) ──────────────────────
       const allScr = Array.isArray(allScreenings) ? allScreenings : [];
-      const yearScr = allScr.filter(s => (s.startTime ?? s.dateTime ?? '').startsWith(currentYear));
-      const yearMovieIds = new Set(yearScr.map(s => s.movie?.id ?? s.movieId).filter(Boolean));
+      const yearScr = allScr.filter(s => normStart(s).startsWith(currentYear));
+      const yearMovieIds = new Set(yearScr.map(s => normMid(s)).filter(Boolean));
       setYearStats({ sessions: yearScr.length, movies: yearMovieIds.size });
 
     }).finally(() => setLoading(false));

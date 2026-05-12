@@ -9,6 +9,7 @@ import { salesService }     from '../../services/salesService';
 import { uploadImage }      from '../../services/cloudinaryService';
 import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
+import StripePaymentModal   from '../../components/shared/StripePaymentModal';
 import styles from './ConcessionPage.module.css';
 
 const CATEGORY_EMOJI = { Palomitas: '🍿', Bebidas: '🥤', Snacks: '🌮', Combos: '🎁', Concesión: '🛒' };
@@ -49,6 +50,8 @@ export default function CajaPage() {
   const [showPayModal, setShowPayModal] = useState(false);
   const [receipt, setReceipt]         = useState(null);
   const [paying, setPaying]           = useState(false);
+  const [stripeData, setStripeData]   = useState(null);
+  const pendingReceipt                = useRef(null);
   const searchRef = useRef(null);
 
   // Gestión de productos (solo admin/supervisor/operator)
@@ -142,47 +145,88 @@ export default function CajaPage() {
   const totalItems = cart.reduce((s, i) => s + i.qty, 0);
   const change     = payMethod === 'cash' && cashGiven ? (parseFloat(cashGiven) - total).toFixed(2) : null;
 
+  const buildReceipt = useCallback((lines = cart) => ({
+    id:        generateReceiptId(),
+    lines:     [...lines],
+    total,
+    payMethod,
+    cashGiven: payMethod === 'cash' ? parseFloat(cashGiven) : null,
+    change:    change ? parseFloat(change) : null,
+    timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    date:      new Date().toLocaleDateString('es-ES'),
+  }), [cart, total, payMethod, cashGiven, change]);
+
+  const finishSale = useCallback((rec) => {
+    setReceipt(rec);
+    setShowPayModal(false);
+    setCart([]);
+    setCashGiven('');
+  }, []);
+
   const handlePay = async () => {
     if (payMethod === 'cash' && (!cashGiven || parseFloat(cashGiven) < total)) {
       toast('Importe entregado insuficiente.', 'error');
       return;
     }
+    if (!user?.id) {
+      toast('No se pudo identificar el usuario de caja.', 'error');
+      return;
+    }
     setPaying(true);
+    const rec = buildReceipt();
     try {
-      await salesService.createConcessionSale({
+      const sale = await salesService.createConcessionSale({
         items: cart.map(({ product, qty }) => ({
-          product_id: product.id,
+          merchandiseId: product.id,
           name:       product.name,
-          qty,
+          quantity:   qty,
           unit_price: getPrice(product),
         })),
         total,
-        payment_method: payMethod.toUpperCase(),
+        payment_method: payMethod === 'online' ? 'QR' : payMethod.toUpperCase(),
+        userId:         user.id,
         cash_given:     payMethod === 'cash' ? parseFloat(cashGiven) : null,
         change:         change ? parseFloat(change) : null,
         cashier_id:     user?.id ?? null,
       });
+      if (payMethod === 'online') {
+        const purchaseId = sale?.purchaseId ?? sale?.purchase?.id;
+        if (!purchaseId) throw new Error('El backend no devuelve un purchaseId para pagos Stripe de concesión.');
+        const intent = await salesService.createPaymentIntent(purchaseId, total);
+        pendingReceipt.current = { rec, purchaseId };
+        setStripeData({
+          clientSecret:   intent.clientSecret,
+          publishableKey: intent.publishableKey,
+          purchaseId,
+        });
+        setShowPayModal(false);
+        return;
+      }
+      finishSale(rec);
     } catch {
-      // Si el endpoint aún no existe, continuamos igualmente con el recibo local
+      toast('Error al procesar el cobro. Inténtalo de nuevo.', 'error');
     } finally {
       setPaying(false);
     }
-
-    const rec = {
-      id:        generateReceiptId(),
-      lines:     [...cart],
-      total,
-      payMethod,
-      cashGiven: payMethod === 'cash' ? parseFloat(cashGiven) : null,
-      change:    change ? parseFloat(change) : null,
-      timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      date:      new Date().toLocaleDateString('es-ES'),
-    };
-    setReceipt(rec);
-    setShowPayModal(false);
-    setCart([]);
-    setCashGiven('');
   };
+
+  const handleStripeSuccess = useCallback(async () => {
+    try {
+      await salesService.confirmPurchaseAfterStripe(stripeData.purchaseId);
+    } catch { /* el webhook también confirma la venta en backend */ }
+    if (pendingReceipt.current?.rec) finishSale(pendingReceipt.current.rec);
+    setStripeData(null);
+    pendingReceipt.current = null;
+  }, [stripeData, finishSale]);
+
+  const handleStripeCancel = useCallback(async () => {
+    try {
+      await salesService.cancelPurchase(stripeData.purchaseId);
+    } catch { /* ignorar si el backend ya la canceló o no aplica */ }
+    setStripeData(null);
+    pendingReceipt.current = null;
+    setPaying(false);
+  }, [stripeData]);
 
   const resetAll = () => {
     setReceipt(null);
@@ -241,6 +285,12 @@ export default function CajaPage() {
     }
     setDeletingId(null);
   };
+
+  useEffect(() => {
+    if (!receipt) return;
+    const t = setTimeout(() => window.print(), 500);
+    return () => clearTimeout(t);
+  }, [receipt]);
 
   const PAY_LABEL = { card: 'Tarjeta', cash: 'Efectivo', online: 'QR / App' };
 
@@ -616,6 +666,17 @@ export default function CajaPage() {
             )}
           </div>
         </div>
+      )}
+
+      {stripeData && (
+        <StripePaymentModal
+          clientSecret={stripeData.clientSecret}
+          publishableKey={stripeData.publishableKey}
+          amount={total}
+          title="Pago online de concesión"
+          onSuccess={handleStripeSuccess}
+          onCancel={handleStripeCancel}
+        />
       )}
     </div>
   );

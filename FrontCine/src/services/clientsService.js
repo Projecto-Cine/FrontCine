@@ -4,6 +4,7 @@ import { api } from './api';
 export const clientsService = {
   getAll:  ()         => api.get('/users'),
   getById: (id)       => api.get(`/users/${id}`),
+  search:  (query)    => api.get(`/users?search=${encodeURIComponent(query)}`),
   create:  (data)     => api.post('/users', data),
   update:  (id, data) => api.put(`/users/${id}`, data),
   remove:  (id)       => api.delete(`/users/${id}`),

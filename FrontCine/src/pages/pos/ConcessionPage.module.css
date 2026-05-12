@@ -82,7 +82,7 @@ kbd { background: var(--bg-4); border: 1px solid var(--border-l); border-radius:
   overflow-y: auto;
   padding: 14px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 10px;
   align-content: start;
 }
@@ -92,25 +92,64 @@ kbd { background: var(--bg-4); border: 1px solid var(--border-l); border-radius:
   background: var(--bg-3);
   border: 2px solid var(--border);
   border-radius: var(--r-lg);
-  padding: 14px 12px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  align-items: stretch;
   cursor: pointer;
   transition: all var(--t);
   text-align: center;
   user-select: none;
+  overflow: hidden;
 }
-.productCard:hover { border-color: var(--accent); background: var(--bg-4); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(79,126,247,0.15); }
+.productCard:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
 .productCard:active { transform: translateY(0); }
 .productInCart { border-color: var(--green) !important; background: var(--green-dim) !important; }
 
-.productEmoji { font-size: 28px; line-height: 1; }
-.productImg { width: 56px; height: 56px; object-fit: cover; border-radius: var(--r); }
-.productName { font-size: 12px; font-weight: 600; color: var(--text-1); line-height: 1.3; }
-.productDesc { font-size: 10px; color: var(--text-3); line-height: 1.3; }
-.productPrice { font-family: var(--mono); font-size: 16px; font-weight: 800; color: var(--accent); margin-top: 2px; }
+/* emoji fallback — cuadrado igual que la imagen */
+.productEmoji {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 52px;
+  line-height: 1;
+  background: var(--bg-4);
+  flex-shrink: 0;
+}
+
+/* imagen cuadrada, llena el ancho de la card, sin barras laterales */
+.productImg {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  flex-shrink: 0;
+}
+
+/* texto accesible con fondo sólido */
+.productName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-1);
+  line-height: 1.3;
+  padding: 9px 10px 3px;
+}
+.productDesc {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.4;
+  padding: 0 8px 4px;
+}
+.productPrice {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--accent);
+  padding: 0 10px 12px;
+}
 
 .productQtyBadge {
   position: absolute;

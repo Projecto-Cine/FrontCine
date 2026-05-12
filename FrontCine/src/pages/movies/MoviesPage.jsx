@@ -14,26 +14,33 @@ import styles from './MoviesPage.module.css';
 const FORMAT_COLOR = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
 const RATING_COLOR = { 'PG': 'green', 'PG-13': 'yellow', 'R': 'red' };
 
-const EMPTY_MOVIE = { title: '', durationMin: '', genre: '', language: 'ES', format: '2D', ageRating: 'PG-13', active: true, director: '', year: new Date().getFullYear(), description: '', imageUrl: '' };
+const AGE_DISPLAY_TO_API = { 'ALL': 'ALL', '7': 'SEVEN', '12': 'TWELVE', '16': 'SIXTEEN', '18': 'EIGHTEEN' };
+const AGE_API_TO_DISPLAY = { 'ALL': 'ALL', 'SEVEN': '7', 'TWELVE': '12', 'SIXTEEN': '16', 'EIGHTEEN': '18' };
+
+const EMPTY_MOVIE = { title: '', durationMin: '', genre: '', language: 'ES', format: '2D', ageRating: '12', active: true, director: '', year: new Date().getFullYear(), description: '', imageUrl: '' };
 
 const MOV_IMG_KEY = 'lumen_movie_posters';
 const getStoredPosters = () => { try { return JSON.parse(localStorage.getItem(MOV_IMG_KEY) ?? '{}'); } catch { return {}; } };
-const saveStoredPoster = (id, url) => { try { const s = getStoredPosters(); if (url) s[String(id)] = url; else delete s[String(id)]; localStorage.setItem(MOV_IMG_KEY, JSON.stringify(s)); } catch {} };
+const saveStoredPoster = (id, url, title) => { try { const s = getStoredPosters(); const tk = title ? `title:${title}` : null; if (url) { s[String(id)] = url; if (tk) s[tk] = url; } else { delete s[String(id)]; if (tk) delete s[tk]; } localStorage.setItem(MOV_IMG_KEY, JSON.stringify(s)); window.dispatchEvent(new CustomEvent('lumen:poster-updated')); } catch {} };
 const mergePosters = (list) => { const s = getStoredPosters(); return list.map(m => ({ ...m, imageUrl: s[String(m.id)] || m.imageUrl || '' })); };
 
-const normalizeMovie = (movie) => ({
-  ...movie,
-  durationMin: movie.durationMin ?? movie.duration ?? '',
-  ageRating: movie.ageRating ?? movie.rating ?? '',
-  imageUrl: movie.imageUrl ?? movie.poster ?? '',
-  active: movie.active ?? movie.status === 'active',
-});
+const normalizeMovie = (movie) => {
+  const rawRating = movie.ageRating ?? movie.rating ?? '';
+  return {
+    ...movie,
+    durationMin: movie.durationMin ?? movie.duration ?? '',
+    ageRating: AGE_API_TO_DISPLAY[rawRating] ?? rawRating,
+    imageUrl: movie.imageUrl ?? movie.poster ?? '',
+    active: movie.active ?? movie.status === 'active',
+  };
+};
 
 const toPayload = (movie) => ({
   ...movie,
   durationMin: Number(movie.durationMin),
   year: movie.year ? Number(movie.year) : undefined,
   active: Boolean(movie.active),
+  ageRating: AGE_DISPLAY_TO_API[movie.ageRating] ?? movie.ageRating,
 });
 
 export default function MoviesPage() {
@@ -88,13 +95,13 @@ export default function MoviesPage() {
     if (editing) {
       const saved = normalizeMovie(await moviesService.update(editing.id, payload));
       const merged = { ...saved, imageUrl: form.imageUrl || saved.imageUrl };
-      saveStoredPoster(editing.id, merged.imageUrl);
+      saveStoredPoster(editing.id, merged.imageUrl, form.title);
       setMovies(prev => prev.map(m => m.id === editing.id ? merged : m));
       toast(`"${form.title}" actualizada.`, 'success');
     } else {
       const saved = normalizeMovie(await moviesService.create(payload));
       const merged = { ...saved, imageUrl: form.imageUrl || saved.imageUrl };
-      saveStoredPoster(saved.id, merged.imageUrl);
+      saveStoredPoster(saved.id, merged.imageUrl, form.title);
       setMovies(prev => [...prev, merged]);
       toast(`"${form.title}" añadida.`, 'success');
     }
@@ -103,7 +110,7 @@ export default function MoviesPage() {
 
   const handleDelete = async () => {
     await moviesService.remove(deleteTarget.id);
-    saveStoredPoster(deleteTarget.id, '');
+    saveStoredPoster(deleteTarget.id, '', deleteTarget.title);
     setMovies(prev => prev.filter(m => m.id !== deleteTarget.id));
     toast(`"${deleteTarget.title}" eliminada.`, 'warning');
     setDeleteTarget(null);
@@ -216,7 +223,7 @@ export default function MoviesPage() {
           <div>
             <label className={styles.label} htmlFor="mov-rating">{t('movies.form.rating')}</label>
             <select id="mov-rating" className={styles.input} value={form.ageRating} onChange={e => set('ageRating', e.target.value)}>
-              {['G', 'PG', 'PG-13', 'R', 'NC-17'].map(r => <option key={r}>{r}</option>)}
+              {['ALL', '7', '12', '16', '18'].map(r => <option key={r} value={r}>{r === 'ALL' ? 'Todos' : `+${r}`}</option>)}
             </select>
           </div>
           <div>

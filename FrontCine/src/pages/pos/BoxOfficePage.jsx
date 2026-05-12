@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  Film, ChevronRight, Minus, Plus,
+  Film, ChevronRight,
   CreditCard, Banknote, Smartphone, Printer,
   CheckCircle, X, Ticket, ArrowLeft, Search,
   LayoutGrid, List, Loader, Star, UserX
@@ -12,9 +12,11 @@ import { salesService }    from '../../services/salesService';
 import { clientsService }  from '../../services/clientsService';
 import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import Badge                from '../../components/ui/Badge';
 import SeatMap              from '../../components/shared/SeatMap';
 import StripePaymentModal   from '../../components/shared/StripePaymentModal';
+import EmptyState           from '../../components/shared/EmptyState';
 import styles               from './BoxOfficePage.module.css';
 
 const TICKET_TYPES = [
@@ -37,7 +39,7 @@ const mergeSessionPosters = (sessions) => {
   const s = getStoredPosters();
   return sessions.map(sess => {
     if (!sess.movie) return sess;
-    const imgUrl = s[String(sess.movie.id)] || sess.movie.imageUrl || sess.movie.poster || '';
+    const imgUrl = s[String(sess.movie.id)] || s[`title:${sess.movie.title}`] || sess.movie.imageUrl || sess.movie.poster || '';
     return imgUrl ? { ...sess, movie: { ...sess.movie, imageUrl: imgUrl } } : sess;
   });
 };
@@ -52,6 +54,14 @@ const GENRE_GRADIENT = {
   'Fantasía':        'linear-gradient(145deg, #0a0818 0%, #1e1440 100%)',
 };
 const DEFAULT_GRADIENT = 'linear-gradient(145deg, #161008 0%, #2a1e10 100%)';
+
+function langLabel(language = '', t) {
+  const normalized = language.toUpperCase();
+  if (normalized.includes('VOSE')) return t('box_office.ticket.subbed');
+  if (normalized.includes('VO')) return t('box_office.ticket.original');
+  if (normalized.includes('ES')) return t('box_office.ticket.dubbed');
+  return language;
+}
 
 function getInitials(title = '') {
   const words = title.split(' ').filter(w => w.length > 2);
@@ -93,16 +103,24 @@ export default function TaquillaPage() {
   const ticketTypes = TICKET_TYPES.map(tt => ({ ...tt, label: t(`box_office.type.${tt.id}`) }));
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    sessionsService.getAll({ date: today })
-      .then(data => setSessions(mergeSessionPosters(Array.isArray(data) ? data.filter(s => s.status !== 'CANCELLED') : [])))
+    sessionsService.getAll()
+      .then(data => setSessions(mergeSessionPosters(Array.isArray(data) ? data.filter(s => s.status !== 'CANCELLED' && s.full !== true) : [])))
       .catch(() => toast('Error al cargar sesiones.', 'error'))
       .finally(() => setLoadingSessions(false));
+  }, [toast]);
+
+  useEffect(() => {
+    const handler = () => setSessions(prev => mergeSessionPosters(prev));
+    window.addEventListener('lumen:poster-updated', handler);
+    return () => window.removeEventListener('lumen:poster-updated', handler);
   }, []);
 
   useEffect(() => {
     clearTimeout(clientDebounce.current);
-    if (!clientQuery.trim()) { setClientResults([]); return; }
+    if (!clientQuery.trim()) {
+      clientDebounce.current = setTimeout(() => setClientResults([]), 0);
+      return () => clearTimeout(clientDebounce.current);
+    }
     clientDebounce.current = setTimeout(async () => {
       setClientSearching(true);
       try {
@@ -166,7 +184,7 @@ export default function TaquillaPage() {
   const total            = totalPerTicket * selectedSeats.length;
   const change           = cashGiven && payMethod === 'cash' ? (parseFloat(cashGiven) - total).toFixed(2) : null;
 
-  const buildTickets = useCallback((res, seats) => {
+  const buildTickets = (res, seats) => {
     const time = selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
     const date = selectedSession.dateTime?.split('T')[0] ?? '';
     return seats.map((seat, i) => {
@@ -185,9 +203,9 @@ export default function TaquillaPage() {
         qrValue,
       };
     });
-  }, [selectedSession, movie, theater, baseType]);
+  };
 
-  const handlePay = useCallback(async () => {
+  const handlePay = async () => {
     if (!selectedSeats.length) { toast('Selecciona al menos una butaca.', 'error'); return; }
     setPaying(true);
 
@@ -228,9 +246,9 @@ export default function TaquillaPage() {
     } finally {
       setPaying(false);
     }
-  }, [selectedSeats, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, user, selectedClient, toast, buildTickets]);
+  };
 
-  const handleStripeSuccess = useCallback(async () => {
+  const handleStripeSuccess = async () => {
     try {
       await salesService.confirmPurchaseAfterStripe(stripeData.purchaseId);
     } catch { /* webhook ya lo confirma en el backend */ }
@@ -239,16 +257,16 @@ export default function TaquillaPage() {
     setStripeData(null);
     pendingTickets.current = null;
     setStep('done');
-  }, [stripeData, buildTickets]);
+  };
 
-  const handleStripeCancel = useCallback(async () => {
+  const handleStripeCancel = async () => {
     try {
       await salesService.cancelPurchase(stripeData.purchaseId);
     } catch { /* ignorar si falla la cancelación */ }
     setStripeData(null);
     pendingTickets.current = null;
     setPaying(false);
-  }, [stripeData]);
+  };
 
   const reset = () => {
     setStep('sessions');
@@ -298,9 +316,9 @@ export default function TaquillaPage() {
                 {filteredSessions.map(s => {
                   const mv      = s.movie   ?? {};
                   const rm      = s.theater ?? {};
-                  const isFull  = s.status === 'FULL';
-                  const soldCnt = s.soldCount ?? s.sold ?? 0;
+                  const isFull  = s.full === true || s.status === 'FULL';
                   const cap     = rm.capacity ?? 1;
+                  const soldCnt = Math.max(0, cap - (s.availableSeats ?? s.soldCount ?? s.sold ?? cap));
                   const occPct  = Math.round((soldCnt / cap) * 100);
                   const avail   = cap - soldCnt;
                   const time    = s.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
@@ -339,7 +357,7 @@ export default function TaquillaPage() {
                                 </span>
                               </div>
                             )}
-                            <div className={styles.sessionPrice}>{t('box_office.from', { price: (s.price ?? 0).toFixed(2) })}</div>
+                            <div className={styles.sessionPrice}>{t('box_office.from', { price: (s.basePrice ?? s.price ?? 0).toFixed(2) })}</div>
                           </div>
                         </>
                       ) : (
@@ -359,7 +377,7 @@ export default function TaquillaPage() {
                           </div>
                           <div className={styles.sessionMovie}>{mv.title}</div>
                           <div className={styles.sessionRoom}>{rm.name?.split('—')[0]?.trim()}</div>
-                          <div className={styles.sessionPrice}>{t('box_office.from', { price: (s.price ?? 0).toFixed(2) })}</div>
+                          <div className={styles.sessionPrice}>{t('box_office.from', { price: (s.basePrice ?? s.price ?? 0).toFixed(2) })}</div>
                           {!isFull && <ChevronRight size={14} className={styles.sessionArrow} />}
                         </>
                       )}
@@ -420,7 +438,7 @@ export default function TaquillaPage() {
 
             {selectedSeats.length > 0 && (
               <button className={styles.proceedBtn} onClick={() => setStep('payment')}>
-                {selectedSeats.length} butaca{selectedSeats.length !== 1 ? 's' : ''} · {t('box_office.pay')}
+                {selectedSeats.length} butaca{selectedSeats.length !== 1 ? 's' : ''} · {t('box_office.payAction')}
                 <strong> €{total.toFixed(2)}</strong>
                 <ChevronRight size={15} />
               </button>
@@ -607,7 +625,7 @@ export default function TaquillaPage() {
               disabled={!selectedSeats.length || step === 'sessions'}
               onClick={() => step === 'seats' ? setStep('payment') : undefined}>
               <CreditCard size={17} />
-              {step === 'sessions' ? t('box_office.selectSessionBtn') : t('box_office.pay')}
+              {step === 'sessions' ? t('box_office.selectSessionBtn') : t('box_office.payAction')}
             </button>
           )}
         </div>
@@ -669,7 +687,7 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
         </div>
         <div className={styles.ticketCardDivider} />
         <h3 className={styles.ticketCardMovie}>{ticket.movie}</h3>
-        <p className={styles.ticketCardFormat}>{ticket.format} · {langLabel(ticket.language)}</p>
+        <p className={styles.ticketCardFormat}>{ticket.format} · {langLabel(ticket.language, t)}</p>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketCardInfo}>
           <div><span className={styles.tcLabel}>{t('box_office.ticket.date')}</span><span className={styles.tcVal}>{ticket.date}</span></div>

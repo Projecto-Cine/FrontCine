@@ -11,6 +11,7 @@ import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import StripePaymentModal   from '../../components/shared/StripePaymentModal';
+import EmptyState from '../../components/shared/EmptyState';
 import styles from './ConcessionPage.module.css';
 
 const CATEGORY_EMOJI = { Palomitas: '🍿', Bebidas: '🥤', Snacks: '🌮', Combos: '🎁', Concesión: '🛒' };
@@ -23,7 +24,7 @@ const MANAGE_ROLES  = ['admin', 'supervisor', 'operator'];
 
 const IMG_KEY = 'lumen_product_images';
 const getStoredImgs = () => { try { return JSON.parse(localStorage.getItem(IMG_KEY) ?? '{}'); } catch { return {}; } };
-const saveStoredImg = (id, url) => { try { const s = getStoredImgs(); if (url) s[String(id)] = url; else delete s[String(id)]; localStorage.setItem(IMG_KEY, JSON.stringify(s)); } catch {} };
+const saveStoredImg = (id, url) => { try { const s = getStoredImgs(); if (url) s[String(id)] = url; else delete s[String(id)]; localStorage.setItem(IMG_KEY, JSON.stringify(s)); } catch { /* localStorage may be unavailable */ } };
 const mergeImgs = (prods) => { const s = getStoredImgs(); return prods.map(p => ({ ...p, imageUrl: s[String(p.id)] || p.imageUrl || '' })); };
 
 
@@ -81,6 +82,7 @@ export default function CajaPage() {
     ...p,
     imageUrl: p.imageUrl ?? p.image_url ?? p.poster ?? '',
     description: p.description ?? p.desc ?? '',
+    stock: p.stock ?? p.quantity,
   });
 
   // Cargar productos de concesión desde el backend
@@ -89,7 +91,7 @@ export default function CajaPage() {
       .then(data => {
         const items = (Array.isArray(data) ? data : []).map(normalizeProduct);
         // Mostrar solo productos de concesión con stock disponible
-        const concession = items.filter(p => p.quantity === undefined || p.quantity > 0);
+        const concession = items.filter(p => p.stock === undefined || p.stock > 0);
         setProducts(mergeImgs(concession));
         // Categoría por defecto: la primera disponible
         const cats = [...new Set(concession.map(p => p.category))];
@@ -97,7 +99,7 @@ export default function CajaPage() {
       })
       .catch(() => toast('Error al cargar productos.', 'error'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   const CATEGORIES = ['Todo', ...new Set(products.map(p => p.category))];
 
@@ -241,22 +243,20 @@ export default function CajaPage() {
       name:        productForm.name.trim(),
       category:    productForm.category,
       price:       Number(productForm.price),
-      description: productForm.description,
-      emoji:       productForm.emoji,
-      imageUrl:    productForm.imageUrl,
-      quantity:    productForm.quantity !== '' ? Number(productForm.quantity) : undefined,
+      description: productForm.description || '',
+      stock:       productForm.quantity !== '' ? Number(productForm.quantity) : null,
     };
     try {
       if (editingProduct) {
         const saved = await inventoryService.update(editingProduct.id, payload);
-        const merged = { ...editingProduct, ...(saved ?? {}), ...payload };
-        saveStoredImg(editingProduct.id, payload.imageUrl);
+        const merged = { ...editingProduct, ...(saved ?? {}), ...payload, emoji: productForm.emoji, imageUrl: productForm.imageUrl };
+        saveStoredImg(editingProduct.id, productForm.imageUrl);
         setProducts(prev => prev.map(p => p.id === editingProduct.id ? merged : p));
         toast(`"${payload.name}" actualizado.`, 'success');
       } else {
         const saved = await inventoryService.create(payload);
-        const created = { ...(saved ?? {}), ...payload, id: saved?.id ?? Date.now() };
-        saveStoredImg(created.id, payload.imageUrl);
+        const created = { ...(saved ?? {}), ...payload, id: saved?.id ?? Date.now(), emoji: productForm.emoji, imageUrl: productForm.imageUrl };
+        saveStoredImg(created.id, productForm.imageUrl);
         setProducts(prev => [...prev, created]);
         toast(`"${payload.name}" añadido.`, 'success');
       }
@@ -289,6 +289,11 @@ export default function CajaPage() {
   }, [receipt]);
 
   const PAY_LABEL = { card: 'Tarjeta', cash: 'Efectivo', online: 'QR / App' };
+  const PAY_METHODS = [
+    { id: 'card',   label: t('concession.pay_methods.card'),   Icon: CreditCard },
+    { id: 'cash',   label: t('concession.pay_methods.cash'),   Icon: Banknote },
+    { id: 'online', label: t('concession.pay_methods.online'), Icon: Smartphone },
+  ];
 
   return (
     <div className={styles.shell}>

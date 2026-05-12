@@ -13,7 +13,7 @@ import { screeningsService } from '../../services/sessionsService';
 import styles from './SchedulesPage.module.css';
 
 const STATUS_BADGE = { SCHEDULED: 'cyan', ACTIVE: 'green', CANCELLED: 'default', FULL: 'red' };
-const EMPTY = { movieId: '', theaterId: '', dateTime: '', price: '', status: 'SCHEDULED' };
+const EMPTY = { movieId: '', theaterId: '', dateTime: '', basePrice: '', status: 'SCHEDULED' };
 
 const getDate    = (s) => (s.dateTime ?? '').slice(0, 10);
 const getTime    = (s) => (s.dateTime ?? '').slice(11, 16);
@@ -51,7 +51,7 @@ export default function SchedulesPage() {
       movieId:   String(s.movie?.id ?? s.movieId ?? ''),
       theaterId: String(s.theater?.id ?? s.theaterId ?? ''),
       dateTime:  toLocalDT(s.dateTime),
-      price:     s.price ?? '',
+      basePrice: s.basePrice ?? s.price ?? '',
       status:    s.status ?? 'SCHEDULED',
     });
     setModal('form');
@@ -66,8 +66,7 @@ export default function SchedulesPage() {
       movieId:   Number(form.movieId),
       theaterId: Number(form.theaterId),
       dateTime:  form.dateTime,
-      price:     form.price === '' ? undefined : Number(form.price),
-      status:    form.status,
+      basePrice: form.basePrice === '' ? undefined : Number(form.basePrice),
     };
     if (editing) {
       const saved = await screeningsService.update(editing.id, payload);
@@ -93,7 +92,7 @@ export default function SchedulesPage() {
     { key: 'time',   label: t('schedules.col.time'),   width: 80,  render: (_, row) => <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-1)', fontWeight: 600 }}>{getTime(row)}</span> },
     { key: 'movie',  label: t('schedules.col.movie'),              render: (_, row) => <span style={{ fontWeight: 500 }}>{getMovie(row, movies)?.title || '-'}</span> },
     { key: 'theater',label: t('schedules.col.room'),   width: 160, render: (_, row) => getTheater(row, theaters)?.name || '-' },
-    { key: 'price',  label: t('schedules.col.price'),  width: 90,  render: v => v == null ? '-' : <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>€{Number(v).toFixed(2)}</span> },
+    { key: 'basePrice', label: t('schedules.col.price'), width: 90,  render: v => v == null ? '-' : <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>€{Number(v).toFixed(2)}</span> },
     { key: 'status', label: t('schedules.col.status'), width: 120, render: v => <Badge variant={STATUS_BADGE[v] || 'default'} dot>{t(`schedules.status.${v}`) || v || '-'}</Badge> },
   ];
 
@@ -161,7 +160,7 @@ export default function SchedulesPage() {
           </div>
           <div>
             <label className={styles.label} htmlFor="scr-price">{t('schedules.form.price')}</label>
-            <input id="scr-price" className={styles.input} type="number" step="0.50" value={form.price} onChange={e => set('price', e.target.value)} />
+            <input id="scr-price" className={styles.input} type="number" step="0.50" value={form.basePrice} onChange={e => set('basePrice', e.target.value)} />
           </div>
           <div>
             <label className={styles.label} htmlFor="scr-status">{t('schedules.form.status')}</label>

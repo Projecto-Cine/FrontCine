@@ -1,4 +1,4 @@
-.page {
+﻿.page {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -22,7 +22,7 @@
   position: absolute;
   top: -180px; left: 50%; transform: translateX(-50%);
   width: 700px; height: 700px;
-  background: radial-gradient(ellipse, rgba(184,150,106,0.08) 0%, transparent 65%);
+  background: radial-gradient(ellipse, rgba(196,154,108,0.07) 0%, transparent 65%);
 }
 
 .panel {
@@ -30,8 +30,8 @@
   width: 420px;
   background: var(--bg-2);
   border: 1px solid var(--border-l);
-  border-radius: var(--r-lg);
-  padding: 36px;
+  border-radius: var(--r-xl);
+  padding: 38px;
   box-shadow: var(--shadow-lg);
   display: flex; flex-direction: column; gap: 26px;
 }
@@ -50,28 +50,28 @@
   width: 56px; height: 56px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid rgba(184,150,106,0.3);
+  border: 1px solid rgba(196,154,108,0.35);
   flex-shrink: 0;
 }
 .brandText { display: flex; flex-direction: column; gap: 1px; }
 .brandName { font-size: 20px; font-weight: 800; color: var(--accent); letter-spacing: 0.1em; }
-.brandSub { font-size: 11px; color: var(--text-3); letter-spacing: 0.05em; }
+.brandSub { font-size: var(--fs-sm); color: var(--text-3); letter-spacing: 0.05em; }
 
 .form { display: flex; flex-direction: column; gap: 16px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
-.label { font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; }
+.label { font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; }
 .input {
-  background: var(--bg-1);
+  background: var(--bg-3);
   border: 1px solid var(--border-l);
-  border-radius: var(--r);
-  padding: 10px 12px;
+  border-radius: var(--r-lg);
+  padding: 10px 14px;
   color: var(--text-1);
-  font-size: 13px;
+  font-size: var(--fs-base);
   outline: none;
-  transition: border-color var(--t);
+  transition: border-color var(--t), box-shadow var(--t);
   width: 100%;
 }
-.input:focus { border-color: var(--accent); }
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,154,108,0.12); }
 .input::placeholder { color: var(--text-3); }
 .inputError { border-color: var(--red) !important; }
 
@@ -80,7 +80,7 @@
 .pwToggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); display: flex; }
 .pwToggle:hover { color: var(--text-1); }
 
-.error { font-size: 12px; color: var(--red); background: var(--red-dim); padding: 9px 12px; border-radius: var(--r-sm); border: 1px solid rgba(248,113,113,0.2); }
+.error { font-size: var(--fs-md); color: var(--red); background: var(--red-dim); padding: 9px 12px; border-radius: var(--r-sm); border: 1px solid rgba(248,113,113,0.2); }
 
 .submitBtn { width: 100%; justify-content: center; }
 
@@ -92,22 +92,22 @@
   font-weight: 700;
 }
 
-.hint { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-3); }
+.hint { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--text-3); }
 .hint strong { color: var(--text-2); }
 
 .demoAccounts { border-top: 1px solid var(--border); padding-top: 18px; }
-.demoTitle { font-size: 9px; font-weight: 800; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+.demoTitle { font-size: var(--fs-2xs); font-weight: 800; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
 .demoGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .demoBtn {
   display: flex; flex-direction: column; align-items: flex-start;
   padding: 9px 12px;
   background: var(--bg-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
+  border: 1px solid var(--border-l);
+  border-radius: var(--r-lg);
   cursor: pointer;
   transition: border-color var(--t), background var(--t);
   text-align: left;
 }
 .demoBtn:hover { border-color: var(--accent); background: var(--accent-dim); }
-.demoUser { font-size: 12px; font-weight: 700; color: var(--text-1); font-family: var(--mono); }
-.demoRole { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+.demoUser { font-size: var(--fs-md); font-weight: 700; color: var(--text-1); font-family: var(--mono); }
+.demoRole { font-size: var(--fs-xs); color: var(--text-3); margin-top: 2px; }

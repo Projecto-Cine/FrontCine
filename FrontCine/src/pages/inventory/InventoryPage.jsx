@@ -7,12 +7,14 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import KPICard from '../../components/shared/KPICard';
 import { useApp } from '../../contexts/AppContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { inventoryService } from '../../services/inventoryService';
 import SkeletonPage from '../../components/shared/Skeleton';
 import styles from './InventoryPage.module.css';
 
 const CAT_COLOR = { Técnico: 'accent', Concesión: 'yellow', Oficina: 'default', Limpieza: 'green', Comercial: 'purple' };
 const EMPTY = { name: '', category: 'Técnico', quantity: '', min_stock: '', unit: 'ud', location: '', supplier: '', price_unit: '' };
+const CATEGORY_KEYS = ['Técnico', 'Concesión', 'Oficina', 'Limpieza', 'Comercial'];
 
 export default function InventoryPage() {
   const [items, setItems] = useState([]);
@@ -22,6 +24,7 @@ export default function InventoryPage() {
   const [form, setForm] = useState(EMPTY);
   const [filterCat, setFilterCat] = useState('all');
   const { toast } = useApp();
+  const { t } = useLanguage();
 
   useEffect(() => {
     inventoryService.getAll()
@@ -45,11 +48,11 @@ export default function InventoryPage() {
       if (editing) {
         const updated = await inventoryService.update(editing.id, payload);
         setItems(p => p.map(i => i.id === editing.id ? (updated ?? { ...i, ...payload }) : i));
-        toast('Artículo actualizado.', 'success');
+        toast(t('inventory.modalEdit') + ' ✓', 'success');
       } else {
         const created = await inventoryService.create(payload);
         setItems(p => [...p, created]);
-        toast('Artículo añadido.', 'success');
+        toast(t('inventory.modalCreate') + ' ✓', 'success');
       }
     } catch {
       toast('Error al guardar el artículo.', 'error');
@@ -58,29 +61,28 @@ export default function InventoryPage() {
   };
 
   const stockStatus = (qty, min) => {
-    if (qty <= 0) return { label: 'Sin stock', v: 'red' };
-    if (qty <= min) return { label: 'Stock bajo', v: 'yellow' };
-    return { label: 'OK', v: 'green' };
+    if (qty <= 0) return { label: t('inventory.stock.none'), v: 'red' };
+    if (qty <= min) return { label: t('inventory.stock.low'), v: 'yellow' };
+    return { label: t('inventory.stock.ok'), v: 'green' };
   };
 
   const columns = [
-    { key: 'name', label: 'Artículo', render: (v, row) => (
+    { key: 'name', label: t('inventory.col.item'), render: (v, row) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {row.quantity <= row.min_stock && <AlertTriangle size={12} style={{ color: 'var(--yellow)', flexShrink: 0 }} />}
         <span style={{ fontWeight: 500 }}>{v}</span>
       </div>
     )},
-    { key: 'category', label: 'Categoría', width: 110, render: v => <Badge variant={CAT_COLOR[v] || 'default'}>{v}</Badge> },
-    { key: 'quantity', label: 'Cantidad', width: 90, render: (v, row) => (
+    { key: 'category', label: t('inventory.col.category'), width: 110, render: v => <Badge variant={CAT_COLOR[v] || 'default'}>{t(`inventory.categories.${v}`) || v}</Badge> },
+    { key: 'quantity', label: t('inventory.col.quantity'), width: 90, render: (v, row) => (
       <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: v <= row.min_stock ? 'var(--yellow)' : 'var(--text-1)' }}>{v} {row.unit}</span>
     )},
-    { key: 'min_stock', label: 'Mín.', width: 70, render: (v, row) => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{v} {row.unit}</span> },
-    { key: 'location', label: 'Ubicación', render: v => <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v}</span> },
-    { key: 'supplier', label: 'Proveedor', render: v => <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{v}</span> },
-    { key: 'price_unit', label: 'P/ud.', width: 80, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>€{Number(v).toFixed(2)}</span> },
-    { key: 'stock_status', label: 'Estado', width: 100, sortable: false, render: (_, row) => {
-      const v = row.quantity;
-      const s = stockStatus(v, row.min_stock);
+    { key: 'min_stock', label: t('inventory.col.min'), width: 70, render: (v, row) => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{v} {row.unit}</span> },
+    { key: 'location', label: t('inventory.col.location'), render: v => <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v}</span> },
+    { key: 'supplier', label: t('inventory.col.supplier'), render: v => <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{v}</span> },
+    { key: 'price_unit', label: t('inventory.col.priceUnit'), width: 80, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>€{Number(v).toFixed(2)}</span> },
+    { key: 'stock_status', label: t('inventory.col.status'), width: 100, sortable: false, render: (_, row) => {
+      const s = stockStatus(row.quantity, row.min_stock);
       return <Badge variant={s.v} dot>{s.label}</Badge>;
     }},
   ];
@@ -90,32 +92,32 @@ export default function InventoryPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Inventario"
-        subtitle={`${items.length} artículos · ${belowMin.length} bajo mínimo`}
-        actions={<Button icon={Plus} onClick={openCreate}>Añadir artículo</Button>}
+        title={t('inventory.title')}
+        subtitle={t('inventory.subtitle', { count: items.length, belowMin: belowMin.length })}
+        actions={<Button icon={Plus} onClick={openCreate}>{t('inventory.createBtn')}</Button>}
       />
 
       <div className={styles.kpiRow}>
-        <KPICard label="Total artículos" value={items.length} icon={Package} color="accent" />
-        <KPICard label="Bajo mínimo" value={belowMin.length} icon={AlertTriangle} color={belowMin.length > 0 ? 'yellow' : 'green'} />
-        <KPICard label="Categorías" value={categories.length} icon={Package} color="cyan" />
-        <KPICard label="Sin stock" value={items.filter(i => i.quantity <= 0).length} icon={AlertTriangle} color="red" />
+        <KPICard label={t('inventory.kpi.totalItems')} value={items.length}           icon={Package}       color="accent" />
+        <KPICard label={t('inventory.kpi.belowMin')}   value={belowMin.length}        icon={AlertTriangle} color={belowMin.length > 0 ? 'yellow' : 'green'} />
+        <KPICard label={t('inventory.kpi.categories')} value={categories.length}      icon={Package}       color="cyan" />
+        <KPICard label={t('inventory.kpi.noStock')}    value={items.filter(i => i.quantity <= 0).length} icon={AlertTriangle} color="red" />
       </div>
 
       {belowMin.length > 0 && (
         <div className={styles.alertBanner}>
           <AlertTriangle size={14} />
-          <span><strong>{belowMin.length} artículo{belowMin.length !== 1 ? 's' : ''}</strong> por debajo del stock mínimo: {belowMin.map(i => i.name).join(', ')}</span>
+          <span><strong>{t('inventory.alert.belowMin', { count: belowMin.length })}</strong>: {belowMin.map(i => i.name).join(', ')}</span>
         </div>
       )}
 
       <div className={styles.filterRow}>
         <button className={`${styles.filterBtn} ${filterCat === 'all' ? styles.filterActive : ''}`} onClick={() => setFilterCat('all')}>
-          Todos <span className={styles.filterCount}>{items.length}</span>
+          {t('inventory.filter.all')} <span className={styles.filterCount}>{items.length}</span>
         </button>
         {categories.map(c => (
           <button key={c} className={`${styles.filterBtn} ${filterCat === c ? styles.filterActive : ''}`} onClick={() => setFilterCat(c)}>
-            {c} <span className={styles.filterCount}>{items.filter(i => i.category === c).length}</span>
+            {t(`inventory.categories.${c}`) || c} <span className={styles.filterCount}>{items.filter(i => i.category === c).length}</span>
           </button>
         ))}
       </div>
@@ -127,45 +129,45 @@ export default function InventoryPage() {
         rowActions={(row) => <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)} />}
       />
 
-      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? 'Editar artículo' : 'Nuevo artículo'}
+      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? t('inventory.modalEdit') : t('inventory.modalCreate')}
         footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
-          <Button variant="primary" onClick={handleSave}>{editing ? 'Guardar' : 'Añadir'}</Button>
+          <Button variant="secondary" onClick={() => setModal(null)}>{t('common.cancel')}</Button>
+          <Button variant="primary" onClick={handleSave}>{editing ? t('common.save') : t('inventory.add')}</Button>
         </div>}
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
-            <label className={styles.label} htmlFor="inv-name">Nombre *</label>
+            <label className={styles.label} htmlFor="inv-name">{t('inventory.form.name')}</label>
             <input id="inv-name" className={styles.input} value={form.name} onChange={e => set('name', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label} htmlFor="inv-cat">Categoría</label>
+            <label className={styles.label} htmlFor="inv-cat">{t('inventory.form.category')}</label>
             <select id="inv-cat" className={styles.input} value={form.category} onChange={e => set('category', e.target.value)}>
-              {['Técnico', 'Concesión', 'Oficina', 'Limpieza', 'Comercial'].map(c => <option key={c}>{c}</option>)}
+              {CATEGORY_KEYS.map(c => <option key={c} value={c}>{t(`inventory.categories.${c}`) || c}</option>)}
             </select>
           </div>
           <div>
-            <label className={styles.label} htmlFor="inv-unit">Unidad</label>
-            <input id="inv-unit" className={styles.input} value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="ud, saco, rollo..." />
+            <label className={styles.label} htmlFor="inv-unit">{t('inventory.form.unit')}</label>
+            <input id="inv-unit" className={styles.input} value={form.unit} onChange={e => set('unit', e.target.value)} placeholder={t('inventory.form.unitPh')} />
           </div>
           <div>
-            <label className={styles.label} htmlFor="inv-qty">Cantidad actual</label>
+            <label className={styles.label} htmlFor="inv-qty">{t('inventory.form.quantity')}</label>
             <input id="inv-qty" className={styles.input} type="number" value={form.quantity} onChange={e => set('quantity', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label} htmlFor="inv-min">Stock mínimo</label>
+            <label className={styles.label} htmlFor="inv-min">{t('inventory.form.minStock')}</label>
             <input id="inv-min" className={styles.input} type="number" value={form.min_stock} onChange={e => set('min_stock', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label} htmlFor="inv-price">Precio/unidad (€)</label>
+            <label className={styles.label} htmlFor="inv-price">{t('inventory.form.priceUnit')}</label>
             <input id="inv-price" className={styles.input} type="number" step="0.01" value={form.price_unit} onChange={e => set('price_unit', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label} htmlFor="inv-loc">Ubicación</label>
+            <label className={styles.label} htmlFor="inv-loc">{t('inventory.form.location')}</label>
             <input id="inv-loc" className={styles.input} value={form.location} onChange={e => set('location', e.target.value)} />
           </div>
           <div>
-            <label className={styles.label} htmlFor="inv-sup">Proveedor</label>
+            <label className={styles.label} htmlFor="inv-sup">{t('inventory.form.supplier')}</label>
             <input id="inv-sup" className={styles.input} value={form.supplier} onChange={e => set('supplier', e.target.value)} />
           </div>
         </div>

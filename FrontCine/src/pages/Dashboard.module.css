@@ -1,41 +1,61 @@
-.page { display: flex; flex-direction: column; gap: 20px; }
+﻿.page { display: flex; flex-direction: column; gap: 20px; }
 
 .kpiGrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
 
 .chartsRow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.chartCard { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 20px; }
-.chartTitle { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 14px; }
+.chartCard { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 20px 22px; }
+.chartTitle { font-size: var(--fs-md); font-weight: 600; color: var(--text-2); margin-bottom: 14px; }
 
 .bottomRow { display: grid; grid-template-columns: 1fr 340px; gap: 12px; align-items: start; }
 .sideCol { display: flex; flex-direction: column; gap: 12px; }
 
-.tableCard { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 20px; }
-.sectionTitle { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 14px; }
+.tableCard { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 20px 22px; }
+.sectionTitle { font-size: var(--fs-md); font-weight: 600; color: var(--text-2); margin-bottom: 14px; }
 
 .miniTable { width: 100%; border-collapse: collapse; }
-.miniTable th { padding: 6px 10px; text-align: left; font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
-.miniTable td { padding: 9px 10px; font-size: 12px; color: var(--text-1); border-bottom: 1px solid var(--border); }
+.miniTable th { padding: 6px 10px; text-align: left; font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+.miniTable td { padding: 9px 10px; font-size: var(--fs-md); color: var(--text-1); border-bottom: 1px solid var(--border); }
 .miniTable tr:last-child td { border-bottom: none; }
 .miniTable tr:hover td { background: var(--bg-3); }
 
 .tdMovie { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mono { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
-.sold { font-size: 11px; color: var(--text-2); display: block; }
+.mono { font-family: var(--mono); font-size: var(--fs-sm); color: var(--text-2); }
+.sold { font-size: var(--fs-sm); color: var(--text-2); display: block; }
 .bar { height: 3px; background: var(--bg-4); border-radius: 99px; margin-top: 3px; width: 60px; }
 .barFill { height: 100%; border-radius: 99px; transition: width 0.3s; }
 
 .incList { display: flex; flex-direction: column; gap: 10px; }
-.incItem { padding: 10px; background: var(--bg-3); border-radius: var(--r); border: 1px solid var(--border); }
+.incItem { padding: 10px; background: var(--bg-3); border-radius: var(--r-lg); border: 1px solid var(--border); }
 .incTop { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.incId { font-size: 10px; font-family: var(--mono); color: var(--text-3); }
-.incTitle { font-size: 12px; color: var(--text-1); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.incRoom { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.incId { font-size: var(--fs-xs); font-family: var(--mono); color: var(--text-3); }
+.incTitle { font-size: var(--fs-md); color: var(--text-1); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.incRoom { font-size: var(--fs-sm); color: var(--text-3); margin-top: 2px; }
 
 .alertList { display: flex; flex-direction: column; gap: 8px; }
-.alert { display: flex; align-items: flex-start; gap: 8px; padding: 9px 10px; border-radius: var(--r); font-size: 11px; color: var(--text-1); line-height: 1.4; }
+.alert { display: flex; align-items: flex-start; gap: 8px; padding: 9px 10px; border-radius: var(--r); font-size: var(--fs-sm); color: var(--text-1); line-height: 1.4; }
 .alertRed { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.2); }
 .alertRed svg { color: var(--red); flex-shrink: 0; margin-top: 1px; }
 .alertYellow { background: var(--yellow-dim); border: 1px solid rgba(245,158,11,0.2); }
 .alertYellow svg { color: var(--yellow); flex-shrink: 0; margin-top: 1px; }
 
-.empty { font-size: 12px; color: var(--text-3); text-align: center; padding: 16px 0; }
+.empty { font-size: var(--fs-md); color: var(--text-3); text-align: center; padding: 16px 0; }
+
+/* ── Analytics row ───────────────────────────────────────── */
+.analyticsRow { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; }
+.analyticsCard { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 20px 22px; }
+
+.splitStats { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.splitStat { display: flex; align-items: center; gap: 8px; }
+.splitStatLabel { font-size: var(--fs-sm); color: var(--text-3); flex: 1; }
+.splitStatVal { font-size: var(--fs-md); font-weight: 700; color: var(--text-1); font-family: var(--mono); min-width: 80px; text-align: right; }
+.splitStatPct { font-size: var(--fs-xs); color: var(--text-3); min-width: 34px; text-align: right; }
+
+.rankList { display: flex; flex-direction: column; gap: 12px; }
+.rankItem { display: flex; align-items: center; gap: 10px; }
+.rankPos { font-size: 11px; font-weight: 800; color: var(--text-3); min-width: 14px; text-align: center; font-family: var(--mono); }
+.rankInfo { flex: 1; min-width: 0; }
+.rankName { font-size: var(--fs-md); color: var(--text-1); font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.rankBarWrap { display: flex; align-items: center; gap: 8px; }
+.rankBar { flex: 1; height: 4px; background: var(--bg-4); border-radius: 99px; }
+.rankBarFill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+.rankVal { font-size: var(--fs-xs); color: var(--text-2); font-family: var(--mono); min-width: 52px; text-align: right; }

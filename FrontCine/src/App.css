@@ -28,3 +28,22 @@
   gap: 20px;
   min-height: 0;
 }
+
+@media print {
+  /* Ocultar todo el layout excepto el contenido de la página */
+  .app-shell { display: block !important; height: auto !important; overflow: visible !important; }
+  .main-area { margin-left: 0 !important; display: block !important; overflow: visible !important; }
+  .page-content { padding: 0 !important; overflow: visible !important; gap: 0 !important; }
+
+  /* Ocultar sidebar, header, barra de estado y accesibilidad */
+  nav, aside,
+  [class*="sidebar"], [class*="Sidebar"],
+  [class*="header"], [class*="Header"],
+  [class*="statusBar"], [class*="StatusBar"],
+  [class*="toasts"], [class*="Toasts"],
+  [class*="accessibility"], [class*="Accessibility"],
+  [class*="commandPalette"], [class*="CommandPalette"],
+  .skip-link {
+    display: none !important;
+  }
+}

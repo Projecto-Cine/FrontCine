@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useRef } from 'react';
 
 const AppContext = createContext(null);
 
@@ -9,6 +9,7 @@ export function AppProvider({ children }) {
     try { return localStorage.getItem(LS_SIDEBAR) === 'true'; } catch { return false; }
   });
   const [toasts, setToasts] = useState([]);
+  const toastCounter = useRef(0);
 
   const toggleSidebar = useCallback(() => setSidebarCollapsed(v => {
     const next = !v;
@@ -17,7 +18,7 @@ export function AppProvider({ children }) {
   }), []);
 
   const toast = useCallback((message, type = 'info', duration = 3500) => {
-    const id = Date.now();
+    const id = ++toastCounter.current;
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), duration);
   }, []);

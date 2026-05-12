@@ -110,10 +110,10 @@ export default {
   dashboard: {
     subtitle:         'Operational summary',
     kpi: {
-      revenueToday:     'Revenue today',
+      revenueToday:     'Weekly revenue',
       activeSessions:   'Active screenings',
       occupancyAvg:     'Avg. occupancy',
-      reservationsToday:'Reservations today',
+      reservationsToday:'Confirmed purchases',
       incidentsOpen:    'Open incidents',
       operationalRooms: 'Operational screens',
       vsYesterday:      'vs. yesterday',
@@ -121,15 +121,24 @@ export default {
       todaySessions:    "today's screenings",
       inService:        'in service',
       criticals:        '{count} critical',
+      yearSessions:     'Screenings this year',
+      yearMovies:       '{count} movie(s) on screen',
     },
     chart: {
       revenue7d: 'Revenue — last 7 days',
       occupancy: 'Occupancy by screen (%)',
     },
     section: {
-      todaySessions: "Today's screenings",
-      openIncidents: 'Open incidents',
-      systemAlerts:  'System alerts',
+      todaySessions:    "Today's screenings",
+      openIncidents:    'Open incidents',
+      systemAlerts:     'System alerts',
+      revenueBreakdown: 'Revenue breakdown',
+      topMovies:        'Top 3 movies · current year',
+      topProducts:      'Top 3 products',
+    },
+    label: {
+      tickets: 'Tickets',
+      merch:   'Merchandise',
     },
     col: {
       movie:  'Movie',

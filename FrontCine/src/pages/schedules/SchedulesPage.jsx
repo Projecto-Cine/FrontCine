@@ -13,10 +13,10 @@ import { screeningsService } from '../../services/sessionsService';
 import styles from './SchedulesPage.module.css';
 
 const STATUS_BADGE = { SCHEDULED: 'cyan', ACTIVE: 'green', CANCELLED: 'default', FULL: 'red' };
-const EMPTY = { movieId: '', theaterId: '', dateTime: '', basePrice: '', status: 'SCHEDULED' };
+const EMPTY = { movieId: '', theaterId: '', startTime: '', basePrice: '', status: 'SCHEDULED' };
 
-const getDate    = (s) => (s.dateTime ?? '').slice(0, 10);
-const getTime    = (s) => (s.dateTime ?? '').slice(11, 16);
+const getDate    = (s) => (s.startTime ?? '').slice(0, 10);
+const getTime    = (s) => (s.startTime ?? '').slice(11, 16);
 const getMovie   = (s, movies) => s.movie ?? movies.find(m => m.id === s.movieId);
 const getTheater = (s, theaters) => s.theater ?? theaters.find(t => t.id === s.theaterId);
 const toLocalDT  = (v) => !v ? '' : v.length > 16 ? v.slice(0, 16) : v;
@@ -50,7 +50,7 @@ export default function SchedulesPage() {
     setForm({
       movieId:   String(s.movie?.id ?? s.movieId ?? ''),
       theaterId: String(s.theater?.id ?? s.theaterId ?? ''),
-      dateTime:  toLocalDT(s.dateTime),
+      startTime: toLocalDT(s.startTime),
       basePrice: s.basePrice ?? s.price ?? '',
       status:    s.status ?? 'SCHEDULED',
     });
@@ -59,13 +59,13 @@ export default function SchedulesPage() {
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
   const handleSave = async () => {
-    if (!form.movieId || !form.theaterId || !form.dateTime) {
+    if (!form.movieId || !form.theaterId || !form.startTime) {
       toast('Película, sala y fecha son obligatorios.', 'error'); return;
     }
     const payload = {
       movieId:   Number(form.movieId),
       theaterId: Number(form.theaterId),
-      dateTime:  form.dateTime,
+      startTime: form.startTime,
       basePrice: form.basePrice === '' ? undefined : Number(form.basePrice),
     };
     if (editing) {
@@ -156,7 +156,7 @@ export default function SchedulesPage() {
           </div>
           <div>
             <label className={styles.label} htmlFor="scr-dt">{t('schedules.form.datetime')}</label>
-            <input id="scr-dt" className={styles.input} type="datetime-local" value={form.dateTime} onChange={e => set('dateTime', e.target.value)} />
+            <input id="scr-dt" className={styles.input} type="datetime-local" value={form.startTime} onChange={e => set('startTime', e.target.value)} />
           </div>
           <div>
             <label className={styles.label} htmlFor="scr-price">{t('schedules.form.price')}</label>

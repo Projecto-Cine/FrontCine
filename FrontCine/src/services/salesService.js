@@ -11,7 +11,7 @@ export const salesService = {
   // Para pagos QR deja la compra en PENDING hasta que la pasarela confirme.
   createTicketSale: async (data) => {
     const purchase = await api.post('/purchases', {
-      userId:        data.userId ?? null,
+      userId:        data.userId ?? data.cashierId ?? null,
       screeningId:   data.screeningId,
       tickets:       data.seats.map(seatId => ({ seatId, ticketType: data.ticketType })),
       paymentMethod: data.paymentMethod,

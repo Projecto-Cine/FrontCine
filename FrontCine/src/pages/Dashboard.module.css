@@ -39,3 +39,23 @@
 .alertYellow svg { color: var(--yellow); flex-shrink: 0; margin-top: 1px; }
 
 .empty { font-size: var(--fs-md); color: var(--text-3); text-align: center; padding: 16px 0; }
+
+/* ── Analytics row ───────────────────────────────────────── */
+.analyticsRow { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; }
+.analyticsCard { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 20px 22px; }
+
+.splitStats { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.splitStat { display: flex; align-items: center; gap: 8px; }
+.splitStatLabel { font-size: var(--fs-sm); color: var(--text-3); flex: 1; }
+.splitStatVal { font-size: var(--fs-md); font-weight: 700; color: var(--text-1); font-family: var(--mono); min-width: 80px; text-align: right; }
+.splitStatPct { font-size: var(--fs-xs); color: var(--text-3); min-width: 34px; text-align: right; }
+
+.rankList { display: flex; flex-direction: column; gap: 12px; }
+.rankItem { display: flex; align-items: center; gap: 10px; }
+.rankPos { font-size: 11px; font-weight: 800; color: var(--text-3); min-width: 14px; text-align: center; font-family: var(--mono); }
+.rankInfo { flex: 1; min-width: 0; }
+.rankName { font-size: var(--fs-md); color: var(--text-1); font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.rankBarWrap { display: flex; align-items: center; gap: 8px; }
+.rankBar { flex: 1; height: 4px; background: var(--bg-4); border-radius: 99px; }
+.rankBarFill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+.rankVal { font-size: var(--fs-xs); color: var(--text-2); font-family: var(--mono); min-width: 52px; text-align: right; }

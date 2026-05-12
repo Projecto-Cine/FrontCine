@@ -103,7 +103,7 @@ export default function TaquillaPage() {
   const ticketTypes = TICKET_TYPES.map(tt => ({ ...tt, label: t(`box_office.type.${tt.id}`) }));
 
   useEffect(() => {
-    sessionsService.getAll()
+    sessionsService.getUpcoming()
       .then(data => setSessions(mergeSessionPosters(Array.isArray(data) ? data.filter(s => s.status !== 'CANCELLED' && s.full !== true) : [])))
       .catch(() => toast('Error al cargar sesiones.', 'error'))
       .finally(() => setLoadingSessions(false));
@@ -185,8 +185,8 @@ export default function TaquillaPage() {
   const change           = cashGiven && payMethod === 'cash' ? (parseFloat(cashGiven) - total).toFixed(2) : null;
 
   const buildTickets = (res, seats) => {
-    const time = selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
-    const date = selectedSession.dateTime?.split('T')[0] ?? '';
+    const time = selectedSession.startTime?.split('T')[1]?.substring(0, 5) ?? '';
+    const date = selectedSession.startTime?.split('T')[0] ?? '';
     return seats.map((seat, i) => {
       const qrValue = res?.qrCodes?.[i]
         ?? `LUMEN:${generateTicketId()}|${movie?.title}|${theater?.name}|${date}|${time}|${seat}|${baseType.backendType ?? 'ADULT'}`;
@@ -321,7 +321,7 @@ export default function TaquillaPage() {
                   const soldCnt = Math.max(0, cap - (s.availableSeats ?? s.soldCount ?? s.sold ?? cap));
                   const occPct  = Math.round((soldCnt / cap) * 100);
                   const avail   = cap - soldCnt;
-                  const time    = s.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
+                  const time    = s.startTime?.split('T')[1]?.substring(0, 5) ?? '';
 
                   return (
                     <button
@@ -398,7 +398,7 @@ export default function TaquillaPage() {
                 <ArrowLeft size={13} /> {t('box_office.changeSession')}
               </button>
               <div className={styles.sessionPill}>
-                <span className={styles.sessionPillTime}>{selectedSession.dateTime?.split('T')[1]?.substring(0, 5)}</span>
+                <span className={styles.sessionPillTime}>{selectedSession.startTime?.split('T')[1]?.substring(0, 5)}</span>
                 <span className={styles.sessionPillMovie}>{movie?.title}</span>
                 <Badge variant={FORMAT_BADGE[movie?.format] || 'default'}>{movie?.format}</Badge>
               </div>
@@ -558,8 +558,8 @@ export default function TaquillaPage() {
             <Film size={12} />
             <div>
               <div className={styles.cartSessionTitle}>{movie?.title}</div>
-              <div className={styles.cartSessionMeta}>{selectedSession.dateTime?.split('T')[1]?.substring(0, 5)} · {theater?.name?.split('—')[0]?.trim()}</div>
-              <div className={styles.cartSessionMeta}>{selectedSession.dateTime?.split('T')[0]}</div>
+              <div className={styles.cartSessionMeta}>{selectedSession.startTime?.split('T')[1]?.substring(0, 5)} · {theater?.name?.split('—')[0]?.trim()}</div>
+              <div className={styles.cartSessionMeta}>{selectedSession.startTime?.split('T')[0]}</div>
             </div>
           </div>
         )}

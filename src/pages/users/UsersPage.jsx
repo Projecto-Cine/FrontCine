@@ -9,16 +9,16 @@ import KPICard from '../../components/shared/KPICard';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { workersService } from '../../services/workersService';
+import { usersService } from '../../services/usersService';
 import styles from './UsersPage.module.css';
 
-const ROLE_MAP = { CAJERO: 'CAJERO', GERENCIA: 'GERENCIA', SEGURIDAD: 'SEGURIDAD', LIMPIEZA: 'LIMPIEZA' };
-const ROLE_COLOR = { CAJERO: 'accent', GERENCIA: 'red', SEGURIDAD: 'cyan', LIMPIEZA: 'green' };
-const EMPTY = { name: '', lastName: '', email: '', password: '', role: 'CAJERO', birthDate: '' };
+const ROLE_MAP = { CLIENTE: 'CLIENTE', ADMIN: 'ADMIN', SUPERVISOR: 'SUPERVISOR', OPERATOR: 'OPERATOR', TICKET: 'TICKET', MAINTENANCE: 'MAINTENANCE', READONLY: 'READONLY' };
+const ROLE_COLOR = { ADMIN: 'red', CLIENTE: 'green', SUPERVISOR: 'yellow', OPERATOR: 'accent', TICKET: 'purple', MAINTENANCE: 'cyan', READONLY: 'default' };
+const EMPTY = { name: '', lastName: '', email: '', password: '', role: 'CLIENTE', birthDate: '' };
 
 const normalizeUser = (user) => ({
   ...user,
-  role: ROLE_MAP[String(user.role ?? 'CAJERO').toUpperCase()] ?? 'CAJERO',
+  role: ROLE_MAP[String(user.role ?? 'CLIENTE').toUpperCase()] ?? 'CLIENTE',
   birthDate: user.birthDate ?? user.dateOfBirth ?? '',
 });
 
@@ -34,18 +34,21 @@ export default function UsersPage() {
   const { t } = useLanguage();
 
   const ROLES = {
-    CAJERO:    { label: 'Cajero/a',  color: 'accent' },
-    GERENCIA:  { label: 'Gerencia',  color: 'red' },
-    SEGURIDAD: { label: 'Seguridad', color: 'cyan' },
-    LIMPIEZA:  { label: 'Limpieza',  color: 'green' },
+    ADMIN:       { label: t('users.role.ADMIN'),       color: 'red' },
+    CLIENTE:     { label: t('users.role.CLIENT'),      color: 'green' },
+    SUPERVISOR:  { label: 'Supervisor',                color: 'yellow' },
+    OPERATOR:    { label: 'Operador',                  color: 'accent' },
+    TICKET:      { label: 'Taquilla',                  color: 'purple' },
+    MAINTENANCE: { label: 'Mantenimiento',             color: 'cyan' },
+    READONLY:    { label: 'Solo lectura',              color: 'default' },
   };
 
   const isAdmin = ['admin', 'ADMIN'].includes(me?.role);
 
   useEffect(() => {
-    workersService.getAll()
+    usersService.getAll()
       .then(data => setUsers((data ?? []).map(normalizeUser)))
-      .catch(() => toast('No se pudieron cargar los trabajadores del backend.', 'error'));
+      .catch(() => toast('No se pudieron cargar los usuarios del backend.', 'error'));
   }, [toast]);
 
   const openCreate = () => { if (!isAdmin) return; setEditing(null); setForm(EMPTY); setErrors({}); setModal('form'); };

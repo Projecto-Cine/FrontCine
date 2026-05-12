@@ -24,10 +24,7 @@ const MANAGE_ROLES  = ['admin', 'supervisor', 'operator'];
 const IMG_KEY = 'lumen_product_images';
 const getStoredImgs = () => { try { return JSON.parse(localStorage.getItem(IMG_KEY) ?? '{}'); } catch { return {}; } };
 const saveStoredImg = (id, url) => { try { const s = getStoredImgs(); if (url) s[String(id)] = url; else delete s[String(id)]; localStorage.setItem(IMG_KEY, JSON.stringify(s)); } catch {} };
-const mergeImgs = (prods) => {
-  const s = getStoredImgs();
-  return prods.map(p => ({ ...p, imageUrl: p.imageUrl || s[String(p.id)] || '' }));
-};
+const mergeImgs = (prods) => { const s = getStoredImgs(); return prods.map(p => ({ ...p, imageUrl: s[String(p.id)] || p.imageUrl || '' })); };
 
 
 function generateReceiptId() {
@@ -80,9 +77,8 @@ export default function CajaPage() {
   // Normaliza campos que el backend puede devolver con distintos nombres
   const normalizeProduct = (p) => ({
     ...p,
-    imageUrl: p.imageUrl ?? p.image_url ?? p.image ?? p.imageURL ?? p.photoUrl ?? p.url ?? p.poster ?? '',
+    imageUrl: p.imageUrl ?? p.image_url ?? p.poster ?? '',
     description: p.description ?? p.desc ?? '',
-    stock: p.stock ?? p.quantity,
   });
 
   // Cargar productos de concesión desde el backend
@@ -91,7 +87,7 @@ export default function CajaPage() {
       .then(data => {
         const items = (Array.isArray(data) ? data : []).map(normalizeProduct);
         // Mostrar solo productos de concesión con stock disponible
-        const concession = items.filter(p => p.stock === undefined || p.stock > 0);
+        const concession = items.filter(p => p.quantity === undefined || p.quantity > 0);
         setProducts(mergeImgs(concession));
         // Categoría por defecto: la primera disponible
         const cats = [...new Set(concession.map(p => p.category))];
@@ -310,17 +306,13 @@ export default function CajaPage() {
                   className={`${styles.productCard} ${inCart ? styles.productInCart : ''}`}
                   onClick={() => addToCart(product)}
                 >
-                  <span className={styles.productMedia}>
-                    {product.imageUrl
-                      ? <img src={product.imageUrl} alt={product.name} className={styles.productImg} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }} />
-                      : null}
-                    <span className={styles.productEmoji} style={product.imageUrl ? { display: 'none' } : {}}>{getEmoji(product)}</span>
-                  </span>
-                  <span className={styles.productInfo}>
-                    <span className={styles.productName}>{product.name}</span>
-                    {product.description && <span className={styles.productDesc}>{product.description}</span>}
+                  {product.imageUrl
+                    ? <img src={product.imageUrl} alt={product.name} className={styles.productImg} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block'; }} />
+                    : null}
+                  <span className={styles.productEmoji} style={product.imageUrl ? { display: 'none' } : {}}>{getEmoji(product)}</span>
+                  <span className={styles.productName}>{product.name}</span>
+                  {product.description && <span className={styles.productDesc}>{product.description}</span>}
                   <span className={styles.productPrice}>€{getPrice(product).toFixed(2)}</span>
-                  </span>
                   {inCart && <span className={styles.productQtyBadge}>{inCart.qty}</span>}
                 </button>
               );

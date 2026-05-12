@@ -192,9 +192,18 @@ function GeneratedSeatMap({ session, room, selectedSeats, onToggle, maxSelect })
 }
 
 export default function SeatMap({ session, room, selectedSeats, onToggle, maxSelect = 20, seats = null }) {
-  if (seats && seats.length > 0) {
+  const capacity = room?.capacity ?? 0;
+  // Use real seats only when the backend has a complete seat list for this room capacity.
+  // If the room was expanded after screening creation the backend seat count will be smaller
+  // than the current capacity — fall back to the generated map so new seats are visible.
+  if (seats && seats.length > 0 && seats.length >= capacity) {
     return <RealSeatMap seats={seats} selectedSeats={selectedSeats} onToggle={onToggle} maxSelect={maxSelect} />;
   }
   if (!session || !room) return null;
-  return <GeneratedSeatMap session={session} room={room} selectedSeats={selectedSeats} onToggle={onToggle} maxSelect={maxSelect} />;
+  // When falling back from partial real seats, use the actual occupied count.
+  const soldFromReal = seats && seats.length > 0
+    ? seats.filter(s => s.status === 'occupied' || s.status === 'reserved').length
+    : session.sold ?? 0;
+  const effectiveSession = { ...session, sold: soldFromReal };
+  return <GeneratedSeatMap session={effectiveSession} room={room} selectedSeats={selectedSeats} onToggle={onToggle} maxSelect={maxSelect} />;
 }

@@ -10,6 +10,7 @@ import { sessionsService } from '../../services/sessionsService';
 import { seatsService }    from '../../services/seatsService';
 import { salesService }    from '../../services/salesService';
 import { clientsService }  from '../../services/clientsService';
+import { theatersService } from '../../services/roomsService';
 import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -82,6 +83,7 @@ export default function TaquillaPage() {
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [selectedSession, setSelectedSession] = useState(null);
   const [realSeats, setRealSeats]         = useState(null);
+  const [currentTheater, setCurrentTheater] = useState(null);
   const [loadingSeats, setLoadingSeats]   = useState(false);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [ticketType, setTicketType]       = useState('adult');
@@ -141,11 +143,17 @@ export default function TaquillaPage() {
     setSelectedSession(session);
     setSelectedSeats([]);
     setRealSeats(null);
+    setCurrentTheater(null);
     setStep('seats');
     setLoadingSeats(true);
     try {
-      const seats = await seatsService.getByScreening(session.id);
+      const theaterId = session.theater?.id;
+      const [seats, freshTheater] = await Promise.all([
+        seatsService.getByScreening(session.id),
+        theaterId ? theatersService.getById(theaterId) : Promise.resolve(null),
+      ]);
       setRealSeats(Array.isArray(seats) && seats.length > 0 ? seats : null);
+      setCurrentTheater(freshTheater ?? null);
     } catch {
       setRealSeats(null);
     } finally {
@@ -154,7 +162,7 @@ export default function TaquillaPage() {
   };
 
   const movie   = selectedSession?.movie ?? null;
-  const theater = selectedSession?.theater ?? null;
+  const theater = currentTheater ?? selectedSession?.theater ?? null;
 
   const seatMapSession = selectedSession ? {
     id:   selectedSession.id,

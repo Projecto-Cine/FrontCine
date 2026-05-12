@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Ticket, Building2, AlertTriangle, Euro, Film } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import KPICard from '../components/shared/KPICard';
 import PageHeader from '../components/shared/PageHeader';
 import Badge from '../components/ui/Badge';
+import SkeletonPage from '../components/shared/Skeleton';
+import { dashboardService } from '../services/dashboardService';
 import { reportsService } from '../services/reportsService';
 import { sessionsService } from '../services/sessionsService';
 import { incidentsService } from '../services/incidentsService';
+import { useLanguage } from '../i18n/LanguageContext';
 import styles from './Dashboard.module.css';
 
 const PRIORITY_COLOR = { critical: 'red', high: 'yellow', medium: 'accent', low: 'green' };
 const STATUS_COLOR   = { open: 'red', in_progress: 'yellow', resolved: 'green' };
-const STATUS_LABEL   = { open: 'Abierta', in_progress: 'En curso', resolved: 'Resuelta' };
-const SCR_BADGE  = { ACTIVE: 'green', FULL: 'red', SCHEDULED: 'cyan', CANCELLED: 'default' };
-const SCR_LABEL  = { ACTIVE: 'Activa', FULL: 'Llena', SCHEDULED: 'Programada', CANCELLED: 'Cancelada' };
+const SCR_BADGE      = { ACTIVE: 'green', FULL: 'red', SCHEDULED: 'cyan', CANCELLED: 'default' };
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -26,6 +28,8 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { t, fmt } = useLanguage();
   const [kpis, setKpis]             = useState(null);
   const [salesWeek, setSalesWeek]   = useState([]);
   const [occupancy, setOccupancy]   = useState([]);
@@ -36,47 +40,69 @@ export default function Dashboard() {
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     Promise.all([
-      reportsService.kpis().catch(() => null),
+      dashboardService.get().catch(() => null),
       reportsService.salesWeek().catch(() => []),
       reportsService.occupancy().catch(() => []),
-      sessionsService.getAll({ date: today }).catch(() => []),
+      sessionsService.getUpcoming().catch(() => []),
       incidentsService.getAll().catch(() => []),
-    ]).then(([k, sw, occ, scr, inc]) => {
-      setKpis(k);
+    ]).then(([dash, sw, occ, scr, inc]) => {
+      setKpis(dash ? {
+        revenue_today:      dash.weeklyRevenue ?? 0,
+        active_sessions:    dash.activeScreenings ?? 0,
+        occupancy_avg:      0,
+        reservations_today: dash.paidPurchases ?? 0,
+        incidents_open:     dash.unresolvedIncidents ?? 0,
+        operational_rooms:  dash.activeMovies ?? '—',
+      } : null);
+
       setSalesWeek((sw ?? []).map(d => ({
-        day:     d.day,
-        revenue: d.ventas   ?? d.revenue ?? 0,
-        tickets: d.entradas ?? d.tickets ?? 0,
+        day:     d.date ?? d.day,
+        revenue: d.revenue ?? 0,
+        tickets: d.totalPurchases ?? d.tickets ?? 0,
       })));
-      setOccupancy((occ ?? []).map(d => ({ room: d.sala ?? d.room, pct: d.pct })));
-      setSessions(Array.isArray(scr) ? scr.filter(s => s.status !== 'CANCELLED') : []);
-      setIncidents(Array.isArray(inc) ? inc.filter(i => i.status !== 'resolved') : []);
+
+      const byRoom = {};
+      (occ ?? []).forEach(d => {
+        const room = d.theaterName ?? d.sala ?? d.room ?? '—';
+        const pct  = d.occupancyPercentage ?? d.pct ?? 0;
+        if (!byRoom[room] || pct > byRoom[room]) byRoom[room] = pct;
+      });
+      setOccupancy(Object.entries(byRoom).map(([room, pct]) => ({ room, pct: Math.round(pct) })));
+
+      const todaySessions = (Array.isArray(scr) ? scr : [])
+        .filter(s => s.dateTime?.startsWith(today));
+      setSessions(todaySessions);
+
+      const SEVERITY_MAP = { HIGH: 'critical', MEDIUM: 'high', LOW: 'medium' };
+      const mapped = (Array.isArray(inc) ? inc : [])
+        .filter(i => !i.resolved)
+        .map(i => ({ ...i, priority: SEVERITY_MAP[i.severity] ?? 'low', status: 'open' }));
+      setIncidents(mapped);
     }).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-3)', fontSize: 13 }}>Cargando dashboard...</div>;
+  if (loading) return <SkeletonPage />;
 
   const criticalInc = incidents.filter(i => i.priority === 'critical');
 
+  const subtitle = `${t('dashboard.subtitle')} — ${fmt.date(new Date(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+
   return (
     <div className={styles.page}>
-      <PageHeader
-        title="Dashboard"
-        subtitle={`Resumen operativo — ${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`}
-      />
+      <PageHeader title="Dashboard" subtitle={subtitle} />
 
       <div className={styles.kpiGrid}>
-        <KPICard label="Ingresos hoy"        value={`€${(kpis?.revenue_today ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 0 })}`} icon={Euro}          color="green"  trend={12} sub="vs. ayer" />
-        <KPICard label="Sesiones activas"    value={kpis?.active_sessions ?? sessions.length}                                                 icon={Film}          color="accent" sub={`${sessions.filter(s => s.status === 'ACTIVE').length} en marcha`} />
-        <KPICard label="Ocupación media"     value={`${kpis?.occupancy_avg ?? 0}%`}                                                           icon={Building2}     color="cyan"   trend={-3} sub="sesiones de hoy" />
-        <KPICard label="Reservas hoy"        value={kpis?.reservations_today ?? 0}                                                            icon={Ticket}        color="purple" trend={8} />
-        <KPICard label="Incidencias abiertas" value={kpis?.incidents_open ?? incidents.length}                                                icon={AlertTriangle} color={criticalInc.length > 0 ? 'red' : 'yellow'} sub={`${criticalInc.length} crítica(s)`} />
-        <KPICard label="Salas operativas"    value={kpis?.operational_rooms ?? '—'}                                                           icon={Building2}     color="green"  sub="en servicio" />
+        <KPICard label={t('dashboard.kpi.revenueToday')}      value={`€${(kpis?.revenue_today ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 0 })}`} icon={Euro}          color="green"  trend={12} sub={t('dashboard.kpi.vsYesterday')} onClick={() => navigate('/informes')} />
+        <KPICard label={t('dashboard.kpi.activeSessions')}    value={kpis?.active_sessions ?? sessions.length}                                                 icon={Film}          color="accent" sub={`${sessions.filter(s => s.status === 'ACTIVE').length} ${t('dashboard.kpi.running')}`} onClick={() => navigate('/horarios')} />
+        <KPICard label={t('dashboard.kpi.occupancyAvg')}      value={`${kpis?.occupancy_avg ?? 0}%`}                                                           icon={Building2}     color="cyan"   trend={-3} sub={t('dashboard.kpi.todaySessions')} onClick={() => navigate('/salas')} />
+        <KPICard label={t('dashboard.kpi.reservationsToday')} value={kpis?.reservations_today ?? 0}                                                            icon={Ticket}        color="purple" trend={8} onClick={() => navigate('/reservas')} />
+        <KPICard label={t('dashboard.kpi.incidentsOpen')}     value={kpis?.incidents_open ?? incidents.length}                                                 icon={AlertTriangle} color={criticalInc.length > 0 ? 'red' : 'yellow'} sub={t('dashboard.kpi.criticals', { count: criticalInc.length })} onClick={() => navigate('/incidencias')} />
+        <KPICard label={t('dashboard.kpi.operationalRooms')}  value={kpis?.operational_rooms ?? '—'}                                                           icon={Building2}     color="green"  sub={t('dashboard.kpi.inService')} onClick={() => navigate('/salas')} />
       </div>
 
       <div className={styles.chartsRow}>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Ingresos — últimos 7 días</h3>
+          <h3 className={styles.chartTitle}>{t('dashboard.chart.revenue7d')}</h3>
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={salesWeek} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
@@ -88,7 +114,7 @@ export default function Dashboard() {
         </div>
 
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Ocupación por sala (%)</h3>
+          <h3 className={styles.chartTitle}>{t('dashboard.chart.occupancy')}</h3>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={occupancy} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <XAxis dataKey="room" tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
@@ -111,10 +137,15 @@ export default function Dashboard() {
 
       <div className={styles.bottomRow}>
         <div className={styles.tableCard}>
-          <h3 className={styles.sectionTitle}>Sesiones de hoy</h3>
+          <h3 className={styles.sectionTitle}>{t('dashboard.section.todaySessions')}</h3>
           <table className={styles.miniTable}>
             <thead>
-              <tr><th>Película</th><th>Sala</th><th>Hora</th><th>Estado</th></tr>
+              <tr>
+                <th>{t('dashboard.col.movie')}</th>
+                <th>{t('dashboard.col.room')}</th>
+                <th>{t('dashboard.col.time')}</th>
+                <th>{t('dashboard.col.status')}</th>
+              </tr>
             </thead>
             <tbody>
               {sessions.map(s => (
@@ -122,11 +153,11 @@ export default function Dashboard() {
                   <td className={styles.tdMovie}>{s.movie?.title ?? '—'}</td>
                   <td>{s.theater?.name?.split('—')[0]?.trim() ?? '—'}</td>
                   <td className={styles.mono}>{s.dateTime?.split('T')[1]?.substring(0, 5) ?? '—'}</td>
-                  <td><Badge variant={SCR_BADGE[s.status] ?? 'default'} dot>{SCR_LABEL[s.status] ?? s.status}</Badge></td>
+                  <td><Badge variant={SCR_BADGE[s.status] ?? 'default'} dot>{t(`dashboard.session.${s.status}`) || s.status}</Badge></td>
                 </tr>
               ))}
               {sessions.length === 0 && (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-3)', padding: 20 }}>Sin sesiones hoy</td></tr>
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-3)', padding: 20 }}>{t('dashboard.noSessions')}</td></tr>
               )}
             </tbody>
           </table>
@@ -134,25 +165,25 @@ export default function Dashboard() {
 
         <div className={styles.sideCol}>
           <div className={styles.tableCard}>
-            <h3 className={styles.sectionTitle}>Incidencias abiertas</h3>
+            <h3 className={styles.sectionTitle}>{t('dashboard.section.openIncidents')}</h3>
             <div className={styles.incList}>
               {incidents.slice(0, 4).map(inc => (
                 <div key={inc.id} className={styles.incItem}>
                   <div className={styles.incTop}>
                     <span className={styles.incId}>{inc.id}</span>
                     <Badge variant={PRIORITY_COLOR[inc.priority]}>{inc.priority}</Badge>
-                    <Badge variant={STATUS_COLOR[inc.status]}>{STATUS_LABEL[inc.status]}</Badge>
+                    <Badge variant={STATUS_COLOR[inc.status]}>{t(`dashboard.status.${inc.status}`)}</Badge>
                   </div>
                   <p className={styles.incTitle}>{inc.title}</p>
                   <p className={styles.incRoom}>{inc.room}</p>
                 </div>
               ))}
-              {incidents.length === 0 && <p className={styles.empty}>Sin incidencias activas</p>}
+              {incidents.length === 0 && <p className={styles.empty}>{t('dashboard.noIncidents')}</p>}
             </div>
           </div>
 
           <div className={styles.tableCard}>
-            <h3 className={styles.sectionTitle}>Alertas del sistema</h3>
+            <h3 className={styles.sectionTitle}>{t('dashboard.section.systemAlerts')}</h3>
             <div className={styles.alertList}>
               {criticalInc.slice(0, 3).map(inc => (
                 <div key={inc.id} className={styles.alert + ' ' + styles.alertRed}>
@@ -163,7 +194,7 @@ export default function Dashboard() {
               {criticalInc.length === 0 && (
                 <div className={styles.alert + ' ' + styles.alertYellow}>
                   <AlertTriangle size={13} />
-                  <span>Sin alertas críticas activas</span>
+                  <span>{t('dashboard.noAlerts')}</span>
                 </div>
               )}
             </div>

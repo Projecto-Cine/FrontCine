@@ -7,50 +7,47 @@ import {
 import { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import logoSrc from '../assets/logoLumen.png';
 import styles from './Sidebar.module.css';
 
 const NAV = [
-  { label: 'Dashboard', icon: LayoutDashboard, to: '/', exact: true },
+  { labelKey: 'nav.dashboard', icon: LayoutDashboard, to: '/', exact: true },
   {
-    section: 'PUNTO DE VENTA',
+    sectionKey: 'nav.pos',
     items: [
-      { label: 'Taquilla', icon: TicketCheck, to: '/box-office', highlight: true },
-      { label: 'Caja / Concesión', icon: ShoppingCart, to: '/concession', highlight: true },
+      { labelKey: 'nav.boxOffice',   icon: TicketCheck,  to: '/box-office', highlight: true },
+      { labelKey: 'nav.concession',  icon: ShoppingCart, to: '/concession', highlight: true },
     ],
   },
   {
-    section: 'OPERACIONES',
+    sectionKey: 'nav.operations',
     items: [
-      { label: 'Películas', icon: Film, to: '/movies' },
-      { label: 'Salas', icon: Building2, to: '/rooms' },
-      { label: 'Horarios', icon: CalendarDays, to: '/schedules' },
-      { label: 'Reservas', icon: Ticket, to: '/reservations' },
+      { labelKey: 'nav.movies',        icon: Film,         to: '/movies' },
+      { labelKey: 'nav.rooms',         icon: Building2,    to: '/rooms' },
+      { labelKey: 'nav.schedules',     icon: CalendarDays, to: '/schedules' },
+      { labelKey: 'nav.reservations',  icon: Ticket,       to: '/reservations' },
     ],
   },
   {
-    section: 'GESTIÓN',
+    sectionKey: 'nav.management',
     items: [
-      { label: 'Incidencias', icon: AlertTriangle, to: '/incidents' },
-       { label: 'Inventario', icon: Package, to: '/inventory' },
-       { label: 'Cuadrante', icon: ClipboardList, to: '/shifts' },
+      { labelKey: 'nav.incidents', icon: AlertTriangle, to: '/incidents' },
+      { labelKey: 'nav.inventory', icon: Package,       to: '/inventory' },
+      { labelKey: 'nav.shifts',    icon: ClipboardList, to: '/shifts' },
     ],
   },
   {
-    section: 'ADMINISTRACIÓN',
+    sectionKey: 'nav.admin',
     items: [
-      { label: 'Trabajadores', icon: Users, to: '/employees' },
-      { label: 'Clientes', icon: UserSearch, to: '/clients' },
+      { labelKey: 'nav.employees', icon: Users,      to: '/employees' },
+      { labelKey: 'nav.clients',   icon: UserSearch, to: '/clients' },
     ],
   },
 ];
 
-const ROLE_LABELS = {
-  admin: 'Administrador', supervisor: 'Supervisor', operator: 'Operador',
-  ticket: 'Taquilla', maintenance: 'Mantenimiento', readonly: 'Consulta',
-};
-
-function NavItem({ item, collapsed }) {
+function NavItem({ item, collapsed, t }) {
+  const label = t(item.labelKey);
   return (
     <NavLink
       to={item.to}
@@ -58,66 +55,95 @@ function NavItem({ item, collapsed }) {
       className={({ isActive }) =>
         `${styles.navItem} ${isActive ? styles.active : ''} ${item.highlight ? styles.highlight : ''}`
       }
-      title={collapsed ? item.label : undefined}
+      aria-label={collapsed ? label : undefined}
     >
-      <item.icon size={15} className={styles.navIcon} />
-      {!collapsed && <span className={styles.navLabel}>{item.label}</span>}
+      {({ isActive }) => (
+        <>
+          <item.icon size={15} className={styles.navIcon} aria-hidden="true" />
+          {!collapsed && <span className={styles.navLabel}>{label}</span>}
+          {isActive && <span className="sr-only">({t('common.currentPage')})</span>}
+        </>
+      )}
     </NavLink>
   );
 }
 
 export default function Sidebar() {
   const { sidebarCollapsed } = useApp();
-  const { user, logout } = useAuth();
+  const { user, logout }     = useAuth();
+  const { t }                = useLanguage();
   const [collapsed, setCollapsed] = useState({});
 
   const toggleSection = (s) => setCollapsed(prev => ({ ...prev, [s]: !prev[s] }));
 
   return (
-    <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ''}`}>
-      {/* Logo — solo imagen, protagonismo total */}
+    <aside
+      id="app-sidebar"
+      className={`${styles.sidebar} ${sidebarCollapsed ? styles.collapsed : ''}`}
+      aria-label="Navegación principal"
+    >
       <div className={styles.logo}>
         <img
           src={logoSrc}
           alt="Lumen Cinema"
           className={`${styles.logoImg} ${sidebarCollapsed ? styles.logoImgCollapsed : ''}`}
+          width={sidebarCollapsed ? 32 : 120}
+          height={32}
         />
       </div>
 
-      {/* Nav */}
-      <nav className={styles.nav}>
+      <nav aria-label="Menú principal">
         {NAV.map((item, i) => {
-          if (item.to) return <NavItem key={item.to} item={item} collapsed={sidebarCollapsed} />;
+          if (item.to) return <NavItem key={item.to} item={item} collapsed={sidebarCollapsed} t={t} />;
+
+          const isCollapsedSection = !!collapsed[item.sectionKey];
+          const sectionId = `nav-section-${i}`;
+          const sectionLabel = t(item.sectionKey);
+
           return (
             <div key={i} className={styles.section}>
               {!sidebarCollapsed && (
-                <button className={styles.sectionHeader} onClick={() => toggleSection(item.section)}>
-                  <span className={styles.sectionLabel}>{item.section}</span>
-                  {collapsed[item.section] ? <ChevronRight size={10} /> : <ChevronDown size={10} />}
+                <button
+                  id={sectionId}
+                  className={styles.sectionHeader}
+                  onClick={() => toggleSection(item.sectionKey)}
+                  aria-expanded={!isCollapsedSection}
+                  aria-controls={`${sectionId}-items`}
+                >
+                  <span className={styles.sectionLabel}>{sectionLabel}</span>
+                  {isCollapsedSection
+                    ? <ChevronRight size={10} aria-hidden="true" />
+                    : <ChevronDown size={10} aria-hidden="true" />
+                  }
                 </button>
               )}
-              {!collapsed[item.section] && item.items.map(sub => (
-                <NavItem key={sub.to} item={sub} collapsed={sidebarCollapsed} />
-              ))}
+              <div
+                id={`${sectionId}-items`}
+                role="group"
+                aria-labelledby={!sidebarCollapsed ? sectionId : undefined}
+              >
+                {!isCollapsedSection && item.items.map(sub => (
+                  <NavItem key={sub.to} item={sub} collapsed={sidebarCollapsed} t={t} />
+                ))}
+              </div>
             </div>
           );
         })}
       </nav>
 
-      {/* Bottom user + logout */}
       <div className={styles.bottom}>
         {!sidebarCollapsed && user && (
-          <div className={styles.userInfo}>
-            <div className={styles.avatar}>{user.name.charAt(0)}</div>
+          <div className={styles.userInfo} aria-label={`${user.name}, ${t(`header.roles.${user.role}`) || user.role}`}>
+            <div className={styles.avatar} aria-hidden="true">{user.name.charAt(0)}</div>
             <div className={styles.userMeta}>
               <span className={styles.userName}>{user.name.split(' ')[0]}</span>
-              <span className={styles.userRole}>{ROLE_LABELS[user.role] || user.role}</span>
+              <span className={styles.userRole}>{t(`header.roles.${user.role}`) || user.role}</span>
             </div>
           </div>
         )}
-        <button className={styles.logoutBtn} onClick={logout} title="Cerrar sesión">
-          <LogOut size={14} />
-          {!sidebarCollapsed && <span>Cerrar sesión</span>}
+        <button className={styles.logoutBtn} onClick={logout} aria-label={t('nav.logout')}>
+          <LogOut size={14} aria-hidden="true" />
+          {!sidebarCollapsed && <span>{t('nav.logout')}</span>}
         </button>
       </div>
     </aside>

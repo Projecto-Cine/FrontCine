@@ -1,4 +1,4 @@
-/* ── Page ─────────────────────────────────────────────── */
+﻿/* ── Page ─────────────────────────────────────────────── */
 .page {
   display: flex;
   flex-direction: column;
@@ -32,7 +32,7 @@
 }
 
 .sub {
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   margin-top: 2px;
 }
@@ -58,7 +58,7 @@
   align-items: center;
   gap: 5px;
   padding: 5px 12px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text-3);
   transition: background var(--t), color var(--t);
@@ -95,7 +95,7 @@
 .navBtn:hover { background: var(--bg-3); color: var(--text-1); }
 
 .periodLabel {
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-1);
   white-space: nowrap;
@@ -112,7 +112,7 @@
   padding: 6px 14px;
   background: var(--accent);
   color: #0E0A06;
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-weight: 700;
   border-radius: var(--r-sm);
   transition: background var(--t), transform var(--t);
@@ -171,10 +171,10 @@
 .dotN { background: rgba(192,132,252,0.5); border: 1px solid rgba(192,132,252,0.4); }
 .dotL { background: var(--bg-4); border: 1px solid var(--border); }
 
-.coverageLabel { font-size: 11px; color: var(--text-2); }
-.coverageHours { font-size: 10px; color: var(--text-3); font-family: var(--mono); }
+.coverageLabel { font-size: var(--fs-sm); color: var(--text-2); }
+.coverageHours { font-size: var(--fs-xs); color: var(--text-3); font-family: var(--mono); }
 .coverageCount {
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 800;
   color: var(--text-1);
   min-width: 20px;
@@ -190,7 +190,7 @@
 }
 
 .legendPill {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 4px;
@@ -213,7 +213,7 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--fs-md);
   min-width: 680px;
 }
 
@@ -226,7 +226,7 @@
 .thEmployee {
   padding: 10px 14px;
   text-align: left;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--text-3);
   letter-spacing: 0.08em;
@@ -237,7 +237,7 @@
 .thRole {
   padding: 10px 10px;
   text-align: left;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--text-3);
   letter-spacing: 0.08em;
@@ -257,7 +257,7 @@
 
 .dayName {
   display: block;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   color: var(--text-3);
   letter-spacing: 0.1em;
@@ -266,7 +266,7 @@
 
 .dayNum {
   display: block;
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--text-1);
   margin-top: 1px;
@@ -278,7 +278,7 @@
 .thStats {
   padding: 10px 10px;
   text-align: center;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--text-3);
   letter-spacing: 0.08em;
@@ -319,7 +319,7 @@ td.tdEmployee {
   border-radius: 50%;
   background: var(--accent-dim2);
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 800;
   flex-shrink: 0;
   border: 1px solid rgba(184,150,106,0.2);
@@ -327,7 +327,7 @@ td.tdEmployee {
 }
 
 .empName {
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text-1);
   white-space: nowrap;
@@ -337,7 +337,7 @@ td.tdEmployee {
 .tdRole { padding: 8px 10px; vertical-align: middle; }
 
 .roleBadge {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   padding: 2px 7px;
   border-radius: 4px;
@@ -370,7 +370,7 @@ td.tdEmployee {
   width: 32px;
   height: 26px;
   border-radius: 5px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-weight: 800;
   letter-spacing: 0.05em;
   font-family: var(--mono);
@@ -437,7 +437,7 @@ td.tdEmployee {
 .pickerOpt:hover { transform: translateY(-2px); filter: brightness(1.2); }
 
 .pickerShort {
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 900;
   font-family: var(--mono);
   line-height: 1;
@@ -456,7 +456,7 @@ td.tdEmployee {
 
 .hoursVal {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--text-1);
   font-family: var(--mono);
@@ -464,12 +464,12 @@ td.tdEmployee {
 
 .daysVal {
   display: block;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   font-family: var(--mono);
 }
 
-.outMonth { color: var(--bg-3); font-size: 11px; }
+.outMonth { color: var(--bg-3); font-size: var(--fs-sm); }
 
 /* ── Monthly view ────────────────────────────────────── */
 .monthView {
@@ -496,7 +496,7 @@ td.tdEmployee {
 }
 
 .monthWeekLabel {
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text-2);
   font-family: var(--mono);
@@ -505,7 +505,7 @@ td.tdEmployee {
 .monthWeekStats { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .miniPill {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 4px;
@@ -528,7 +528,7 @@ td.tdEmployee {
 }
 
 .footerNote {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--text-3);
   font-style: italic;
 }
@@ -537,8 +537,22 @@ td.tdEmployee {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 
 .footerStats strong { color: var(--text-1); }
+
+/* ── Estilos de impresion / PDF ──────────────────────── */
+@media print {
+  .topRight, .coverageLegend, .footer { display: none; }
+  .page { padding: 0; gap: 8px; }
+  .topBar { padding: 0 0 8px; border-bottom: 1px solid #ccc; }
+  .topLeft .title { font-size: 16px; color: #000; }
+  .topLeft .sub   { font-size: var(--fs-xs); color: #555; }
+  .table { font-size: var(--fs-xs); border-collapse: collapse; }
+  .table th, .table td { border: 1px solid #ddd; padding: 4px 6px; color: #000; background: #fff !important; }
+  .table thead { background: #f0f0f0 !important; }
+  .coverageBar { border: 1px solid #ddd; padding: 6px; border-radius: 4px; }
+  .coverageLabel, .coverageHours, .coverageCount { color: #333; }
+}

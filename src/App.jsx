@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppProvider } from './contexts/AppContext';
+import { LanguageProvider } from './i18n/LanguageContext';
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -12,7 +13,6 @@ import IncidentsPage from './pages/incidents/IncidentsPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import InventoryPage from './pages/inventory/InventoryPage';
 import UsersPage from './pages/users/UsersPage';
-import AuditPage from './pages/audit/AuditPage';
 import BoxOfficePage from './pages/pos/BoxOfficePage';
 import ConcessionPage from './pages/pos/ConcessionPage';
 import ShiftsPage from './pages/shifts/ShiftsPage';
@@ -32,6 +32,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <LanguageProvider>
         <AppProvider>
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
@@ -49,11 +50,11 @@ export default function App() {
               <Route path="shifts"       element={<ShiftsPage />} />
               <Route path="employees"    element={<UsersPage />} />
               <Route path="clients"      element={<ClientsPage />} />
-              <Route path="audit"        element={<AuditPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
         </AppProvider>
+        </LanguageProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -12,28 +12,21 @@ import Button       from '../../components/ui/Button';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import KPICard      from '../../components/shared/KPICard';
 import { useApp }   from '../../contexts/AppContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { purchasesService } from '../../services/reservationsService';
 import { screeningsService } from '../../services/sessionsService';
+import { usersService }      from '../../services/usersService';
 import styles from './ReservationsPage.module.css';
 
 /* ── Constants ───────────────────────────────────────── */
-const STATUS_MAP = {
-  CONFIRMED: { label: 'Confirmada',  v: 'green'   },
-  PENDING:   { label: 'Pendiente',   v: 'yellow'  },
-  CANCELLED: { label: 'Cancelada',   v: 'default' },
-  REFUNDED:  { label: 'Reembolsada', v: 'red'     },
+const STATUS_BADGE_COLOR = {
+  CONFIRMED: 'green',
+  PENDING:   'yellow',
+  CANCELLED: 'default',
+  REFUNDED:  'red',
+  PAID:      'green',
 };
-const STATUS_BADGE = { ...STATUS_MAP, PAID: { label: 'Confirmada', v: 'green' } };
-
-const PAYMENT_LABEL = { CARD: 'Tarjeta', CASH: 'Efectivo', ONLINE: 'Online', QR: 'QR' };
 const PAYMENT_COLOR = { CARD: 'accent', CASH: 'green', ONLINE: 'purple', QR: 'cyan' };
-
-const PAY_METHODS = [
-  { id: 'CARD',   label: 'Tarjeta',   Icon: CreditCard },
-  { id: 'CASH',   label: 'Efectivo',  Icon: Banknote   },
-  { id: 'QR',     label: 'QR / App',  Icon: Smartphone },
-  { id: 'ONLINE', label: 'Online',    Icon: Globe      },
-];
 
 /* ── Helpers ─────────────────────────────────────────── */
 const normalizeStatus = (s) => s === 'PAID' ? 'CONFIRMED' : (s ?? 'PENDING');
@@ -47,20 +40,21 @@ const getClientName  = (p) => p?.clientName ?? p?.client?.name ?? p?.user?.name 
 const getClientEmail = (p) => p?.clientEmail ?? p?.client?.email ?? p?.user?.email ?? '';
 const getScreening   = (p, list) =>
   p?.screening ?? list.find(s => s.id === (p?.screeningId ?? p?.screening_id));
-const getScreeningLabel = (s) => {
-  if (!s) return 'Sin proyección';
+const getScreeningLabel = (s, noScreeningText) => {
+  if (!s) return noScreeningText;
   const title   = s.movie?.title ?? 'Película';
   const theater = s.theater?.name ? ` · ${s.theater.name}` : '';
   const date    = s.dateTime ? ` · ${s.dateTime.slice(0, 16).replace('T', ' ')}` : '';
   return `${title}${theater}${date}`;
 };
 
-const EMPTY_FORM = { clientName: '', clientEmail: '', screeningId: '', totalAmount: '' };
+const EMPTY_FORM = { userId: '', screeningId: '', totalAmount: '' };
 
 /* ── Component ───────────────────────────────────────── */
 export default function ReservationsPage() {
   const [purchases,  setPurchases]  = useState([]);
   const [screenings, setScreenings] = useState([]);
+  const [users,      setUsers]      = useState([]);
   const [modal,      setModal]      = useState(null);
   const [editing,    setEditing]    = useState(null);
   const [form,       setForm]       = useState(EMPTY_FORM);
@@ -84,10 +78,36 @@ export default function ReservationsPage() {
   const [cancelTarget, setCancelTarget] = useState(null);
 
   const { toast } = useApp();
+  const { t } = useLanguage();
+
+  const STATUS_MAP = {
+    CONFIRMED: { label: t('reservations.status.CONFIRMED'), v: 'green'   },
+    PENDING:   { label: t('reservations.status.PENDING'),   v: 'yellow'  },
+    CANCELLED: { label: t('reservations.status.CANCELLED'), v: 'default' },
+    REFUNDED:  { label: t('reservations.status.REFUNDED'),  v: 'red'     },
+  };
+  const PAYMENT_LABEL = {
+    CARD:   t('reservations.pay.card'),
+    CASH:   t('reservations.pay.cash'),
+    ONLINE: t('reservations.pay.online'),
+    QR:     t('reservations.pay.qr'),
+  };
+  const PAY_METHODS = [
+    { id: 'CARD',   label: t('reservations.pay.card'),   Icon: CreditCard },
+    { id: 'CASH',   label: t('reservations.pay.cash'),   Icon: Banknote   },
+    { id: 'QR',     label: t('reservations.pay.qr'),     Icon: Smartphone },
+    { id: 'ONLINE', label: t('reservations.pay.online'), Icon: Globe      },
+  ];
+
+  const noScreeningText = t('reservations.detail.noScreening');
 
   useEffect(() => {
-    Promise.all([purchasesService.getAll(), screeningsService.getAll()])
-      .then(([pd, sd]) => { setPurchases(pd ?? []); setScreenings(sd ?? []); })
+    Promise.all([purchasesService.getAll(), screeningsService.getAll(), usersService.getAll()])
+      .then(([pd, sd, ud]) => {
+        setPurchases(pd ?? []);
+        setScreenings(sd ?? []);
+        setUsers(ud ?? []);
+      })
       .catch(() => toast('No se pudieron cargar las reservas.', 'error'));
   }, [toast]);
 
@@ -105,8 +125,7 @@ export default function ReservationsPage() {
   const openEdit   = (row) => {
     setEditing(row);
     setForm({
-      clientName:  getClientName(row),
-      clientEmail: getClientEmail(row),
+      userId:      String(row.user?.id ?? row.userId ?? ''),
       screeningId: String(getScreening(row, screenings)?.id ?? row.screeningId ?? ''),
       totalAmount: String(getAmount(row)),
     });
@@ -115,13 +134,12 @@ export default function ReservationsPage() {
 
   /* ── Save reservation ────────────────────────────── */
   const handleSave = async () => {
-    if (!form.clientName.trim()) { toast('El nombre del cliente es obligatorio.', 'error'); return; }
+    if (!form.userId) { toast('Selecciona un cliente.', 'error'); return; }
     setSaving(true);
     const payload = {
-      clientName:  form.clientName,
-      clientEmail: form.clientEmail,
+      userId:      Number(form.userId),
       screeningId: form.screeningId ? Number(form.screeningId) : undefined,
-      totalAmount: form.totalAmount ? Number(form.totalAmount) : undefined,
+      total:       form.totalAmount  ? Number(form.totalAmount) : undefined,
       status:      editing ? getStatus(editing) : 'PENDING',
     };
     try {
@@ -131,23 +149,9 @@ export default function ReservationsPage() {
         toast('Reserva actualizada.', 'success');
         setModal(null);
       } else {
-        let created;
-        try {
-          created = await purchasesService.create(payload);
-        } catch (err) {
-          if (err?.status === 401) {
-            toast('Sesión expirada. Vuelve a iniciar sesión.', 'error');
-            setSaving(false);
-            return;
-          }
-          // Fallback local so the worker doesn't lose the context
-          created = { ...payload, id: 'RES-' + Date.now(), createdAt: new Date().toISOString() };
-          toast('Reserva guardada localmente (sin conexión).', 'warning');
-        }
-        const newPurchase = created ?? { ...payload, id: 'RES-' + Date.now() };
-        setPurchases(prev => [...prev, newPurchase]);
-        // Always go straight to payment after creation
-        setPayTarget(newPurchase);
+        const created = await purchasesService.create(payload);
+        setPurchases(prev => [...prev, created]);
+        setPayTarget(created);
         setPayMethod('CARD');
         setCashGiven('');
         setModal('pay');
@@ -155,8 +159,7 @@ export default function ReservationsPage() {
       }
     } catch (err) {
       if (err?.status === 401) toast('Sesión expirada. Vuelve a iniciar sesión.', 'error');
-      else toast('Error al guardar la reserva.', 'error');
-      setModal(null);
+      else toast(`Error al guardar la reserva: ${err?.message ?? 'Inténtalo de nuevo.'}`, 'error');
     }
     setSaving(false);
   };
@@ -220,25 +223,26 @@ export default function ReservationsPage() {
 
   /* ── Columns ─────────────────────────────────────── */
   const columns = [
-    { key: 'id', label: 'Ref.', width: 120, render: v =>
-      <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-2)' }}>{v}</span> },
-    { key: 'client', label: 'Cliente', render: (_, row) => (
+    { key: 'id', label: t('reservations.col.ref'), width: 120, render: v =>
+      <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)', color: 'var(--text-2)' }}>{v}</span> },
+    { key: 'client', label: t('reservations.col.client'), render: (_, row) => (
       <div>
         <div style={{ fontWeight: 500 }}>{getClientName(row)}</div>
-        <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{getClientEmail(row)}</div>
+        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>{getClientEmail(row)}</div>
       </div>
     )},
-    { key: 'screening', label: 'Proyección', render: (_, row) =>
-      <span style={{ fontSize: 11 }}>{getScreeningLabel(getScreening(row, screenings))}</span> },
-    { key: 'seats', label: 'Asientos', width: 110, render: (_, row) =>
-      <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{getSeats(row).join(', ') || '-'}</span> },
-    { key: 'amount', label: 'Importe', width: 90, render: (_, row) =>
-      <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600 }}>€{getAmount(row).toFixed(2)}</span> },
-    { key: 'paymentMethod', label: 'Pago', width: 90, render: v =>
+    { key: 'screening', label: t('reservations.col.screening'), render: (_, row) =>
+      <span style={{ fontSize: 'var(--fs-sm)' }}>{getScreeningLabel(getScreening(row, screenings), noScreeningText)}</span> },
+    { key: 'seats', label: t('reservations.col.seats'), width: 110, render: (_, row) =>
+      <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)' }}>{getSeats(row).join(', ') || '-'}</span> },
+    { key: 'amount', label: t('reservations.col.amount'), width: 90, render: (_, row) =>
+      <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>€{getAmount(row).toFixed(2)}</span> },
+    { key: 'paymentMethod', label: t('reservations.col.payment'), width: 90, render: v =>
       <Badge variant={PAYMENT_COLOR[v] || 'default'}>{PAYMENT_LABEL[v] || v || '-'}</Badge> },
-    { key: 'status', label: 'Estado', width: 130, render: (_, row) => {
+    { key: 'status', label: t('reservations.col.status'), width: 130, render: (_, row) => {
       const raw = row.status ?? row.purchaseStatus ?? 'PENDING';
-      const cfg = STATUS_BADGE[raw] ?? { label: raw, v: 'default' };
+      const norm = raw === 'PAID' ? 'CONFIRMED' : raw;
+      const cfg = STATUS_MAP[norm] ?? { label: raw, v: 'default' };
       return <Badge variant={cfg.v} dot>{cfg.label}</Badge>;
     }},
   ];
@@ -247,24 +251,24 @@ export default function ReservationsPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Reservas"
-        subtitle={`${confirmed.length} confirmadas · €${totalRevenue.toFixed(2)} en ingresos · ${pending.length} pendientes de cobro`}
-        actions={<Button icon={Plus} onClick={openCreate}>Nueva reserva</Button>}
+        title={t('reservations.title')}
+        subtitle={t('reservations.subtitle', { confirmed: confirmed.length, revenue: totalRevenue.toFixed(2), pending: pending.length })}
+        actions={<Button icon={Plus} onClick={openCreate}>{t('reservations.createBtn')}</Button>}
       />
 
       <div className={styles.kpiRow}>
-        <KPICard label="Total reservas"      value={purchases.length}              icon={Ticket} color="accent" />
-        <KPICard label="Confirmadas"          value={confirmed.length}              icon={Ticket} color="green" />
-        <KPICard label="Pendientes de cobro"  value={pending.length}                icon={Search} color="yellow" />
-        <KPICard label="Ingresos confirmados" value={`€${totalRevenue.toFixed(0)}`} icon={Euro}   color="green" />
+        <KPICard label={t('reservations.kpi.total')}     value={purchases.length}              icon={Ticket} color="accent" />
+        <KPICard label={t('reservations.kpi.confirmed')} value={confirmed.length}              icon={Ticket} color="green" />
+        <KPICard label={t('reservations.kpi.pending')}   value={pending.length}                icon={Search} color="yellow" />
+        <KPICard label={t('reservations.kpi.revenue')}   value={`€${totalRevenue.toFixed(0)}`} icon={Euro}   color="green" />
       </div>
 
       <div className={styles.filterRow}>
         <select className={styles.filterBtn} value={filterScreening} onChange={e => setFilterScreening(e.target.value)}>
-          <option value="all">Todas las proyecciones</option>
-          {screenings.map(s => <option key={s.id} value={s.id}>{getScreeningLabel(s)}</option>)}
+          <option value="all">{t('reservations.filter.allScreenings')}</option>
+          {screenings.map(s => <option key={s.id} value={s.id}>{getScreeningLabel(s, noScreeningText)}</option>)}
         </select>
-        {[['all', 'Todas'], ...Object.entries(STATUS_MAP).map(([k, { label }]) => [k, label])].map(([k, label]) => (
+        {[['all', t('reservations.filter.all')], ...Object.entries(STATUS_MAP).map(([k, { label }]) => [k, label])].map(([k, label]) => (
           <button key={k}
             className={`${styles.filterBtn} ${filterStatus === k ? styles.filterActive : ''}`}
             onClick={() => setFilterStatus(k)}>
@@ -286,23 +290,23 @@ export default function ReservationsPage() {
           const s = getStatus(row);
           return (
             <div style={{ display: 'flex', gap: 2 }}>
-              <Button variant="ghost" size="sm" icon={Eye}   onClick={() => setDetail(row)}  title="Ver detalle" />
-              <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)}   title="Editar" />
+              <Button variant="ghost" size="sm" icon={Eye}   onClick={() => setDetail(row)}  title={t('common.edit')} />
+              <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)}   title={t('common.edit')} />
               {s === 'PENDING' && (
                 <Button variant="ghost" size="sm" icon={CreditCard}
                   style={{ color: 'var(--accent)' }}
                   onClick={() => { setPayTarget(row); setPayMethod('CARD'); setCashGiven(''); setModal('pay'); }}
-                  title="Cobrar" />
+                  title={t('reservations.col.payment')} />
               )}
               {s === 'CONFIRMED' && (
                 <Button variant="ghost" size="sm" icon={RotateCcw}
                   style={{ color: 'var(--yellow)' }}
                   onClick={() => setRefundTarget(row)}
-                  title="Reembolsar" />
+                  title={t('reservations.refund.title')} />
               )}
               {['CONFIRMED', 'PENDING'].includes(s) && (
                 <Button variant="ghost" size="sm" icon={XCircle}
-                  onClick={() => setCancelTarget(row)} title="Cancelar" />
+                  onClick={() => setCancelTarget(row)} title={t('reservations.cancel.title')} />
               )}
             </div>
           );
@@ -313,86 +317,86 @@ export default function ReservationsPage() {
       <Modal
         open={modal === 'form'}
         onClose={() => { if (!saving) setModal(null); }}
-        title={editing ? `Editar reserva ${editing.id}` : 'Nueva reserva'}
+        title={editing ? t('reservations.modalEditTitle', { id: editing.id }) : t('reservations.modalCreate')}
         footer={
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <Button variant="secondary" onClick={() => setModal(null)} disabled={saving}>Cancelar</Button>
+            <Button variant="secondary" onClick={() => setModal(null)} disabled={saving}>{t('common.cancel')}</Button>
             <Button variant="primary" onClick={handleSave} disabled={saving}>
               {saving ? <Loader size={14} /> : null}
-              {editing ? 'Guardar cambios' : 'Crear y cobrar →'}
+              {editing ? t('common.saveChanges') : t('reservations.createAndPay')}
             </Button>
           </div>
         }
       >
         <div className={styles.formGrid}>
-          <div>
-            <label className={styles.label}>Nombre cliente *</label>
-            <input className={styles.input} value={form.clientName}
-              onChange={e => setField('clientName', e.target.value)} placeholder="Nombre completo" />
-          </div>
-          <div>
-            <label className={styles.label}>Email cliente</label>
-            <input className={styles.input} type="email" value={form.clientEmail}
-              onChange={e => setField('clientEmail', e.target.value)} placeholder="email@ejemplo.com" />
-          </div>
-          <div>
-            <label className={styles.label}>Proyección</label>
-            <select className={styles.input} value={form.screeningId}
-              onChange={e => setField('screeningId', e.target.value)}>
-              <option value="">Sin proyección asignada</option>
-              {screenings.map(s => <option key={s.id} value={s.id}>{getScreeningLabel(s)}</option>)}
+          <div className={styles.fieldFull}>
+            <label className={styles.label}>{t('reservations.form.client')}</label>
+            <select className={styles.input} value={form.userId}
+              onChange={e => setField('userId', e.target.value)}>
+              <option value="">{t('reservations.form.selectClient')}</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.name ?? u.email} — {u.role}
+                </option>
+              ))}
             </select>
           </div>
           <div>
-            <label className={styles.label}>Importe (€)</label>
+            <label className={styles.label}>{t('reservations.form.screening')}</label>
+            <select className={styles.input} value={form.screeningId}
+              onChange={e => setField('screeningId', e.target.value)}>
+              <option value="">{t('reservations.detail.noScreeningAssigned')}</option>
+              {screenings.map(s => <option key={s.id} value={s.id}>{getScreeningLabel(s, noScreeningText)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={styles.label}>{t('reservations.form.amount')}</label>
             <input className={styles.input} type="number" step="0.01" min="0" value={form.totalAmount}
               onChange={e => setField('totalAmount', e.target.value)} placeholder="0.00" />
           </div>
         </div>
         {!editing && (
-          <p style={{ marginTop: 12, fontSize: 11, color: 'var(--text-3)' }}>
-            Al guardar se abrirá el cobro para elegir el método de pago y generar las entradas.
+          <p style={{ marginTop: 12, fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>
+            {t('reservations.form.saveHint')}
           </p>
         )}
       </Modal>
 
-      {/* ── Payment modal (like taquilla) ── */}
+      {/* ── Payment modal ── */}
       <Modal
         open={modal === 'pay'}
         onClose={() => { if (!paying) { setModal(null); setPayTarget(null); } }}
-        title="Cobro de reserva"
+        title={t('reservations.modalPay')}
         size="sm"
         footer={
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <Button variant="secondary" onClick={() => { setModal(null); setPayTarget(null); }} disabled={paying}>
-              Aplazar cobro
+              {t('reservations.defer')}
             </Button>
             <Button variant="primary" onClick={handlePay}
               disabled={paying || !canPay}
               style={{ minWidth: 160 }}>
               {paying
-                ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Procesando…</>
-                : <><CheckCircle size={14} /> Confirmar cobro · €{payTotal.toFixed(2)}</>}
+                ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> {t('reservations.processing')}</>
+                : <><CheckCircle size={14} /> {t('reservations.confirmPay', { amount: payTotal.toFixed(2) })}</>}
             </Button>
           </div>
         }
       >
         {payTarget && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Summary */}
             <div style={{ padding: '10px 14px', background: 'var(--bg-3)', borderRadius: 'var(--r)', border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Reserva</div>
+              <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('reservations.detail.reservation')}</div>
               <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-1)' }}>{getClientName(payTarget)}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{getScreeningLabel(getScreening(payTarget, screenings))}</div>
+              <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)', marginTop: 2 }}>{getScreeningLabel(getScreening(payTarget, screenings), noScreeningText)}</div>
               <div style={{ marginTop: 8, fontFamily: 'var(--mono)', fontSize: 20, fontWeight: 800, color: 'var(--green)' }}>
                 €{payTotal.toFixed(2)}
               </div>
             </div>
 
-            {/* Payment method buttons */}
             <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                Método de pago
+              <p style={{ fontSize: 'var(--fs-sm)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                {t('reservations.pay.method')}
               </p>
               <div className={styles.payMethodGrid}>
                 {PAY_METHODS.map(({ id, label, Icon }) => (
@@ -405,14 +409,13 @@ export default function ReservationsPage() {
               </div>
             </div>
 
-            {/* Cash calculator */}
             {payMethod === 'CASH' && (
               <div className={styles.cashSection}>
-                <label className={styles.cashLabel}>Importe entregado (€)</label>
+                <label className={styles.cashLabel}>{t('reservations.pay.cashGiven')}</label>
                 <input
                   className={styles.cashInput}
                   type="number" step="0.50" min={payTotal}
-                  placeholder={`Mínimo €${payTotal.toFixed(2)}`}
+                  placeholder={t('reservations.pay.minimum', { amount: payTotal.toFixed(2) })}
                   value={cashGiven}
                   onChange={e => setCashGiven(e.target.value)}
                   autoFocus
@@ -424,12 +427,12 @@ export default function ReservationsPage() {
                 </div>
                 {change !== null && parseFloat(change) >= 0 && (
                   <div className={styles.changeBanner}>
-                    <span>Cambio a devolver</span>
+                    <span>{t('reservations.pay.change')}</span>
                     <span className={styles.changeAmt}>€{change}</span>
                   </div>
                 )}
                 {change !== null && parseFloat(change) < 0 && (
-                  <div className={styles.changeError}>Importe insuficiente (faltan €{Math.abs(parseFloat(change)).toFixed(2)})</div>
+                  <div className={styles.changeError}>{t('reservations.pay.insufficient', { amount: Math.abs(parseFloat(change)).toFixed(2) })}</div>
                 )}
               </div>
             )}
@@ -441,19 +444,19 @@ export default function ReservationsPage() {
       <Modal
         open={modal === 'ticket'}
         onClose={() => { setModal(null); setPaidTickets(null); }}
-        title="¡Cobro completado!"
+        title={t('reservations.modalTicket')}
         size="sm"
       >
         {paidTickets && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'var(--green)' }}>
               <CheckCircle size={40} />
-              <span style={{ fontSize: 14, fontWeight: 700 }}>Reserva confirmada</span>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>{t('reservations.success.confirmed')}</span>
             </div>
 
-            <div style={{ width: '100%', padding: '10px 14px', background: 'var(--bg-3)', borderRadius: 'var(--r)', border: '1px solid var(--border)', fontSize: 12 }}>
+            <div style={{ width: '100%', padding: '10px 14px', background: 'var(--bg-3)', borderRadius: 'var(--r)', border: '1px solid var(--border)', fontSize: 'var(--fs-md)' }}>
               <div style={{ fontWeight: 600, color: 'var(--text-1)' }}>{getClientName(paidTickets.purchase)}</div>
-              <div style={{ color: 'var(--text-3)', marginTop: 2 }}>{getScreeningLabel(paidTickets.scr)}</div>
+              <div style={{ color: 'var(--text-3)', marginTop: 2 }}>{getScreeningLabel(paidTickets.scr, noScreeningText)}</div>
               <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 16, color: 'var(--green)' }}>
                   €{paidTickets.total.toFixed(2)}
@@ -463,8 +466,8 @@ export default function ReservationsPage() {
                 </Badge>
               </div>
               {paidTickets.change && parseFloat(paidTickets.change) >= 0 && (
-                <div style={{ marginTop: 6, padding: '6px 8px', background: 'var(--bg-4)', borderRadius: 'var(--r-sm)', display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 600 }}>
-                  <span style={{ color: 'var(--text-3)' }}>Cambio devuelto</span>
+                <div style={{ marginTop: 6, padding: '6px 8px', background: 'var(--bg-4)', borderRadius: 'var(--r-sm)', display: 'flex', justifyContent: 'space-between', fontSize: 'var(--fs-md)', fontWeight: 600 }}>
+                  <span style={{ color: 'var(--text-3)' }}>{t('reservations.detail.changeReturned')}</span>
                   <span style={{ color: 'var(--yellow)' }}>€{paidTickets.change}</span>
                 </div>
               )}
@@ -475,28 +478,28 @@ export default function ReservationsPage() {
                 {paidTickets.qrs.map((qr, i) => (
                   <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                     <QRCodeSVG value={qr} size={120} bgColor="transparent" fgColor="var(--text-1)" level="M" />
-                    <span style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
-                      Butaca {getSeats(paidTickets.purchase)[i] ?? i + 1}
+                    <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-3)', fontFamily: 'var(--mono)' }}>
+                      {t('reservations.detail.seatLabel', { seat: getSeats(paidTickets.purchase)[i] ?? i + 1 })}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p style={{ fontSize: 11, color: 'var(--text-3)', textAlign: 'center' }}>
-                El cliente recibirá las entradas por email.
+              <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)', textAlign: 'center' }}>
+                {t('reservations.detail.emailTickets')}
               </p>
             )}
 
             <Button variant="primary" style={{ width: '100%' }}
               onClick={() => { setModal(null); setPaidTickets(null); }}>
-              Cerrar
+              {t('common.close')}
             </Button>
           </div>
         )}
       </Modal>
 
       {/* ── Detail modal ── */}
-      <Modal open={!!detail} onClose={() => setDetail(null)} title={`Reserva ${detail?.id}`} size="sm">
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={`${t('reservations.detail.reservation')} ${detail?.id}`} size="sm">
         {detail && (() => {
           const scr    = getScreening(detail, screenings);
           const status = getStatus(detail);
@@ -504,57 +507,57 @@ export default function ReservationsPage() {
           return (
             <div className={styles.detail}>
               <div className={styles.detailSection}>
-                <p className={styles.detailLbl}>Cliente</p>
+                <p className={styles.detailLbl}>{t('reservations.detail.client')}</p>
                 <p className={styles.detailVal}>{getClientName(detail)}</p>
-                <p style={{ fontSize: 11, color: 'var(--text-3)' }}>{getClientEmail(detail)}</p>
+                <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>{getClientEmail(detail)}</p>
               </div>
               <div className={styles.detailSection}>
-                <p className={styles.detailLbl}>Proyección</p>
-                <p className={styles.detailVal}>{getScreeningLabel(scr)}</p>
+                <p className={styles.detailLbl}>{t('reservations.detail.screening')}</p>
+                <p className={styles.detailVal}>{getScreeningLabel(scr, noScreeningText)}</p>
               </div>
               <div className={styles.detailRow}>
                 <div>
-                  <p className={styles.detailLbl}>Asientos</p>
+                  <p className={styles.detailLbl}>{t('reservations.detail.seats')}</p>
                   <p className={styles.detailVal} style={{ fontFamily: 'var(--mono)' }}>{getSeats(detail).join(', ') || '-'}</p>
                 </div>
                 <div>
-                  <p className={styles.detailLbl}>Pago</p>
+                  <p className={styles.detailLbl}>{t('reservations.detail.payment')}</p>
                   <Badge variant={PAYMENT_COLOR[pay] || 'default'}>{PAYMENT_LABEL[pay] || pay || '-'}</Badge>
                 </div>
                 <div>
-                  <p className={styles.detailLbl}>Importe</p>
+                  <p className={styles.detailLbl}>{t('reservations.detail.amount')}</p>
                   <p className={styles.detailVal}>€{getAmount(detail).toFixed(2)}</p>
                 </div>
                 <div>
-                  <p className={styles.detailLbl}>Estado</p>
-                  <Badge variant={STATUS_BADGE[status]?.v || 'default'} dot>{STATUS_BADGE[status]?.label || status}</Badge>
+                  <p className={styles.detailLbl}>{t('reservations.detail.status')}</p>
+                  <Badge variant={STATUS_MAP[status]?.v || 'default'} dot>{STATUS_MAP[status]?.label || status}</Badge>
                 </div>
               </div>
               <div>
-                <p className={styles.detailLbl}>Fecha creación</p>
-                <p style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-3)', marginTop: 3 }}>{detail.createdAt ?? '-'}</p>
+                <p className={styles.detailLbl}>{t('reservations.detail.created')}</p>
+                <p style={{ fontSize: 'var(--fs-sm)', fontFamily: 'var(--mono)', color: 'var(--text-3)', marginTop: 3 }}>{detail.createdAt ?? '-'}</p>
               </div>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 4 }}>
                 <Button variant="secondary" size="sm" icon={Edit2}
                   onClick={() => { setDetail(null); openEdit(detail); }}>
-                  Editar
+                  {t('common.edit')}
                 </Button>
                 {status === 'PENDING' && (
                   <Button variant="primary" size="sm" icon={CreditCard}
                     onClick={() => { setDetail(null); setPayTarget(detail); setPayMethod('CARD'); setCashGiven(''); setModal('pay'); }}>
-                    Cobrar
+                    {t('reservations.pay.card')}
                   </Button>
                 )}
                 {status === 'CONFIRMED' && (
                   <Button variant="secondary" size="sm" icon={RotateCcw}
                     onClick={() => { setDetail(null); setRefundTarget(detail); }}>
-                    Reembolsar
+                    {t('reservations.refund.title')}
                   </Button>
                 )}
                 {['CONFIRMED', 'PENDING'].includes(status) && (
                   <Button variant="danger" size="sm" icon={XCircle}
                     onClick={() => { setDetail(null); setCancelTarget(detail); }}>
-                    Cancelar
+                    {t('reservations.cancel.title')}
                   </Button>
                 )}
               </div>
@@ -568,10 +571,10 @@ export default function ReservationsPage() {
         open={!!refundTarget}
         onClose={() => setRefundTarget(null)}
         onConfirm={handleRefund}
-        title="Procesar reembolso"
+        title={t('reservations.refund.title')}
         danger
-        message={`¿Reembolsar €${getAmount(refundTarget ?? {}).toFixed(2)} a ${getClientName(refundTarget ?? {})}? El estado cambiará a Reembolsada.`}
-        confirmLabel={refunding ? 'Procesando…' : 'Confirmar reembolso'}
+        message={t('reservations.refund.msg', { amount: getAmount(refundTarget ?? {}).toFixed(2), name: getClientName(refundTarget ?? {}) })}
+        confirmLabel={refunding ? t('reservations.processing') : t('reservations.refund.confirm')}
       />
 
       {/* ── Cancel confirm ── */}
@@ -579,10 +582,10 @@ export default function ReservationsPage() {
         open={!!cancelTarget}
         onClose={() => setCancelTarget(null)}
         onConfirm={handleCancel}
-        title="Cancelar reserva"
+        title={t('reservations.cancel.title')}
         danger
-        message={`¿Cancelar la reserva ${cancelTarget?.id} de ${getClientName(cancelTarget ?? {})}?`}
-        confirmLabel="Cancelar reserva"
+        message={t('reservations.cancel.msg', { id: cancelTarget?.id, name: getClientName(cancelTarget ?? {}) })}
+        confirmLabel={t('reservations.cancel.confirm')}
       />
     </div>
   );

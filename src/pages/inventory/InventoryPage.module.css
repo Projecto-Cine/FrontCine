@@ -1,14 +1,14 @@
-.page { display: flex; flex-direction: column; gap: 16px; }
+﻿.page { display: flex; flex-direction: column; gap: 16px; }
 .kpiRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.alertBanner { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--yellow-dim); border: 1px solid rgba(245,158,11,0.25); border-radius: var(--r); font-size: 12px; color: var(--text-1); }
+.alertBanner { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--yellow-dim); border: 1px solid rgba(245,158,11,0.25); border-radius: var(--r); font-size: var(--fs-md); color: var(--text-1); }
 .alertBanner svg { color: var(--yellow); flex-shrink: 0; }
 .filterRow { display: flex; gap: 4px; flex-wrap: wrap; }
-.filterBtn { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: transparent; border: 1px solid var(--border); border-radius: var(--r); color: var(--text-2); font-size: 12px; cursor: pointer; transition: all var(--t); }
+.filterBtn { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: transparent; border: 1px solid var(--border); border-radius: var(--r); color: var(--text-2); font-size: var(--fs-md); cursor: pointer; transition: all var(--t); }
 .filterBtn:hover { background: var(--bg-3); color: var(--text-1); }
 .filterActive { background: var(--accent-dim2); border-color: var(--accent); color: var(--accent); }
-.filterCount { font-size: 10px; background: var(--bg-4); padding: 1px 5px; border-radius: 99px; color: var(--text-3); }
+.filterCount { font-size: var(--fs-xs); background: var(--bg-4); padding: 1px 5px; border-radius: 99px; color: var(--text-3); }
 .formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .fieldFull { grid-column: 1 / -1; }
-.label { display: block; font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
-.input { width: 100%; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px; color: var(--text-1); font-size: 12px; outline: none; }
-.input:focus { border-color: var(--accent); }
+.label { display: block; font-size: var(--fs-sm); font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+.input { width: 100%; background: var(--bg-2); border: 1px solid var(--border-l); border-radius: var(--r-lg); padding: 8px 12px; color: var(--text-1); font-size: var(--fs-md); outline: none; transition: border-color var(--t), box-shadow var(--t); }
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,154,108,0.12); }

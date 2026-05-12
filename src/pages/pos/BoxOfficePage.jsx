@@ -12,24 +12,36 @@ import { salesService }    from '../../services/salesService';
 import { clientsService }  from '../../services/clientsService';
 import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
-import Badge    from '../../components/ui/Badge';
-import SeatMap  from '../../components/shared/SeatMap';
-import styles   from './BoxOfficePage.module.css';
+import { useLanguage } from '../../i18n/LanguageContext';
+import Badge      from '../../components/ui/Badge';
+import SeatMap    from '../../components/shared/SeatMap';
+import EmptyState from '../../components/shared/EmptyState';
+import styles     from './BoxOfficePage.module.css';
 
-// Ticket types — frontend prices; backendType = backend enum
 const TICKET_TYPES = [
-  { id: 'adult',    label: 'Adulto',     price: 13.50, backendType: 'ADULT'   },
-  { id: 'senior',   label: 'Reducida',   price: 9.00,  backendType: 'SENIOR'  },
-  { id: 'student',  label: 'Estudiante', price: 6.00,  backendType: 'STUDENT' },
-  { id: 'child',    label: 'Infantil',   price: 6.00,  backendType: 'CHILD'   },
-  { id: 'imax',     label: 'IMAX',       price: 5.00,  extra: true },
-  { id: '4dx',      label: '4DX',        price: 6.50,  extra: true },
-  { id: 'vip',      label: 'VIP',        price: 8.00,  extra: true },
+  { id: 'adult',    price: 13.50, backendType: 'ADULT'   },
+  { id: 'senior',   price: 9.00,  backendType: 'SENIOR'  },
+  { id: 'student',  price: 6.00,  backendType: 'STUDENT' },
+  { id: 'child',    price: 6.00,  backendType: 'CHILD'   },
+  { id: 'imax',     price: 5.00,  extra: true },
+  { id: '4dx',      price: 6.50,  extra: true },
+  { id: 'vip',      price: 8.00,  extra: true },
 ];
 
 const PAY_METHOD_MAP = { card: 'CARD', cash: 'CASH', online: 'QR' };
 
 const FORMAT_BADGE = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', VIP: 'yellow', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
+
+const MOV_IMG_KEY = 'lumen_movie_posters';
+const getStoredPosters = () => { try { return JSON.parse(localStorage.getItem(MOV_IMG_KEY) ?? '{}'); } catch { return {}; } };
+const mergeSessionPosters = (sessions) => {
+  const s = getStoredPosters();
+  return sessions.map(sess => {
+    if (!sess.movie) return sess;
+    const imgUrl = s[String(sess.movie.id)] || sess.movie.imageUrl || sess.movie.poster || '';
+    return imgUrl ? { ...sess, movie: { ...sess.movie, imageUrl: imgUrl } } : sess;
+  });
+};
 const OCC_COLOR = (pct) => pct >= 95 ? 'var(--red)' : pct >= 80 ? 'var(--yellow)' : 'var(--green)';
 
 const GENRE_GRADIENT = {
@@ -54,6 +66,7 @@ function generateTicketId() {
 export default function TaquillaPage() {
   const { toast } = useApp();
   const { user }  = useAuth();
+  const { t } = useLanguage();
 
   const [step, setStep]                   = useState('sessions');
   const [sessions, setSessions]           = useState([]);
@@ -75,11 +88,13 @@ export default function TaquillaPage() {
   const [selectedClient, setSelectedClient]   = useState(null);
   const clientDebounce = useRef(null);
 
-  // Cargar sesiones de hoy al montar
+  // Translated ticket types (computed in render so they react to language changes)
+  const ticketTypes = TICKET_TYPES.map(tt => ({ ...tt, label: t(`box_office.type.${tt.id}`) }));
+
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     sessionsService.getAll({ date: today })
-      .then(data => setSessions(Array.isArray(data) ? data.filter(s => s.status !== 'CANCELLED') : []))
+      .then(data => setSessions(mergeSessionPosters(Array.isArray(data) ? data.filter(s => s.status !== 'CANCELLED') : [])))
       .catch(() => toast('Error al cargar sesiones.', 'error'))
       .finally(() => setLoadingSessions(false));
   }, []);
@@ -113,7 +128,7 @@ export default function TaquillaPage() {
       const seats = await seatsService.getByScreening(session.id);
       setRealSeats(Array.isArray(seats) ? seats : null);
     } catch {
-      setRealSeats(null); // fallback to generated map
+      setRealSeats(null);
     } finally {
       setLoadingSeats(false);
     }
@@ -122,7 +137,6 @@ export default function TaquillaPage() {
   const movie   = selectedSession?.movie ?? null;
   const theater = selectedSession?.theater ?? null;
 
-  // Adapta el screening al formato que espera SeatMap (legacy)
   const seatMapSession = selectedSession ? {
     id:   selectedSession.id,
     sold: realSeats
@@ -135,9 +149,9 @@ export default function TaquillaPage() {
     name:     theater.name ?? '',
   } : null;
 
-  const baseType       = TICKET_TYPES.find(t => t.id === ticketType) || TICKET_TYPES[0];
+  const baseType       = ticketTypes.find(t => t.id === ticketType) || ticketTypes[0];
   const basePrice      = baseType.price;
-  const extra          = TICKET_TYPES.filter(t => t.extra).find(t => {
+  const extra          = ticketTypes.filter(t => t.extra).find(t => {
     if (!theater) return false;
     const fmt = (movie?.format ?? theater?.name ?? '').toUpperCase();
     if (t.id === 'imax') return fmt.includes('IMAX');
@@ -170,7 +184,6 @@ export default function TaquillaPage() {
       const time = selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
       const date = selectedSession.dateTime?.split('T')[0] ?? '';
 
-      // Parsear QR strings del backend: "LUMEN:TKT-22|Película|Sala|Fecha|Hora|Asiento|Tipo"
       const generated = selectedSeats.map((seat, i) => {
         const qrValue = res?.qrCodes?.[i]
           ?? `LUMEN:${generateTicketId()}|${movie?.title}|${theater?.name}|${date}|${time}|${seat}|${baseType.backendType ?? 'ADULT'}`;
@@ -211,7 +224,7 @@ export default function TaquillaPage() {
   };
 
   if (step === 'done') {
-    return <TicketSuccess tickets={tickets} total={total} payMethod={payMethod} onReset={reset} />;
+    return <TicketSuccess tickets={tickets} total={total} payMethod={payMethod} onReset={reset} t={t} />;
   }
 
   return (
@@ -223,11 +236,11 @@ export default function TaquillaPage() {
         {step === 'sessions' && (
           <>
             <div className={styles.leftHeader}>
-              <h2 className={styles.leftTitle}>Sesiones de hoy</h2>
+              <h2 className={styles.leftTitle}>{t('box_office.title')}</h2>
               <div className={styles.headerRight}>
                 <div className={styles.searchBox}>
                   <Search size={12} className={styles.searchIcon} />
-                  <input className={styles.searchInput} placeholder="Buscar película..."
+                  <input className={styles.searchInput} placeholder={t('box_office.search')}
                     value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                 </div>
                 <div className={styles.viewToggle}>
@@ -238,7 +251,7 @@ export default function TaquillaPage() {
             </div>
 
             {loadingSessions ? (
-              <div className={styles.emptyMsg}><Loader size={16} /> Cargando sesiones...</div>
+              <div className={styles.emptyMsg}><Loader size={16} /> {t('box_office.loading')}</div>
             ) : (
               <div className={`${styles.sessionGrid} ${viewMode === 'list' ? styles.sessionList : ''}`}>
                 {filteredSessions.map(s => {
@@ -260,13 +273,16 @@ export default function TaquillaPage() {
                     >
                       {viewMode === 'grid' ? (
                         <>
-                          <div className={styles.sessionPoster} style={{ background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
-                            <span className={styles.sessionPosterInitials}>{getInitials(mv.title)}</span>
+                          <div className={styles.sessionPoster} style={mv.imageUrl ? {} : { background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
+                            {mv.imageUrl
+                              ? <img src={mv.imageUrl} alt={mv.title} className={styles.sessionPosterImg} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.style.background = GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT; }} />
+                              : <span className={styles.sessionPosterInitials}>{getInitials(mv.title)}</span>
+                            }
                             <div className={styles.sessionPosterBadges}>
                               <Badge variant={FORMAT_BADGE[mv.format] || 'default'}>{mv.format}</Badge>
                               <Badge variant="default">{mv.language}</Badge>
                             </div>
-                            {isFull && <div className={styles.posterFullOverlay}>LLENA</div>}
+                            {isFull && <div className={styles.posterFullOverlay}>{t('box_office.full')}</div>}
                           </div>
                           <div className={styles.sessionCardBody}>
                             <div className={styles.sessionTime}>{time}</div>
@@ -278,17 +294,20 @@ export default function TaquillaPage() {
                                   <div className={styles.occFill} style={{ width: `${occPct}%`, background: OCC_COLOR(occPct) }} />
                                 </div>
                                 <span className={styles.occText} style={{ color: OCC_COLOR(occPct) }}>
-                                  {isFull ? 'LLENA' : `${avail} libres`}
+                                  {isFull ? t('box_office.full') : t('box_office.available', { n: avail })}
                                 </span>
                               </div>
                             )}
-                            <div className={styles.sessionPrice}>Desde €{(s.price ?? 0).toFixed(2)}</div>
+                            <div className={styles.sessionPrice}>{t('box_office.from', { price: (s.price ?? 0).toFixed(2) })}</div>
                           </div>
                         </>
                       ) : (
                         <>
-                          <div className={styles.sessionListThumb} style={{ background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
-                            <span className={styles.sessionListInitials}>{getInitials(mv.title)}</span>
+                          <div className={styles.sessionListThumb} style={mv.imageUrl ? {} : { background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
+                            {mv.imageUrl
+                              ? <img src={mv.imageUrl} alt={mv.title} className={styles.sessionListThumbImg} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.style.background = GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT; }} />
+                              : <span className={styles.sessionListInitials}>{getInitials(mv.title)}</span>
+                            }
                           </div>
                           <div className={styles.sessionCardTop}>
                             <div className={styles.sessionTime}>{time}</div>
@@ -299,14 +318,14 @@ export default function TaquillaPage() {
                           </div>
                           <div className={styles.sessionMovie}>{mv.title}</div>
                           <div className={styles.sessionRoom}>{rm.name?.split('—')[0]?.trim()}</div>
-                          <div className={styles.sessionPrice}>Desde €{(s.price ?? 0).toFixed(2)}</div>
+                          <div className={styles.sessionPrice}>{t('box_office.from', { price: (s.price ?? 0).toFixed(2) })}</div>
                           {!isFull && <ChevronRight size={14} className={styles.sessionArrow} />}
                         </>
                       )}
                     </button>
                   );
                 })}
-                {filteredSessions.length === 0 && <div className={styles.emptyMsg}>No hay sesiones disponibles</div>}
+                {filteredSessions.length === 0 && <EmptyState icon={Film} title={t('box_office.noSessions')} />}
               </div>
             )}
           </>
@@ -317,7 +336,7 @@ export default function TaquillaPage() {
           <>
             <div className={styles.leftHeader}>
               <button className={styles.backBtn} onClick={() => setStep('sessions')}>
-                <ArrowLeft size={13} /> Cambiar sesión
+                <ArrowLeft size={13} /> {t('box_office.changeSession')}
               </button>
               <div className={styles.sessionPill}>
                 <span className={styles.sessionPillTime}>{selectedSession.dateTime?.split('T')[1]?.substring(0, 5)}</span>
@@ -327,14 +346,14 @@ export default function TaquillaPage() {
             </div>
 
             <div className={styles.typeSelector}>
-              <span className={styles.typeSelectorLabel}>Tipo de entrada</span>
+              <span className={styles.typeSelectorLabel}>{t('box_office.ticketType')}</span>
               <div className={styles.typeButtons}>
-                {TICKET_TYPES.filter(t => !t.extra).map(t => (
-                  <button key={t.id}
-                    className={`${styles.typeBtn} ${ticketType === t.id ? styles.typeBtnActive : ''}`}
-                    onClick={() => setTicketType(t.id)}>
-                    <span>{t.label}</span>
-                    <span className={styles.typeBtnPrice}>€{t.price.toFixed(2)}</span>
+                {ticketTypes.filter(tt => !tt.extra).map(tt => (
+                  <button key={tt.id}
+                    className={`${styles.typeBtn} ${ticketType === tt.id ? styles.typeBtnActive : ''}`}
+                    onClick={() => setTicketType(tt.id)}>
+                    <span>{tt.label}</span>
+                    <span className={styles.typeBtnPrice}>€{tt.price.toFixed(2)}</span>
                   </button>
                 ))}
               </div>
@@ -344,7 +363,7 @@ export default function TaquillaPage() {
             <div className={styles.seatMapWrap}>
               {loadingSeats ? (
                 <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)' }}>
-                  <Loader size={20} /> Cargando mapa de asientos...
+                  <Loader size={20} /> {t('box_office.loadingSeats')}
                 </div>
               ) : (
                 <SeatMap
@@ -360,7 +379,7 @@ export default function TaquillaPage() {
 
             {selectedSeats.length > 0 && (
               <button className={styles.proceedBtn} onClick={() => setStep('payment')}>
-                {selectedSeats.length} butaca{selectedSeats.length !== 1 ? 's' : ''} · Ir al cobro ·
+                {selectedSeats.length} butaca{selectedSeats.length !== 1 ? 's' : ''} · {t('box_office.pay')}
                 <strong> €{total.toFixed(2)}</strong>
                 <ChevronRight size={15} />
               </button>
@@ -373,13 +392,13 @@ export default function TaquillaPage() {
           <>
             <div className={styles.leftHeader}>
               <button className={styles.backBtn} onClick={() => setStep('seats')}>
-                <ArrowLeft size={13} /> Cambiar butacas
+                <ArrowLeft size={13} /> {t('box_office.changeSeats')}
               </button>
             </div>
 
             {/* Client search */}
             <div className={styles.paySection}>
-              <p className={styles.paySectionLabel}>Cliente (opcional)</p>
+              <p className={styles.paySectionLabel}>{t('box_office.client')}</p>
               {selectedClient ? (
                 <div className={styles.clientChip}>
                   <div className={styles.clientChipInfo}>
@@ -399,7 +418,7 @@ export default function TaquillaPage() {
                     <Search size={12} className={styles.searchIcon} />
                     <input
                       className={styles.clientSearchInput}
-                      placeholder="Buscar cliente por nombre o email…"
+                      placeholder={t('box_office.clientSearch')}
                       value={clientQuery}
                       onChange={e => setClientQuery(e.target.value)}
                     />
@@ -422,12 +441,12 @@ export default function TaquillaPage() {
             </div>
 
             <div className={styles.paySection}>
-              <p className={styles.paySectionLabel}>Método de pago</p>
+              <p className={styles.paySectionLabel}>{t('box_office.payMethod')}</p>
               <div className={styles.payMethods}>
                 {[
-                  { id: 'card',   label: 'Tarjeta',   Icon: CreditCard },
-                  { id: 'cash',   label: 'Efectivo',  Icon: Banknote   },
-                  { id: 'online', label: 'Online/QR', Icon: Smartphone },
+                  { id: 'card',   label: t('box_office.pay.card'),   Icon: CreditCard },
+                  { id: 'cash',   label: t('box_office.pay.cash'),   Icon: Banknote   },
+                  { id: 'online', label: t('box_office.pay.online'), Icon: Smartphone },
                 ].map(({ id, label, Icon }) => (
                   <button key={id} className={`${styles.payMethod} ${payMethod === id ? styles.payActive : ''}`}
                     onClick={() => setPayMethod(id)}>
@@ -438,18 +457,18 @@ export default function TaquillaPage() {
 
               {payMethod === 'cash' && (
                 <div className={styles.cashSection}>
-                  <label className={styles.cashLabel}>Importe entregado (€)</label>
+                  <label className={styles.cashLabel}>{t('box_office.cashGiven')}</label>
                   <input className={styles.cashInput} type="number" step="0.50" min={total}
                     placeholder={`Mínimo €${total.toFixed(2)}`}
                     value={cashGiven} onChange={e => setCashGiven(e.target.value)} autoFocus />
                   {change !== null && parseFloat(change) >= 0 && (
                     <div className={styles.change}>
-                      <span>Cambio a devolver</span>
+                      <span>{t('box_office.change')}</span>
                       <span className={styles.changeAmount}>€{change}</span>
                     </div>
                   )}
                   {change !== null && parseFloat(change) < 0 && (
-                    <div className={styles.changeError}>Importe insuficiente</div>
+                    <div className={styles.changeError}>{t('box_office.insufficient')}</div>
                   )}
                   <div className={styles.payQuickAmounts}>
                     {[20, 50, 100].map(v => (
@@ -463,11 +482,11 @@ export default function TaquillaPage() {
         )}
       </div>
 
-      {/* ── RIGHT — resumen ──────────────────────── */}
+      {/* ── RIGHT — summary ──────────────────────── */}
       <div className={styles.right}>
         <div className={styles.cartHeader}>
           <Ticket size={14} />
-          <span>Resumen</span>
+          <span>{t('box_office.summary')}</span>
           {selectedSeats.length > 0 && (
             <button className={styles.clearCart} onClick={() => setSelectedSeats([])} title="Vaciar selección">
               <X size={12} />
@@ -490,7 +509,7 @@ export default function TaquillaPage() {
           {selectedSeats.length === 0 ? (
             <div className={styles.cartEmpty}>
               <Ticket size={26} opacity={0.15} />
-              <p>{step === 'sessions' ? 'Selecciona una sesión' : 'Haz clic en una butaca libre'}</p>
+              <p>{step === 'sessions' ? t('box_office.selectSession') : t('box_office.selectSeat')}</p>
             </div>
           ) : (
             <>
@@ -501,7 +520,7 @@ export default function TaquillaPage() {
               {fidelityEligible && (
                 <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(201,168,76,0.2)' }}>
                   <span className={styles.cartTypeLabel} style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Star size={10} /> Descuento socio −10%
+                    <Star size={10} /> {t('box_office.fidelity')}
                   </span>
                   <span className={styles.cartTypePrice} style={{ color: 'var(--accent)' }}>−€{(basePrice * 0.1).toFixed(2)} / ud.</span>
                 </div>
@@ -540,14 +559,14 @@ export default function TaquillaPage() {
               disabled={paying || !selectedSeats.length || (payMethod === 'cash' && (!cashGiven || parseFloat(cashGiven) < total))}
               onClick={handlePay}>
               {paying ? <Loader size={17} /> : <CheckCircle size={17} />}
-              {paying ? 'Procesando...' : 'Confirmar cobro'}
+              {paying ? t('box_office.processing') : t('box_office.confirmPay')}
             </button>
           ) : (
             <button className={styles.cobrarBtn}
               disabled={!selectedSeats.length || step === 'sessions'}
               onClick={() => step === 'seats' ? setStep('payment') : undefined}>
               <CreditCard size={17} />
-              {step === 'sessions' ? 'Selecciona sesión' : 'Cobrar →'}
+              {step === 'sessions' ? t('box_office.selectSessionBtn') : t('box_office.pay')}
             </button>
           )}
         </div>
@@ -557,16 +576,26 @@ export default function TaquillaPage() {
 }
 
 /* ── Ticket success screen ───────────────────────── */
-function TicketSuccess({ tickets, total, payMethod, onReset }) {
+function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
   const [current, setCurrent] = useState(0);
   const ticket    = tickets[current];
-  const PAY_LABEL = { card: 'Tarjeta', cash: 'Efectivo', online: 'Online/QR' };
+  const PAY_LABEL = {
+    card:   t('box_office.pay.card'),
+    cash:   t('box_office.pay.cash'),
+    online: t('box_office.pay.online'),
+  };
+
+  const langLabel = (lang) => {
+    if (lang === 'ES') return t('box_office.ticket.dubbed');
+    if (lang === 'VO') return t('box_office.ticket.original');
+    return t('box_office.ticket.subbed');
+  };
 
   return (
     <div className={styles.successShell}>
       <div className={styles.successLeft}>
         <div className={styles.successIcon}><CheckCircle size={30} /></div>
-        <h2 className={styles.successTitle}>¡Cobro completado!</h2>
+        <h2 className={styles.successTitle}>{t('box_office.success.title')}</h2>
         <p className={styles.successSub}>{tickets.length} entrada{tickets.length !== 1 ? 's' : ''} · €{total.toFixed(2)} · {PAY_LABEL[payMethod]}</p>
         {tickets.length > 1 && (
           <div className={styles.ticketNav}>
@@ -578,10 +607,10 @@ function TicketSuccess({ tickets, total, payMethod, onReset }) {
         )}
         <div className={styles.actions}>
           <button className={styles.printBtn} onClick={() => window.print()}>
-            <Printer size={14} /> Imprimir
+            <Printer size={14} /> {t('box_office.success.print')}
           </button>
           <button className={styles.newSaleBtn} onClick={onReset}>
-            <Ticket size={14} /> Nueva venta
+            <Ticket size={14} /> {t('box_office.success.newSale')}
           </button>
         </div>
       </div>
@@ -593,30 +622,30 @@ function TicketSuccess({ tickets, total, payMethod, onReset }) {
         </div>
         <div className={styles.ticketCardDivider} />
         <h3 className={styles.ticketCardMovie}>{ticket.movie}</h3>
-        <p className={styles.ticketCardFormat}>{ticket.format} · {ticket.language === 'ES' ? 'Doblada' : ticket.language === 'VO' ? 'V. Original' : 'V. Subtitulada'}</p>
+        <p className={styles.ticketCardFormat}>{ticket.format} · {langLabel(ticket.language)}</p>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketCardInfo}>
-          <div><span className={styles.tcLabel}>FECHA</span><span className={styles.tcVal}>{ticket.date}</span></div>
-          <div><span className={styles.tcLabel}>HORA</span><span className={styles.tcVal}>{ticket.time} h</span></div>
-          <div><span className={styles.tcLabel}>SALA</span><span className={styles.tcVal}>{ticket.room}</span></div>
-          <div><span className={styles.tcLabel}>BUTACA</span><span className={styles.tcVal}>{ticket.seat}</span></div>
+          <div><span className={styles.tcLabel}>{t('box_office.ticket.date')}</span><span className={styles.tcVal}>{ticket.date}</span></div>
+          <div><span className={styles.tcLabel}>{t('box_office.ticket.time')}</span><span className={styles.tcVal}>{ticket.time} h</span></div>
+          <div><span className={styles.tcLabel}>{t('box_office.ticket.room')}</span><span className={styles.tcVal}>{ticket.room}</span></div>
+          <div><span className={styles.tcLabel}>{t('box_office.ticket.seat')}</span><span className={styles.tcVal}>{ticket.seat}</span></div>
         </div>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketCardTotal}>
-          <span className={styles.tcLabel}>TOTAL ({tickets.length} ent.)</span>
+          <span className={styles.tcLabel}>{t('box_office.ticket.total', { n: tickets.length })}</span>
           <span className={styles.tcTotalVal}>€{total.toFixed(2)}</span>
         </div>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketQRWrap}>
           <QRCodeSVG value={ticket.qrValue} size={110} bgColor="transparent" fgColor="var(--text-1)" level="M" />
           <div className={styles.ticketQRInfo}>
-            <span className={styles.ticketQRLabel}>Escanear en entrada</span>
+            <span className={styles.ticketQRLabel}>{t('box_office.ticket.scan')}</span>
             <span className={styles.ticketId}>{ticket.id}</span>
             <span className={styles.ticketIdSeat}>Butaca {ticket.seat}</span>
           </div>
         </div>
         <div className={styles.ticketCardDivider} />
-        <p className={styles.ticketFooter}>Conserve este ticket. No se admiten cambios ni devoluciones una vez comenzada la sesión.</p>
+        <p className={styles.ticketFooter}>{t('box_office.ticket.footer')}</p>
       </div>
     </div>
   );

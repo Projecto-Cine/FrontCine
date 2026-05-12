@@ -1,266 +1,199 @@
-import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, RefreshCw, Search, User, Mail, Calendar, Briefcase } from 'lucide-react';
-import { workersService } from '../../services/workersService';
+import { useEffect, useState } from 'react';
+import { Edit2, Plus, Shield, Trash2, UserCheck, Users } from 'lucide-react';
+import PageHeader from '../../components/shared/PageHeader';
+import DataTable from '../../components/shared/DataTable';
+import Badge from '../../components/ui/Badge';
+import Button from '../../components/ui/Button';
+import Modal, { ConfirmModal } from '../../components/ui/Modal';
+import KPICard from '../../components/shared/KPICard';
+import { useApp } from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../i18n/LanguageContext';
+import { usersService } from '../../services/usersService';
 import styles from './UsersPage.module.css';
 
+const ROLE_MAP = { CLIENTE: 'CLIENTE', ADMIN: 'ADMIN', SUPERVISOR: 'SUPERVISOR', OPERATOR: 'OPERATOR', TICKET: 'TICKET', MAINTENANCE: 'MAINTENANCE', READONLY: 'READONLY' };
+const ROLE_COLOR = { ADMIN: 'red', CLIENTE: 'green', SUPERVISOR: 'yellow', OPERATOR: 'accent', TICKET: 'purple', MAINTENANCE: 'cyan', READONLY: 'default' };
+const EMPTY = { name: '', lastName: '', email: '', password: '', role: 'CLIENTE', birthDate: '' };
+
+const normalizeUser = (user) => ({
+  ...user,
+  role: ROLE_MAP[String(user.role ?? 'CLIENTE').toUpperCase()] ?? 'CLIENTE',
+  birthDate: user.birthDate ?? user.dateOfBirth ?? '',
+});
+
 export default function UsersPage() {
-  const [workers, setWorkers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editingWorker, setEditingWorker] = useState(null);
-  const [selectedWorker, setSelectedWorker] = useState(null);
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    role: 'CAJERO',
-    hireDate: '',
-    active: true
-  });
+  const [users, setUsers] = useState([]);
+  const [modal, setModal] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(EMPTY);
+  const [errors, setErrors] = useState({});
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const { toast } = useApp();
+  const { user: me } = useAuth();
+  const { t } = useLanguage();
 
-  const loadWorkers = async () => {
-    setLoading(true);
-    try {
-      const data = await workersService.getAll();
-      setWorkers(Array.isArray(data) ? data : []);
-    } catch (e) {
-      alert('Error al cargar trabajadores: ' + e.message);
-    } finally {
-      setLoading(false);
+  const ROLES = {
+    ADMIN:       { label: t('users.role.ADMIN'),       color: 'red' },
+    CLIENTE:     { label: t('users.role.CLIENT'),      color: 'green' },
+    SUPERVISOR:  { label: 'Supervisor',                color: 'yellow' },
+    OPERATOR:    { label: 'Operador',                  color: 'accent' },
+    TICKET:      { label: 'Taquilla',                  color: 'purple' },
+    MAINTENANCE: { label: 'Mantenimiento',             color: 'cyan' },
+    READONLY:    { label: 'Solo lectura',              color: 'default' },
+  };
+
+  const isAdmin = ['admin', 'ADMIN'].includes(me?.role);
+
+  useEffect(() => {
+    usersService.getAll()
+      .then(data => setUsers((data ?? []).map(normalizeUser)))
+      .catch(() => toast('No se pudieron cargar los usuarios del backend.', 'error'));
+  }, [toast]);
+
+  const openCreate = () => { if (!isAdmin) return; setEditing(null); setForm(EMPTY); setErrors({}); setModal('form'); };
+  const openEdit = (user) => { if (!isAdmin) return; setEditing(user); setForm(normalizeUser(user)); setErrors({}); setModal('form'); };
+  const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+  const validateField = (name, value) => {
+    setErrors(e => ({ ...e, [name]: !String(value).trim() ? t('common.fieldRequired') : undefined }));
+  };
+
+  const handleSave = async () => {
+    if (!form.email.trim()) {
+      toast('Email obligatorio.', 'error');
+      return;
     }
-  };
+    if (!editing && !form.password.trim()) {
+      toast('Contraseña obligatoria.', 'error');
+      return;
+    }
 
-  useEffect(() => { loadWorkers(); }, []);
-
-  const filteredWorkers = workers.filter(w => 
-    w.firstName?.toLowerCase().includes(search.toLowerCase()) ||
-    w.lastName?.toLowerCase().includes(search.toLowerCase()) ||
-    w.email?.toLowerCase().includes(search.toLowerCase()) ||
-    w.role?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const kpis = {
-    total: workers.length,
-    active: workers.filter(w => w.active).length,
-    inactive: workers.filter(w => !w.active).length,
-    roles: [...new Set(workers.map(w => w.role))].length
-  };
-
-  const openForm = (worker = null) => {
-    if (worker) {
-      setEditingWorker(worker);
-      setFormData({
-        firstName: worker.firstName || '',
-        lastName: worker.lastName || '',
-        email: worker.email || '',
-        role: worker.role || 'CAJERO',
-        hireDate: worker.hireDate || '',
-        active: worker.active ?? true
-      });
+    const payload = {
+      name: form.name.trim() || undefined,
+      lastName: form.lastName?.trim() || undefined,
+      email: form.email.trim(),
+      role: form.role,
+      birthDate: form.birthDate || null,
+    };
+    if (form.password.trim()) payload.password = form.password.trim();
+    if (editing) {
+      const saved = normalizeUser(await usersService.update(editing.id, payload));
+      setUsers(prev => prev.map(user => user.id === editing.id ? saved : user));
+      toast(t('users.modalEdit') + ' ✓', 'success');
     } else {
-      setEditingWorker(null);
-      setFormData({ firstName: '', lastName: '', email: '', role: 'CAJERO', hireDate: '', active: true });
+      const saved = normalizeUser(await usersService.create(payload));
+      setUsers(prev => [...prev, saved]);
+      toast(t('users.modalCreate') + ' ✓', 'success');
     }
-    setShowForm(true);
+    setModal(null);
   };
 
-  const closeForm = () => {
-    setShowForm(false);
-    setEditingWorker(null);
+  const handleDelete = async () => {
+    await usersService.remove(deleteTarget.id);
+    setUsers(prev => prev.filter(user => user.id !== deleteTarget.id));
+    toast(t('users.deleteTitle') + ' ✓', 'warning');
+    setDeleteTarget(null);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-  };
-
-  const saveWorker = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingWorker) {
-        await workersService.update(editingWorker.id, formData);
-      } else {
-        await workersService.create(formData);
-      }
-      closeForm();
-      loadWorkers();
-    } catch (e) {
-      alert('Error al guardar: ' + e.message);
-    }
-  };
-
-  const deleteWorker = async (id) => {
-    if (!confirm('¿Eliminar trabajador?')) return;
-    try {
-      await workersService.remove(id);
-      loadWorkers();
-    } catch (e) {
-      alert('Error al eliminar: ' + e.message);
-    }
-  };
+  const columns = [
+    { key: 'email', label: t('users.col.email'), render: value => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-dim2)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{value?.charAt(0)?.toUpperCase()}</div>
+        <span style={{ fontSize: 12, color: 'var(--text-1)', fontWeight: 500 }}>{value}</span>
+      </div>
+    )},
+    { key: 'role', label: t('users.col.role'), width: 140, render: value => <Badge variant={ROLE_COLOR[value] || 'default'}>{ROLES[value]?.label || value}</Badge> },
+    { key: 'dateOfBirth', label: t('users.col.dateOfBirth'), width: 160, render: value => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{value || '-'}</span> },
+  ];
 
   return (
     <div className={styles.page}>
-      <div className={styles.header}>
-        <h1>Gestión de Trabajadores</h1>
-        <button onClick={() => openForm()} className={styles.newBtn}>
-          <Plus size={16} /> Nuevo Trabajador
-        </button>
-      </div>
+      <PageHeader
+        title={t('users.title')}
+        subtitle={t('users.subtitle', { count: users.length, admins: users.filter(user => user.role === 'ADMIN').length })}
+        actions={isAdmin && <Button icon={Plus} onClick={openCreate}>{t('users.createBtn')}</Button>}
+      />
 
       <div className={styles.kpiRow}>
-        <div className={styles.kpiCard}>
-          <User size={20} />
-          <div>
-            <div className={styles.kpiValue}>{kpis.total}</div>
-            <div className={styles.kpiLabel}>Total Trabajadores</div>
-          </div>
-        </div>
-        <div className={styles.kpiCard}>
-          <Briefcase size={20} />
-          <div>
-            <div className={styles.kpiValue}>{kpis.active}</div>
-            <div className={styles.kpiLabel}>Activos</div>
-          </div>
-        </div>
-        <div className={styles.kpiCard}>
-          <RefreshCw size={20} />
-          <div>
-            <div className={styles.kpiValue}>{kpis.inactive}</div>
-            <div className={styles.kpiLabel}>Inactivos</div>
-          </div>
-        </div>
-        <div className={styles.kpiCard}>
-          <Calendar size={20} />
-          <div>
-            <div className={styles.kpiValue}>{kpis.roles}</div>
-            <div className={styles.kpiLabel}>Roles Diferentes</div>
-          </div>
-        </div>
+        <KPICard label={t('users.kpi.staff')}  value={users.length}                                           icon={Users}     color="accent" />
+        <KPICard label={t('users.kpi.admins')} value={users.filter(user => user.role === 'ADMIN').length}     icon={Shield}    color="red" />
+        <KPICard label={t('users.kpi.clients')}value={users.filter(user => user.role === 'CLIENTE').length}   icon={UserCheck} color="green" />
       </div>
 
-      <div className={styles.searchBar}>
-        <div className={styles.searchWrap}>
-          <Search size={14} className={styles.searchIcon} />
-          <input
-            type="text"
-            placeholder="Buscar por nombre, apellido, email o rol..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={styles.searchInput}
-          />
-        </div>
-        <button onClick={loadWorkers} disabled={loading} className={styles.reloadBtn}>
-          <RefreshCw size={14} /> {loading ? 'Cargando...' : 'Recargar'}
-        </button>
-      </div>
-
-      {showForm && (
-        <div className={styles.formOverlay}>
-          <form onSubmit={saveWorker} className={styles.form}>
-            <h2>{editingWorker ? 'Editar Trabajador' : 'Nuevo Trabajador'}</h2>
-            <div className={styles.formGrid}>
-              <div>
-                <label className={styles.formLabel}>Nombre</label>
-                <input name="firstName" value={formData.firstName} onChange={handleInputChange} required className={styles.formInput} />
-              </div>
-              <div>
-                <label className={styles.formLabel}>Apellido</label>
-                <input name="lastName" value={formData.lastName} onChange={handleInputChange} required className={styles.formInput} />
-              </div>
-              <div>
-                <label className={styles.formLabel}>Email</label>
-                <input name="email" type="email" value={formData.email} onChange={handleInputChange} required className={styles.formInput} />
-              </div>
-              <div>
-                <label className={styles.formLabel}>Fecha Contratación</label>
-                <input name="hireDate" type="date" value={formData.hireDate} onChange={handleInputChange} className={styles.formInput} />
-              </div>
-              <div>
-                <label className={styles.formLabel}>Rol</label>
-                <select name="role" value={formData.role} onChange={handleInputChange} className={styles.formInput}>
-                  <option value="CAJERO">Cajero</option>
-                  <option value="LIMPIEZA">Limpieza</option>
-                  <option value="SEGURIDAD">Seguridad</option>
-                  <option value="GERENCIA">Gerencia</option>
-                </select>
-              </div>
-              <div className={styles.checkboxWrap}>
-                <input name="active" type="checkbox" checked={formData.active} onChange={handleInputChange} id="active" />
-                <label htmlFor="active" className={styles.formLabel}>Activo</label>
-              </div>
-            </div>
-            <div className={styles.formActions}>
-              <button type="submit" className={styles.saveBtn}>Guardar</button>
-              <button type="button" onClick={closeForm} className={styles.cancelBtn}>Cancelar</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Nombre Completo</th>
-              <th>Email</th>
-              <th>Rol</th>
-              <th>Fecha Contratación</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredWorkers.map(worker => (
-              <tr key={worker.id} onClick={() => setSelectedWorker(selectedWorker?.id === worker.id ? null : worker)} className={selectedWorker?.id === worker.id ? styles.selectedRow : ''}>
-                <td>{worker.firstName} {worker.lastName}</td>
-                <td>{worker.email}</td>
-                <td>{worker.role}</td>
-                <td>{worker.hireDate || '-'}</td>
-                <td>{worker.active ? 'Activo' : 'Inactivo'}</td>
-                <td className={styles.actions}>
-                  <button onClick={(e) => { e.stopPropagation(); openForm(worker); }} className={styles.editBtn}><Edit2 size={14} /></button>
-                  <button onClick={(e) => { e.stopPropagation(); deleteWorker(worker.id); }} className={styles.deleteBtn}><Trash2 size={14} /></button>
-                </td>
-              </tr>
-            ))}
-            {filteredWorkers.length === 0 && (
-              <tr><td colSpan="6" className={styles.emptyRow}>No hay trabajadores registrados</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {selectedWorker && (
-        <div className={styles.detail}>
-          <div className={styles.detailHeader}>
-            <div className={styles.detailAvatar}>{selectedWorker.firstName?.[0]}{selectedWorker.lastName?.[0]}</div>
-            <div>
-              <div className={styles.detailName}>{selectedWorker.firstName} {selectedWorker.lastName}</div>
-              <div className={styles.detailEmail}>{selectedWorker.email}</div>
+      <div className={styles.rolesGrid}>
+        {Object.entries(ROLES).map(([key, role]) => (
+          <div key={key} className={styles.roleCard}>
+            <div className={styles.roleTop}>
+              <Badge variant={role.color}>{role.label}</Badge>
+              <span className={styles.roleCount}>{users.filter(user => user.role === key).length} {t('users.usersLabel')}</span>
             </div>
           </div>
-          <div className={styles.detailGrid}>
-            <div className={styles.detailCard}>
-              <div className={styles.detailLbl}>Rol</div>
-              <div className={styles.detailVal}>{selectedWorker.role}</div>
-            </div>
-            <div className={styles.detailCard}>
-              <div className={styles.detailLbl}>Fecha Contratación</div>
-              <div className={styles.detailVal}>{selectedWorker.hireDate || 'No especificada'}</div>
-            </div>
-            <div className={styles.detailCard}>
-              <div className={styles.detailLbl}>Estado</div>
-              <div className={styles.detailVal}>{selectedWorker.active ? 'Activo' : 'Inactivo'}</div>
-            </div>
-            <div className={styles.detailCard}>
-              <div className={styles.detailLbl}>Fecha Creación</div>
-              <div className={styles.detailVal}>{selectedWorker.createdAt || '-'}</div>
-            </div>
+        ))}
+      </div>
+
+      <DataTable
+        columns={columns}
+        data={users}
+        searchKeys={['email', 'role']}
+        rowActions={(row) => isAdmin ? (
+          <div style={{ display: 'flex', gap: 2 }}>
+            <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)} />
+            <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setDeleteTarget(row)} title={t('common.delete')} />
+          </div>
+        ) : null}
+      />
+
+      <Modal open={modal === 'form'} onClose={() => setModal(null)} title={editing ? t('users.modalEdit') : t('users.modalCreate')}
+        footer={<div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <Button variant="secondary" onClick={() => setModal(null)}>{t('common.cancel')}</Button>
+          <Button variant="primary" onClick={handleSave}>{editing ? t('common.save') : t('users.createUser')}</Button>
+        </div>}
+      >
+        <div className={styles.formGrid}>
+          <div>
+            <label className={styles.label} htmlFor="usr-name">Nombre</label>
+            <input id="usr-name" className={styles.input} value={form.name}
+              onChange={e => set('name', e.target.value)} placeholder="Nombre" />
+          </div>
+          <div>
+            <label className={styles.label} htmlFor="usr-lastname">Apellidos</label>
+            <input id="usr-lastname" className={styles.input} value={form.lastName}
+              onChange={e => set('lastName', e.target.value)} placeholder="Apellidos" />
+          </div>
+          <div className={styles.fieldFull}>
+            <label className={styles.label} htmlFor="usr-email">{t('users.form.email')}</label>
+            <input id="usr-email"
+              className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
+              type="email" value={form.email} onChange={e => set('email', e.target.value)}
+              onBlur={e => validateField('email', e.target.value)}
+              aria-invalid={!!errors.email} aria-describedby={errors.email ? 'err-usr-email' : undefined}
+            />
+            {errors.email && <span id="err-usr-email" role="alert" className={styles.fieldError}>{errors.email}</span>}
+          </div>
+          <div>
+            <label className={styles.label} htmlFor="usr-pw">{editing ? 'Nueva contraseña (opcional)' : 'Contraseña'}</label>
+            <input id="usr-pw" className={styles.input} type="password" value={form.password}
+              onChange={e => set('password', e.target.value)} placeholder={editing ? '••••••••' : 'Contraseña'} />
+          </div>
+          <div>
+            <label className={styles.label} htmlFor="usr-role">{t('users.form.role')}</label>
+            <select id="usr-role" className={styles.input} value={form.role} onChange={e => set('role', e.target.value)}>
+              {Object.entries(ROLES).map(([key, r]) => (
+                <option key={key} value={key}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={styles.label} htmlFor="usr-dob">{t('users.form.dateOfBirth')}</label>
+            <input id="usr-dob" className={styles.input} type="date" value={form.birthDate || ''} onChange={e => set('birthDate', e.target.value)} />
           </div>
         </div>
-      )}
+      </Modal>
+
+      <ConfirmModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete}
+        title={t('users.deleteTitle')} danger
+        message={t('users.deleteMsg', { email: deleteTarget?.email ?? '' })}
+        confirmLabel={t('common.delete')} />
     </div>
   );
 }

@@ -1,31 +1,23 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Users, RefreshCw, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import { shiftsService } from '../../services/shiftsService';
+import { Users, RefreshCw, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
 import { usersService } from '../../services/usersService';
 import { useApp } from '../../contexts/AppContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import styles from './ShiftsPage.module.css';
 
-const SHIFTS = {
-  M: { label: 'Mañana', hours: '08–16' },
-  T: { label: 'Tarde', hours: '14–22' },
-  N: { label: 'Noche', hours: '18–02' },
-  L: { label: 'Libre', hours: '—' },
-};
+// ── Shift codes (stable — not translated) ──────────────
 const SHIFT_ORDER = ['M', 'T', 'N', 'L'];
 
 const ROLE_SHIFTS = {
-  CAJERO: ['M', 'T'],
-  LIMPIEZA: ['M', 'T'],
-  SEGURIDAD: ['T', 'N'],
-  GERENCIA: ['M', 'T', 'N'],
+  admin:       ['M', 'M', 'T'],
+  supervisor:  ['M', 'T', 'T', 'N'],
+  operator:    ['M', 'T', 'N'],
+  ticket:      ['M', 'T'],
+  maintenance: ['M', 'T', 'N'],
+  readonly:    ['M'],
 };
 
-const ROLE_LABELS = {
-  CAJERO: 'Cajero', LIMPIEZA: 'Limpieza', SEGURIDAD: 'Seguridad', GERENCIA: 'Gerencia',
-};
-
-const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-
+// ── Date helpers ───────────────────────────────────────
 function getWeekStart(date) {
   const d = new Date(date);
   const day = d.getDay() || 7;
@@ -40,8 +32,8 @@ function addDays(date, n) {
   return d;
 }
 
-function fmtDate(date) {
-  return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+function fmtDate(date, lang) {
+  return date.toLocaleDateString(lang === 'en' ? 'en-GB' : 'es-ES', { day: '2-digit', month: 'short' });
 }
 
 function weekNum(date) {
@@ -50,13 +42,18 @@ function weekNum(date) {
 }
 
 function weekKey(date) {
-  const ws = getWeekStart(date);
-  return `${ws.getFullYear()}-${ws.getMonth() + 1}-${ws.getDate()}`;
+  return getWeekStart(date).toISOString().split('T')[0];
 }
 
+// ── Schedule generator ─────────────────────────────────
 function generateWeekSchedule(employees, weekStartDate, genKey = 0) {
   const wn = weekNum(weekStartDate) + weekStartDate.getFullYear() * 100;
   let seed = ((wn * 31337 + 7 + genKey * 999983) >>> 0);
+
+  const rand = () => {
+    seed = ((seed * 1664525 + 1013904223) >>> 0);
+    return seed / 0xffffffff;
+  };
 
   const weights = [2, 1, 1, 1, 1, 3, 3];
   const totalW = weights.reduce((a, b) => a + b, 0);
@@ -85,63 +82,76 @@ function generateWeekSchedule(employees, weekStartDate, genKey = 0) {
   });
 }
 
-function ShiftCell({ shift, isEditing, onEdit, onSelect }) {
-  const pickerRef = useRef(null);
+// ── Coverage stats ─────────────────────────────────────
+function coverageStats(rows) {
+  const counts = { M: 0, T: 0, N: 0, L: 0 };
+  rows.forEach(r => r.days.forEach(d => { if (counts[d] !== undefined) counts[d]++; }));
+  return counts;
+}
+
+// ── ShiftPicker sub-component ──────────────────────────
+function ShiftPicker({ onSelect, onClose, shifts }) {
+  const ref = useRef(null);
 
   useEffect(() => {
-    if (!isEditing) return;
-    const handler = (e) => { if (pickerRef.current && !pickerRef.current.contains(e.target)) onEdit(); };
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [isEditing, onEdit]);
+  }, [onClose]);
 
+  return (
+    <div className={styles.picker} ref={ref}>
+      {SHIFT_ORDER.map(s => (
+        <button
+          key={s}
+          className={`${styles.pickerOpt} ${styles[`cell${s}`]}`}
+          onClick={() => onSelect(s)}
+          title={`${shifts[s].label} ${shifts[s].hours}`}
+        >
+          <span className={styles.pickerShort}>{s}</span>
+          <span className={styles.pickerHours}>{shifts[s].hours}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── ShiftCell sub-component ────────────────────────────
+function ShiftCell({ shift, isEditing, onEdit, onSelect, onClose, shifts }) {
   return (
     <div className={styles.cellWrap}>
       <button
         className={`${styles.cell} ${styles[`cell${shift}`]} ${isEditing ? styles.cellActive : ''}`}
         onClick={onEdit}
-        title={`${SHIFTS[shift]?.label} ${SHIFTS[shift]?.hours} — clic para cambiar`}
+        title={`${shifts[shift]?.label} ${shifts[shift]?.hours}`}
       >
         {shift}
       </button>
-      {isEditing && (
-        <div className={styles.picker} ref={pickerRef}>
-          {SHIFT_ORDER.map(s => (
-            <button
-              key={s}
-              className={`${styles.pickerOpt} ${styles[`cell${s}`]}`}
-              onClick={() => onSelect(s)}
-              title={`${SHIFTS[s].label} ${SHIFTS[s].hours}`}
-            >
-              <span className={styles.pickerShort}>{s}</span>
-              <span className={styles.pickerHours}>{SHIFTS[s].hours}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      {isEditing && <ShiftPicker onSelect={onSelect} onClose={onClose} shifts={shifts} />}
     </div>
   );
 }
 
-function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onCloseEdit }) {
+// ── WeekTable sub-component ────────────────────────────
+function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onCloseEdit, dayNames, shifts, roleLabels, colLabels, lang }) {
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
         <thead>
           <tr>
-            <th className={styles.thEmployee}>Empleado</th>
-            <th className={styles.thRole}>Rol</th>
+            <th className={styles.thEmployee}>{colLabels.employee}</th>
+            <th className={styles.thRole}>{colLabels.role}</th>
             {Array.from({ length: 7 }, (_, i) => {
               const d = addDays(weekStart, i);
               const isToday = d.toDateString() === new Date().toDateString();
               return (
                 <th key={i} className={`${styles.thDay} ${isToday ? styles.thToday : ''}`}>
-                  <span className={styles.dayName}>{DAY_NAMES[i]}</span>
+                  <span className={styles.dayName}>{dayNames[i]}</span>
                   <span className={styles.dayNum}>{d.getDate()}</span>
                 </th>
               );
             })}
-            <th className={styles.thStats}>Horas est.</th>
+            <th className={styles.thStats}>{colLabels.hours}</th>
           </tr>
         </thead>
         <tbody>
@@ -150,14 +160,14 @@ function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onClo
             return (
               <tr key={emp.id} className={i % 2 === 0 ? styles.rowEven : styles.rowOdd}>
                 <td className={styles.tdEmployee}>
-                  <div className={styles.empAvatar}>{emp.name?.charAt(0)}</div>
+                  <div className={styles.empAvatar}>{emp.name.charAt(0)}</div>
                   <span className={styles.empName}>
-                    {emp.name?.split(' ')[0]} {emp.name?.split(' ')[1]?.charAt(0)}.
+                    {emp.name.split(' ')[0]} {emp.name.split(' ')[1]?.charAt(0)}.
                   </span>
                 </td>
                 <td className={styles.tdRole}>
                   <span className={`${styles.roleBadge} ${styles[`role_${emp.role}`]}`}>
-                    {ROLE_LABELS[emp.role] || emp.role}
+                    {roleLabels[emp.role] ?? emp.role}
                   </span>
                 </td>
                 {emp.days.map((shift, d) => {
@@ -172,6 +182,7 @@ function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onClo
                         onEdit={() => onEditCell(emp.id, d)}
                         onSelect={(s) => onShiftChange(emp.id, d, s)}
                         onClose={onCloseEdit}
+                        shifts={shifts}
                       />
                     </td>
                   );
@@ -189,8 +200,10 @@ function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onClo
   );
 }
 
-export default function ShiftsPage() {
+// ── Main page ──────────────────────────────────────────
+export default function CuadrantePage() {
   const { toast } = useApp();
+  const { t, language } = useLanguage();
   const [mode, setMode] = useState('week');
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [monthStart, setMonthStart] = useState(() => {
@@ -199,9 +212,32 @@ export default function ShiftsPage() {
   });
 
   const [allUsers, setAllUsers] = useState([]);
-  const [scheduleMap, setScheduleMap] = useState({});
+  const [scheduleMap, setScheduleMap] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('lumen_schedule_map') ?? '{}'); } catch { return {}; }
+  });
   const [editCell, setEditCell] = useState(null);
-  const [loading, setLoading] = useState(false);
+
+  // Reactive translations for shift labels and day names
+  const SHIFTS = {
+    M: { label: t('shifts.shift.M'), hours: t('shifts.hours.M') },
+    T: { label: t('shifts.shift.T'), hours: t('shifts.hours.T') },
+    N: { label: t('shifts.shift.N'), hours: t('shifts.hours.N') },
+    L: { label: t('shifts.shift.L'), hours: t('shifts.hours.L') },
+  };
+  const DAY_NAMES  = t('shifts.day');
+  const ROLE_LABELS = {
+    admin:       t('shifts.role.admin'),
+    supervisor:  t('shifts.role.supervisor'),
+    operator:    t('shifts.role.operator'),
+    ticket:      t('shifts.role.ticket'),
+    maintenance: t('shifts.role.maintenance'),
+    readonly:    t('shifts.role.readonly'),
+  };
+  const COL_LABELS = {
+    employee: t('shifts.col.employee'),
+    role:     t('shifts.col.role'),
+    hours:    t('shifts.col.hours'),
+  };
 
   useEffect(() => {
     usersService.getAll().then(data => {
@@ -210,7 +246,7 @@ export default function ShiftsPage() {
   }, []);
 
   const activeEmployees = useMemo(
-    () => allUsers.filter(u => u.status === 'active'),
+    () => allUsers.filter(u => u.role && u.role.toLowerCase() !== 'client'),
     [allUsers]
   );
 
@@ -220,30 +256,36 @@ export default function ShiftsPage() {
     [currentKey, scheduleMap, activeEmployees, weekStart]
   );
 
-  const stats = { M: 0, T: 0, N: 0, L: 0 };
-  weekRows.forEach(r => r.days.forEach(d => { if (stats[d] !== undefined) stats[d]++; }));
+  const monthWeeks = useMemo(() => {
+    const weeks = [];
+    let cursor = getWeekStart(monthStart);
+    const targetMonth = monthStart.getMonth();
+    for (let w = 0; w < 6; w++) {
+      const hasMonth = Array.from({ length: 7 }, (_, i) => addDays(cursor, i))
+        .some(d => d.getMonth() === targetMonth);
+      if (!hasMonth) break;
+      const key = weekKey(cursor);
+      weeks.push({
+        start: new Date(cursor),
+        key,
+        rows: scheduleMap[key] ?? generateWeekSchedule(activeEmployees, cursor, 0),
+      });
+      cursor = addDays(cursor, 7);
+    }
+    return weeks;
+  }, [monthStart, scheduleMap, activeEmployees]);
 
-  const periodLabel = mode === 'week'
-    ? `Sem ${weekNum(weekStart)} · ${fmtDate(weekStart)} — ${fmtDate(addDays(weekStart, 6))}`
-    : monthStart.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase());
-
-  const prevPeriod = () => {
-    if (mode === 'week') setWeekStart(d => addDays(d, -7));
-    else setMonthStart(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
-  };
-  const nextPeriod = () => {
-    if (mode === 'week') setWeekStart(d => addDays(d, 7));
-    else setMonthStart(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
-  };
+  const stats = coverageStats(weekRows);
 
   const handleGenerate = () => {
     const genKey = Date.now();
     if (mode === 'week') {
-      setScheduleMap(prev => ({
-        ...prev,
-        [currentKey]: generateWeekSchedule(activeEmployees, weekStart, genKey),
-      }));
-      toast('Cuadrante semanal generado', 'success');
+      setScheduleMap(prev => {
+        const next = { ...prev, [currentKey]: generateWeekSchedule(activeEmployees, weekStart, genKey) };
+        try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
+        return next;
+      });
+      toast(t('shifts.weekGenerated'), 'success');
     } else {
       const updates = {};
       let cursor = getWeekStart(monthStart);
@@ -255,61 +297,66 @@ export default function ShiftsPage() {
         updates[weekKey(cursor)] = generateWeekSchedule(activeEmployees, cursor, genKey + w);
         cursor = addDays(cursor, 7);
       }
-      setScheduleMap(prev => ({ ...prev, ...updates }));
-      toast(`Cuadrante mensual generado: ${Object.keys(updates).length} semanas`, 'success');
+      setScheduleMap(prev => {
+        const next = { ...prev, ...updates };
+        try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
+        return next;
+      });
+      toast(t('shifts.monthGenerated', { count: Object.keys(updates).length }), 'success');
     }
     setEditCell(null);
   };
 
   const handleShiftChange = (empId, dayIdx, newShift) => {
     setScheduleMap(prev => {
-      const key = weekKey(weekStart);
-      const rows = prev[key] ?? generateWeekSchedule(activeEmployees, weekStart, 0);
-      const updated = rows.map(r => r.id === empId ? { ...r, days: r.days.map((d, i) => i === dayIdx ? newShift : d) } : r);
-      return { ...prev, [key]: updated };
+      const rows = prev[currentKey] ?? generateWeekSchedule(activeEmployees, weekStart, 0);
+      const next = {
+        ...prev,
+        [currentKey]: rows.map(emp =>
+          emp.id === empId
+            ? { ...emp, days: emp.days.map((d, i) => i === dayIdx ? newShift : d) }
+            : emp
+        ),
+      };
+      try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
+      return next;
     });
     setEditCell(null);
   };
 
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      const rows = scheduleMap[currentKey] || weekRows;
-      const shifts = rows.flatMap(emp =>
-        emp.days.map((shift, dayIdx) => {
-          if (shift === 'L') return null;
-          const date = addDays(weekStart, dayIdx);
-          const startHour = shift === 'M' ? 8 : shift === 'T' ? 14 : 18;
-          return {
-            workerEmail: emp.email,
-            workerName: emp.name,
-            role: emp.role,
-            shiftDate: date.toISOString().split('T')[0],
-            startTime: `${startHour}:00`,
-            endTime: shift === 'M' ? '16:00' : shift === 'T' ? '22:00' : '02:00',
-            status: 'PENDIENTE',
-          };
-        }).filter(Boolean)
-      );
-
-      await Promise.all(shifts.map(s => shiftsService.create(s)));
-      toast('Turnos guardados en la base de datos', 'success');
-    } catch {
-      toast('Error al guardar turnos', 'error');
-    } finally {
-      setLoading(false);
-    }
+  const handleEditCell = (empId, dayIdx) => {
+    setEditCell(prev =>
+      prev?.empId === empId && prev?.dayIdx === dayIdx ? null : { empId, dayIdx }
+    );
   };
+
+  const prevPeriod = () => {
+    setEditCell(null);
+    if (mode === 'week') setWeekStart(d => addDays(d, -7));
+    else setMonthStart(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  };
+  const nextPeriod = () => {
+    setEditCell(null);
+    if (mode === 'week') setWeekStart(d => addDays(d, 7));
+    else setMonthStart(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  };
+
+  const lang = language ?? 'es';
+  const periodLabel = mode === 'week'
+    ? `${t('shifts.weekPrefix')} ${weekNum(weekStart)} · ${fmtDate(weekStart, lang)} — ${fmtDate(addDays(weekStart, 6), lang)}`
+    : monthStart.toLocaleDateString(lang === 'en' ? 'en-GB' : 'es-ES', { month: 'long', year: 'numeric' })
+        .replace(/^\w/, c => c.toUpperCase());
 
   return (
     <div className={styles.page}>
+      {/* ── Top bar ── */}
       <div className={styles.topBar}>
         <div className={styles.topLeft}>
           <Users size={18} className={styles.titleIcon} />
           <div>
-            <h1 className={styles.title}>Cuadrante de Turnos</h1>
+            <h1 className={styles.title}>{t('shifts.title')}</h1>
             <p className={styles.sub}>
-              {weekRows.length} empleados · {activeEmployees.length} activos
+              {t('shifts.subtitle', { count: activeEmployees.length })}
             </p>
           </div>
         </div>
@@ -320,7 +367,13 @@ export default function ShiftsPage() {
               className={`${styles.modeBtn} ${mode === 'week' ? styles.modeBtnActive : ''}`}
               onClick={() => setMode('week')}
             >
-              <Calendar size={12} />Semana
+              <Calendar size={12} />{t('shifts.mode.week')}
+            </button>
+            <button
+              className={`${styles.modeBtn} ${mode === 'month' ? styles.modeBtnActive : ''}`}
+              onClick={() => setMode('month')}
+            >
+              <Calendar size={12} />{t('shifts.mode.month')}
             </button>
           </div>
 
@@ -332,36 +385,135 @@ export default function ShiftsPage() {
 
           <button className={styles.generateBtn} onClick={handleGenerate}>
             <RefreshCw size={13} />
-            Generar
+            {mode === 'week' ? t('shifts.generate.week') : t('shifts.generate.month')}
           </button>
 
-          <button className={styles.saveBtn} onClick={handleSave} disabled={loading}>
-            {loading ? 'Guardando...' : 'Guardar en BD'}
+          <button className={styles.exportBtn} title="Imprimir / Exportar PDF" onClick={() => window.print()}>
+            <Download size={13} />
           </button>
         </div>
       </div>
 
-      <div className={styles.coverageBar}>
-        <div className={styles.coverageItems}>
-          {Object.entries(SHIFTS).map(([k, s]) => (
-            <div key={k} className={styles.coverageItem}>
-              <span className={`${styles.shiftDot} ${styles[`dot${k}`]}`} />
-              <span className={styles.coverageLabel}>{s.label}</span>
-              <span className={styles.coverageHours}>{s.hours}</span>
-              <span className={styles.coverageCount}>{stats[k]}</span>
+      {/* ── Weekly coverage bar ── */}
+      {mode === 'week' && (
+        <div className={styles.coverageBar}>
+          <div className={styles.coverageItems}>
+            {Object.entries(SHIFTS).map(([k, s]) => (
+              <div key={k} className={styles.coverageItem}>
+                <span className={`${styles.shiftDot} ${styles[`dot${k}`]}`} />
+                <span className={styles.coverageLabel}>{s.label}</span>
+                <span className={styles.coverageHours}>{s.hours}</span>
+                <span className={styles.coverageCount}>{stats[k]}</span>
+              </div>
+            ))}
+          </div>
+          <div className={styles.coverageSep} />
+          <div className={styles.coverageLegend}>
+            {SHIFT_ORDER.map(k => (
+              <span key={k} className={`${styles.legendPill} ${styles[`pill${k}`]}`}>
+                {k} = {SHIFTS[k].label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Week view ── */}
+      {mode === 'week' && (
+        <WeekTable
+          rows={weekRows}
+          weekStart={weekStart}
+          editCell={editCell}
+          onEditCell={handleEditCell}
+          onShiftChange={handleShiftChange}
+          onCloseEdit={() => setEditCell(null)}
+          dayNames={DAY_NAMES}
+          shifts={SHIFTS}
+          roleLabels={ROLE_LABELS}
+          colLabels={COL_LABELS}
+          lang={lang}
+        />
+      )}
+
+      {/* ── Month view ── */}
+      {mode === 'month' && (
+        <div className={styles.monthView}>
+          {monthWeeks.map((week) => (
+            <div key={week.key} className={styles.monthWeek}>
+              <div className={styles.monthWeekHeader}>
+                <span className={styles.monthWeekLabel}>
+                  {t('shifts.weekPrefix')} {weekNum(week.start)} · {fmtDate(week.start, lang)} — {fmtDate(addDays(week.start, 6), lang)}
+                </span>
+                <div className={styles.monthWeekStats}>
+                  {Object.entries(coverageStats(week.rows)).map(([k, v]) => (
+                    <span key={k} className={`${styles.miniPill} ${styles[`pill${k}`]}`}>{v} {k}</span>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th className={styles.thEmployee}>{t('shifts.col.employee')}</th>
+                      {Array.from({ length: 7 }, (_, i) => {
+                        const d = addDays(week.start, i);
+                        const inMonth = d.getMonth() === monthStart.getMonth();
+                        const isToday = d.toDateString() === new Date().toDateString();
+                        return (
+                          <th key={i} className={`${styles.thDay} ${isToday ? styles.thToday : ''} ${!inMonth ? styles.thOutMonth : ''}`}>
+                            <span className={styles.dayName}>{DAY_NAMES[i]}</span>
+                            <span className={styles.dayNum}>{d.getDate()}</span>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {week.rows.map((emp, i) => (
+                      <tr key={emp.id} className={i % 2 === 0 ? styles.rowEven : styles.rowOdd}>
+                        <td className={styles.tdEmployee}>
+                          <div className={styles.empAvatar}>{emp.name.charAt(0)}</div>
+                          <span className={styles.empName}>
+                            {emp.name.split(' ')[0]} {emp.name.split(' ')[1]?.charAt(0)}.
+                          </span>
+                        </td>
+                        {emp.days.map((shift, d) => {
+                          const date = addDays(week.start, d);
+                          const inMonth = date.getMonth() === monthStart.getMonth();
+                          const isToday = date.toDateString() === new Date().toDateString();
+                          return (
+                            <td key={d} className={`${styles.tdShift} ${isToday ? styles.tdToday : ''} ${!inMonth ? styles.tdOutMonth : ''}`}>
+                              {inMonth
+                                ? <span className={`${styles.cell} ${styles[`cell${shift}`]}`}>{shift}</span>
+                                : <span className={styles.outMonth}>—</span>
+                              }
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ))}
         </div>
-      </div>
+      )}
 
-      <WeekTable
-        rows={weekRows}
-        weekStart={weekStart}
-        editCell={editCell}
-        onEditCell={(empId, dayIdx) => setEditCell({ empId, dayIdx })}
-        onShiftChange={handleShiftChange}
-        onCloseEdit={() => setEditCell(null)}
-      />
+      {/* ── Footer ── */}
+      <div className={styles.footer}>
+        <span className={styles.footerNote}>
+          {t('shifts.footer.note')}
+        </span>
+        <div className={styles.footerStats}>
+          <span>{t('shifts.footer.employees')}: <strong>{activeEmployees.length}</strong></span>
+          <span>·</span>
+          <span>{t('shifts.footer.hoursPerWeek')}: <strong>{weekRows.reduce((a, r) => a + r.days.filter(d => d !== 'L').length * 8, 0)}h</strong></span>
+          <span>·</span>
+          <span>{t('shifts.footer.daysOff')}: <strong>{stats.L}</strong></span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useId } from 'react';
 import { X } from 'lucide-react';
 import styles from './Modal.module.css';
 import Button from './Button';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 const FOCUSABLE = [
   'a[href]', 'button:not([disabled])', 'input:not([disabled])',
@@ -14,23 +15,21 @@ export default function Modal({ open, onClose, title, children, footer, size = '
   const overlayRef   = useRef(null);
   const previousFocus = useRef(null);
   const onCloseRef   = useRef(onClose);
+  const { t } = useLanguage();
   useEffect(() => { onCloseRef.current = onClose; });
 
-  // Foco inicial — solo cuando el modal abre, nunca en re-renders por form changes
   useEffect(() => {
     if (!open) return;
     previousFocus.current = document.activeElement;
     const modal = overlayRef.current?.querySelector('[role="dialog"]');
     if (modal) {
       const focusables = Array.from(modal.querySelectorAll(FOCUSABLE));
-      // Saltar el botón X (close) y enfocar el primer campo de formulario
       const target = focusables.find(el => el.tagName !== 'BUTTON') ?? focusables[0] ?? modal;
       target.focus();
     }
     return () => previousFocus.current?.focus();
   }, [open]);
 
-  // Trap de teclado — usa ref para onClose y no re-registra en cada render
   useEffect(() => {
     if (!open) return;
     const modal = overlayRef.current?.querySelector('[role="dialog"]');
@@ -69,7 +68,7 @@ export default function Modal({ open, onClose, title, children, footer, size = '
       >
         <div className={styles.header}>
           <h2 id={titleId} className={styles.title}>{title}</h2>
-          <button className={styles.close} onClick={onClose} aria-label="Cerrar diálogo">
+          <button className={styles.close} onClick={onClose} aria-label={t('common.closeDialog')}>
             <X size={16} aria-hidden="true" />
           </button>
         </div>
@@ -80,14 +79,15 @@ export default function Modal({ open, onClose, title, children, footer, size = '
   );
 }
 
-export function ConfirmModal({ open, onClose, onConfirm, title, message, confirmLabel = 'Confirmar', danger = false }) {
+export function ConfirmModal({ open, onClose, onConfirm, title, message, confirmLabel, danger = false }) {
+  const { t } = useLanguage();
   return (
     <Modal open={open} onClose={onClose} title={title} size="sm" danger={danger}
       footer={
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant={danger ? 'danger' : 'primary'} onClick={() => { onConfirm(); onClose(); }}>
-            {confirmLabel}
+            {confirmLabel ?? t('common.confirm')}
           </Button>
         </div>
       }

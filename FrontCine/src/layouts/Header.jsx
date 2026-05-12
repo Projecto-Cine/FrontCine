@@ -4,47 +4,25 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import ShortcutsModal from '../components/shared/ShortcutsModal';
+import LanguageSwitcher from '../components/ui/LanguageSwitcher';
+import { useLanguage } from '../i18n/LanguageContext';
 import styles from './Header.module.css';
 
-const ROUTE_LABELS = {
-  '/':             'Dashboard',
-  '/box-office':   'Taquilla — Venta de Entradas',
-  '/concession':   'Caja — Concesión',
-  '/movies':       'Películas',
-  '/rooms':        'Salas',
-  '/schedules':    'Horarios',
-  '/reservations': 'Reservas',
-  '/incidents':    'Incidencias',
-  '/inventory':    'Inventario',
-  '/shifts':       'Cuadrante de Turnos',
-  '/reports':      'Informes',
-  '/employees':    'Trabajadores',
-  '/clients':      'Clientes',
-};
-
-const ROLE_LABELS = {
-  admin: 'Administrador', supervisor: 'Supervisor', operator: 'Operador',
-  ticket: 'Taquilla', maintenance: 'Mantenimiento', readonly: 'Consulta',
-};
-
-function useLiveClock() {
-  const [time, setTime] = useState(() =>
-    new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-  );
+function useLiveClock(fmt) {
+  const [time, setTime] = useState(() => fmt.time(new Date()));
   useEffect(() => {
-    const id = setInterval(() => {
-      setTime(new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }));
-    }, 10000);
+    const id = setInterval(() => setTime(fmt.time(new Date())), 10000);
     return () => clearInterval(id);
-  }, []);
+  }, [fmt]);
   return time;
 }
 
 export default function Header({ onOpenPalette }) {
   const { sidebarCollapsed, toggleSidebar } = useApp();
   const { user } = useAuth();
+  const { t, fmt } = useLanguage();
   const location = useLocation();
-  const now = useLiveClock();
+  const now = useLiveClock(fmt);
   const [showShortcuts, setShowShortcuts] = useState(false);
 
   useEffect(() => {
@@ -57,6 +35,10 @@ export default function Header({ onOpenPalette }) {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
+  const pageTitle = t(`header.routes.${location.pathname}`) || 'Lumen';
+  const expandLabel   = t('header.expandSidebar');
+  const collapseLabel = t('header.collapseSidebar');
+
   return (
     <>
       <header className={styles.header}>
@@ -64,15 +46,17 @@ export default function Header({ onOpenPalette }) {
           <button
             className={styles.toggleBtn}
             onClick={toggleSidebar}
-            title={sidebarCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
-            aria-label={sidebarCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
+            title={sidebarCollapsed ? expandLabel : collapseLabel}
+            aria-label={sidebarCollapsed ? expandLabel : collapseLabel}
             aria-expanded={!sidebarCollapsed}
             aria-controls="app-sidebar"
           >
-            {sidebarCollapsed ? <PanelLeft size={15} aria-hidden="true" /> : <PanelLeftClose size={15} aria-hidden="true" />}
+            {sidebarCollapsed
+              ? <PanelLeft size={15} aria-hidden="true" />
+              : <PanelLeftClose size={15} aria-hidden="true" />}
           </button>
           <div className={styles.pageDivider} aria-hidden="true" />
-          <h1 className={styles.pageTitle}>{ROUTE_LABELS[location.pathname] || 'Lumen'}</h1>
+          <h1 className={styles.pageTitle}>{pageTitle}</h1>
         </div>
 
         <div className={styles.right}>
@@ -80,11 +64,11 @@ export default function Header({ onOpenPalette }) {
             <button
               className={styles.searchTrigger}
               onClick={onOpenPalette}
-              title="Búsqueda rápida (Ctrl+K)"
-              aria-label="Abrir búsqueda rápida"
+              title={t('header.quickSearchTitle')}
+              aria-label={t('header.quickSearchLabel')}
             >
               <Search size={12} aria-hidden="true" />
-              <span>Ir a...</span>
+              <span>{t('header.quickSearch')}</span>
               <kbd className={styles.searchKbd}>Ctrl K</kbd>
             </button>
           )}
@@ -94,26 +78,33 @@ export default function Header({ onOpenPalette }) {
             <span>{now}</span>
           </div>
 
+          <LanguageSwitcher variant="header" />
+
           <button
             className={styles.iconBtn}
             onClick={() => setShowShortcuts(true)}
-            title="Atajos de teclado (?)"
-            aria-label="Ver atajos de teclado"
+            title={t('header.shortcutsTitle')}
+            aria-label={t('header.shortcuts')}
           >
             <Keyboard size={14} aria-hidden="true" />
           </button>
 
-          <button className={styles.iconBtn} title="Notificaciones" aria-label="Notificaciones" aria-haspopup="true">
+          <button
+            className={styles.iconBtn}
+            title={t('header.notifications')}
+            aria-label={t('header.notifications')}
+            aria-haspopup="true"
+          >
             <Bell size={14} aria-hidden="true" />
             <span className={styles.notifDot} aria-hidden="true" />
           </button>
 
           {user && (
-            <div className={styles.userChip} aria-label={`Usuario: ${user.name}, rol: ${ROLE_LABELS[user.role]}`}>
+            <div className={styles.userChip} aria-label={`${user.name}, ${t(`header.roles.${user.role}`)}`}>
               <div className={styles.avatar} aria-hidden="true">{user.name.charAt(0)}</div>
               <div className={styles.meta}>
                 <span className={styles.name}>{user.name.split(' ')[0]}</span>
-                <span className={styles.role}>{ROLE_LABELS[user.role]}</span>
+                <span className={styles.role}>{t(`header.roles.${user.role}`)}</span>
               </div>
             </div>
           )}

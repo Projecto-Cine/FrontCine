@@ -1,4 +1,4 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+﻿*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
   /* ── Backgrounds — negro puro, sin tono cálido ─ */
@@ -34,6 +34,14 @@
   --purple: #c084fc;
   --purple-dim: rgba(192,132,252,0.10);
 
+  /* ── Font sizes — escalables por a11y ────── */
+  --fs-2xs:  9px;
+  --fs-xs:  10px;
+  --fs-sm:  11px;
+  --fs-md:  12px;
+  --fs-base: 13px;
+  --fs-lg:  14px;
+
   /* ── Geometry & effects — más redondeado ─ */
   --r-sm: 6px;
   --r: 10px;
@@ -53,7 +61,7 @@
 }
 
 /* font-size subido de 13 → 14px para mínimo legible recomendado */
-html { font-size: 14px; }
+html { font-size: var(--fs-lg); }
 
 body {
   font-family: var(--font);
@@ -129,9 +137,23 @@ ul, ol { list-style: none; }
    Widget de Accesibilidad — efectos globales
    ═══════════════════════════════════════════ */
 
-/* Tamaño de fuente aumentado */
-html.a11y-font-large  { font-size: 17px; }
-html.a11y-font-xlarge { font-size: 20px; }
+/* Tamaño de fuente aumentado — sobreescribe las variables de fs */
+html.a11y-font-large {
+  --fs-2xs:  10px;
+  --fs-xs:   12px;
+  --fs-sm:   13px;
+  --fs-md:   14px;
+  --fs-base: 15px;
+  --fs-lg:   17px;
+}
+html.a11y-font-xlarge {
+  --fs-2xs:  12px;
+  --fs-xs:   13px;
+  --fs-sm:   15px;
+  --fs-md:   16px;
+  --fs-base: 18px;
+  --fs-lg:   20px;
+}
 
 /* Subrayar todos los enlaces y nav-links */
 html.a11y-underline-links a,

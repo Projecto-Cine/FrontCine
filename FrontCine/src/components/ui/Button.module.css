@@ -1,4 +1,4 @@
-.btn {
+﻿.btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -13,9 +13,9 @@
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.sm { font-size: 12px; padding: 5px 12px; }
-.md { font-size: 13px; padding: 7px 16px; }
-.lg { font-size: 14px; padding: 9px 20px; }
+.sm { font-size: var(--fs-md); padding: 5px 12px; }
+.md { font-size: var(--fs-base); padding: 7px 16px; }
+.lg { font-size: var(--fs-lg); padding: 9px 20px; }
 .icon-only { padding: 7px; border-radius: var(--r); }
 
 .primary {

@@ -1,24 +1,34 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  Minus, Plus, X, CreditCard, Banknote, Smartphone,
+  Minus, Plus, X, CreditCard, Banknote,
   ShoppingCart, CheckCircle, Printer, Trash2, Search,
-  RotateCcw, Loader
+  RotateCcw, Loader, Settings, Edit2, Save, Upload,
 } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { salesService }     from '../../services/salesService';
+import { uploadImage }      from '../../services/cloudinaryService';
 import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../i18n/LanguageContext';
+import EmptyState from '../../components/shared/EmptyState';
 import styles from './ConcessionPage.module.css';
 
 const CATEGORY_EMOJI = { Palomitas: '🍿', Bebidas: '🥤', Snacks: '🌮', Combos: '🎁', Concesión: '🛒' };
+const DEFAULT_CATEGORIES = ['Palomitas', 'Bebidas', 'Snacks', 'Combos', 'Concesión'];
 const getEmoji = (p) => p.emoji ?? CATEGORY_EMOJI[p.category] ?? '🔲';
 const getPrice = (p) => p.price ?? p.price_unit ?? 0;
 
-const PAY_METHODS = [
-  { id: 'card',   label: 'Tarjeta', Icon: CreditCard  },
-  { id: 'cash',   label: 'Efectivo', Icon: Banknote   },
-  { id: 'online', label: 'QR / App', Icon: Smartphone },
-];
+const EMPTY_PRODUCT = { name: '', category: 'Palomitas', price: '', description: '', emoji: '', imageUrl: '', quantity: '' };
+const MANAGE_ROLES  = ['admin', 'supervisor', 'operator'];
+
+const IMG_KEY = 'lumen_product_images';
+const getStoredImgs = () => { try { return JSON.parse(localStorage.getItem(IMG_KEY) ?? '{}'); } catch { return {}; } };
+const saveStoredImg = (id, url) => { try { const s = getStoredImgs(); if (url) s[String(id)] = url; else delete s[String(id)]; localStorage.setItem(IMG_KEY, JSON.stringify(s)); } catch { /* localStorage may be unavailable */ } };
+const mergeImgs = (prods) => {
+  const s = getStoredImgs();
+  return prods.map(p => ({ ...p, imageUrl: p.imageUrl || s[String(p.id)] || '' }));
+};
+
 
 function generateReceiptId() {
   return 'RCP-' + Date.now().toString(36).toUpperCase();
@@ -27,6 +37,7 @@ function generateReceiptId() {
 export default function CajaPage() {
   const { toast } = useApp();
   const { user }  = useAuth();
+  const { t }     = useLanguage();
 
   const [products, setProducts]       = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -40,21 +51,55 @@ export default function CajaPage() {
   const [paying, setPaying]           = useState(false);
   const searchRef = useRef(null);
 
+  // Gestión de productos (solo admin/supervisor/operator)
+  const canManage    = MANAGE_ROLES.includes((user?.role ?? '').toLowerCase());
+  const [showManager,     setShowManager]     = useState(false);
+  const [productForm,     setProductForm]     = useState(null); // null = lista, objeto = formulario
+  const [editingProduct,  setEditingProduct]  = useState(null);
+  const [savingProduct,   setSavingProduct]   = useState(false);
+  const [deletingId,      setDeletingId]      = useState(null);
+  const [uploadingImg,    setUploadingImg]    = useState(false);
+  const fileInputRef = useRef(null);
+  const setField = (k, v) => setProductForm(prev => ({ ...prev, [k]: v }));
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploadingImg(true);
+    try {
+      const url = await uploadImage(file);
+      setField('imageUrl', url);
+      toast('Imagen subida correctamente.', 'success');
+    } catch (err) {
+      toast(err.message ?? 'Error al subir la imagen.', 'error');
+    }
+    setUploadingImg(false);
+  };
+
+  // Normaliza campos que el backend puede devolver con distintos nombres
+  const normalizeProduct = (p) => ({
+    ...p,
+    imageUrl: p.imageUrl ?? p.image_url ?? p.image ?? p.imageURL ?? p.photoUrl ?? p.url ?? p.poster ?? '',
+    description: p.description ?? p.desc ?? '',
+    stock: p.stock ?? p.quantity,
+  });
+
   // Cargar productos de concesión desde el backend
   useEffect(() => {
     inventoryService.getAll()
       .then(data => {
-        const items = Array.isArray(data) ? data : [];
+        const items = (Array.isArray(data) ? data : []).map(normalizeProduct);
         // Mostrar solo productos de concesión con stock disponible
-        const concession = items.filter(p => p.quantity === undefined || p.quantity > 0);
-        setProducts(concession);
+        const concession = items.filter(p => p.stock === undefined || p.stock > 0);
+        setProducts(mergeImgs(concession));
         // Categoría por defecto: la primera disponible
         const cats = [...new Set(concession.map(p => p.category))];
         if (cats.length > 0 && !cats.includes('Todo')) setCategory('Todo');
       })
       .catch(() => toast('Error al cargar productos.', 'error'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   const CATEGORIES = ['Todo', ...new Set(products.map(p => p.category))];
 
@@ -98,46 +143,56 @@ export default function CajaPage() {
   const totalItems = cart.reduce((s, i) => s + i.qty, 0);
   const change     = payMethod === 'cash' && cashGiven ? (parseFloat(cashGiven) - total).toFixed(2) : null;
 
+  const buildReceipt = useCallback((lines = cart) => ({
+    id:        generateReceiptId(),
+    lines:     [...lines],
+    total,
+    payMethod,
+    cashGiven: payMethod === 'cash' ? parseFloat(cashGiven) : null,
+    change:    change ? parseFloat(change) : null,
+    timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    date:      new Date().toLocaleDateString('es-ES'),
+  }), [cart, total, payMethod, cashGiven, change]);
+
+  const finishSale = useCallback((rec) => {
+    setReceipt(rec);
+    setShowPayModal(false);
+    setCart([]);
+    setCashGiven('');
+  }, []);
+
   const handlePay = async () => {
     if (payMethod === 'cash' && (!cashGiven || parseFloat(cashGiven) < total)) {
       toast('Importe entregado insuficiente.', 'error');
       return;
     }
+    if (!user?.id) {
+      toast('No se pudo identificar el usuario de caja.', 'error');
+      return;
+    }
     setPaying(true);
+    const rec = buildReceipt();
     try {
-      await salesService.createConcessionSale({
+      const sale = await salesService.createConcessionSale({
         items: cart.map(({ product, qty }) => ({
-          product_id: product.id,
+          merchandiseId: product.id,
           name:       product.name,
-          qty,
+          quantity:   qty,
           unit_price: getPrice(product),
         })),
         total,
         payment_method: payMethod.toUpperCase(),
+        userId:         user.id,
         cash_given:     payMethod === 'cash' ? parseFloat(cashGiven) : null,
         change:         change ? parseFloat(change) : null,
         cashier_id:     user?.id ?? null,
       });
+      finishSale(rec);
     } catch {
-      // Si el endpoint aún no existe, continuamos igualmente con el recibo local
+      toast('Error al procesar el cobro. Inténtalo de nuevo.', 'error');
     } finally {
       setPaying(false);
     }
-
-    const rec = {
-      id:        generateReceiptId(),
-      lines:     [...cart],
-      total,
-      payMethod,
-      cashGiven: payMethod === 'cash' ? parseFloat(cashGiven) : null,
-      change:    change ? parseFloat(change) : null,
-      timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      date:      new Date().toLocaleDateString('es-ES'),
-    };
-    setReceipt(rec);
-    setShowPayModal(false);
-    setCart([]);
-    setCashGiven('');
   };
 
   const resetAll = () => {
@@ -147,7 +202,66 @@ export default function CajaPage() {
     setPayMethod('card');
   };
 
-  const PAY_LABEL = { card: 'Tarjeta', cash: 'Efectivo', online: 'QR / App' };
+  const openNewProduct  = () => { setEditingProduct(null); setProductForm({ ...EMPTY_PRODUCT }); };
+  const openEditProduct = (p) => { setEditingProduct(p);   setProductForm({ ...EMPTY_PRODUCT, ...p, price: String(getPrice(p)), quantity: String(p.quantity ?? '') }); };
+
+  const handleSaveProduct = async () => {
+    if (!productForm.name.trim() || !productForm.price) { toast('Nombre y precio son obligatorios.', 'error'); return; }
+    setSavingProduct(true);
+    const payload = {
+      name:        productForm.name.trim(),
+      category:    productForm.category,
+      price:       Number(productForm.price),
+      description: productForm.description || '',
+      stock:       productForm.quantity !== '' ? Number(productForm.quantity) : null,
+    };
+    try {
+      if (editingProduct) {
+        const saved = await inventoryService.update(editingProduct.id, payload);
+        const merged = { ...editingProduct, ...(saved ?? {}), ...payload, emoji: productForm.emoji, imageUrl: productForm.imageUrl };
+        saveStoredImg(editingProduct.id, productForm.imageUrl);
+        setProducts(prev => prev.map(p => p.id === editingProduct.id ? merged : p));
+        toast(`"${payload.name}" actualizado.`, 'success');
+      } else {
+        const saved = await inventoryService.create(payload);
+        const created = { ...(saved ?? {}), ...payload, id: saved?.id ?? Date.now(), emoji: productForm.emoji, imageUrl: productForm.imageUrl };
+        saveStoredImg(created.id, productForm.imageUrl);
+        setProducts(prev => [...prev, created]);
+        toast(`"${payload.name}" añadido.`, 'success');
+      }
+      setProductForm(null);
+      setEditingProduct(null);
+    } catch (err) {
+      toast(err?.status === 401 ? 'Sesión expirada.' : 'Error al guardar el producto.', 'error');
+    }
+    setSavingProduct(false);
+  };
+
+  const handleDeleteProduct = async (product) => {
+    setDeletingId(product.id);
+    try {
+      await inventoryService.remove(product.id);
+      saveStoredImg(product.id, '');
+      setProducts(prev => prev.filter(p => p.id !== product.id));
+      toast(`"${product.name}" eliminado.`, 'warning');
+      if (editingProduct?.id === product.id) { setProductForm(null); setEditingProduct(null); }
+    } catch {
+      toast('Error al eliminar el producto.', 'error');
+    }
+    setDeletingId(null);
+  };
+
+  useEffect(() => {
+    if (!receipt) return;
+    const t = setTimeout(() => window.print(), 500);
+    return () => clearTimeout(t);
+  }, [receipt]);
+
+  const PAY_LABEL = { card: 'Tarjeta', cash: 'Efectivo' };
+  const PAY_METHODS = [
+    { id: 'card',   label: t('concession.pay_methods.card'),   Icon: CreditCard },
+    { id: 'cash',   label: t('concession.pay_methods.cash'),   Icon: Banknote },
+  ];
 
   return (
     <div className={styles.shell}>
@@ -159,17 +273,24 @@ export default function CajaPage() {
             <input
               ref={searchRef}
               className={styles.searchInput}
-              placeholder="Buscar producto... (F2)"
+              placeholder={t('concession.search')}
               value={search}
               onChange={e => { setSearch(e.target.value); setCategory('Todo'); }}
             />
             {search && <button className={styles.searchClear} onClick={() => setSearch('')}><X size={12} /></button>}
           </div>
           <div className={styles.shortcuts}>
-            <kbd>F2</kbd> Buscar
-            <kbd>F4</kbd> Cobrar
-            <kbd>Esc</kbd> Vaciar
+            {t('concession.shortcuts').split(' · ').map((s, i) => [
+              <kbd key={`k${i}`}>{['F2','F4','Esc'][i]}</kbd>,
+              ` ${s} `,
+            ])}
           </div>
+          {canManage && (
+            <button className={styles.manageBtn} onClick={() => { setShowManager(true); setProductForm(null); setEditingProduct(null); }} title={t('concession.manage')}>
+              <Settings size={14} />
+              <span>{t('concession.manage')}</span>
+            </button>
+          )}
         </div>
 
         <div className={styles.catTabs}>
@@ -179,14 +300,14 @@ export default function CajaPage() {
               className={`${styles.catTab} ${category === c && !search ? styles.catActive : ''}`}
               onClick={() => { setCategory(c); setSearch(''); }}
             >
-              {CATEGORY_EMOJI[c] ?? '🔲'} {c}
+              {CATEGORY_EMOJI[c] ?? '🔲'} {c === 'Todo' ? t('concession.all') : c}
             </button>
           ))}
         </div>
 
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)' }}>
-            <Loader size={18} /> Cargando productos...
+            <Loader size={18} /> {t('common.loading')}
           </div>
         ) : (
           <div className={styles.productGrid}>
@@ -198,16 +319,25 @@ export default function CajaPage() {
                   className={`${styles.productCard} ${inCart ? styles.productInCart : ''}`}
                   onClick={() => addToCart(product)}
                 >
-                  <span className={styles.productEmoji}>{getEmoji(product)}</span>
-                  <span className={styles.productName}>{product.name}</span>
-                  {product.desc && <span className={styles.productDesc}>{product.desc}</span>}
-                  <span className={styles.productPrice}>€{getPrice(product).toFixed(2)}</span>
+                  <span className={styles.productMedia}>
+                    {product.imageUrl
+                      ? <img src={product.imageUrl} alt={product.name} className={styles.productImg} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }} />
+                      : null}
+                    <span className={styles.productEmoji} style={product.imageUrl ? { display: 'none' } : {}}>{getEmoji(product)}</span>
+                  </span>
+                  <span className={styles.productInfo}>
+                    <span className={styles.productName}>{product.name}</span>
+                    {product.description && <span className={styles.productDesc}>{product.description}</span>}
+                    <span className={styles.productPrice}>€{getPrice(product).toFixed(2)}</span>
+                  </span>
                   {inCart && <span className={styles.productQtyBadge}>{inCart.qty}</span>}
                 </button>
               );
             })}
             {filteredProducts.length === 0 && (
-              <div className={styles.noResults}>Sin productos para "{search || category}"</div>
+              <EmptyState
+                title={t('concession.noProducts', { query: search || (category === 'Todo' ? t('concession.all') : category) })}
+              />
             )}
           </div>
         )}
@@ -217,10 +347,10 @@ export default function CajaPage() {
       <div className={styles.right}>
         <div className={styles.cartHeader}>
           <ShoppingCart size={15} />
-          <span>Pedido</span>
-          <span className={styles.cartCount}>{totalItems} art.</span>
+          <span>{t('concession.order')}</span>
+          <span className={styles.cartCount}>{t('concession.items', { n: totalItems })}</span>
           {cart.length > 0 && (
-            <button className={styles.clearBtn} onClick={() => setCart([])} title="Vaciar pedido (Esc)">
+            <button className={styles.clearBtn} onClick={() => setCart([])} title={t('concession.cancel')}>
               <Trash2 size={13} />
             </button>
           )}
@@ -230,8 +360,8 @@ export default function CajaPage() {
           {cart.length === 0 ? (
             <div className={styles.cartEmpty}>
               <ShoppingCart size={30} opacity={0.15} />
-              <p>Toca un producto para añadir</p>
-              <p className={styles.cartEmptySub}>o pulsa <kbd>F2</kbd> para buscar</p>
+              <p>{t('concession.tapToAdd')}</p>
+              <p className={styles.cartEmptySub}>{t('concession.pressSearch')}</p>
             </div>
           ) : (
             cart.map(({ product, qty }) => (
@@ -288,7 +418,7 @@ export default function CajaPage() {
               <input
                 className={styles.cashInput}
                 type="number" step="0.50" min={total}
-                placeholder={`Entrega (mín €${total.toFixed(2)})`}
+                placeholder={t('concession.cashDelivery', { min: total.toFixed(2) })}
                 value={cashGiven}
                 onChange={e => setCashGiven(e.target.value)}
               />
@@ -299,7 +429,7 @@ export default function CajaPage() {
               </div>
               {change !== null && parseFloat(change) >= 0 && (
                 <div className={styles.changeRow}>
-                  <span>Cambio</span>
+                  <span>{t('concession.change')}</span>
                   <span className={styles.changeAmount}>€{change}</span>
                 </div>
               )}
@@ -312,7 +442,7 @@ export default function CajaPage() {
             onClick={() => setShowPayModal(true)}
           >
             <CheckCircle size={20} />
-            Cobrar €{total.toFixed(2)} &nbsp;<kbd className={styles.kbdInline}>F4</kbd>
+            {t('concession.pay', { total: total.toFixed(2) })} &nbsp;<kbd className={styles.kbdInline}>F4</kbd>
           </button>
         </div>
       </div>
@@ -322,14 +452,14 @@ export default function CajaPage() {
         <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && setShowPayModal(false)}>
           <div className={styles.payModal}>
             <div className={styles.payModalHeader}>
-              <span>Confirmar cobro</span>
+              <span>{t('concession.confirmPay')}</span>
               <button onClick={() => setShowPayModal(false)}><X size={16} /></button>
             </div>
             <div className={styles.payModalBody}>
               <div className={styles.payModalTotal}>€{total.toFixed(2)}</div>
               <div className={styles.payModalMethod}>{PAY_LABEL[payMethod]}</div>
               {payMethod === 'cash' && change !== null && (
-                <div className={styles.payModalChange}>Cambio a devolver: <strong>€{change}</strong></div>
+                <div className={styles.payModalChange}>{t('concession.change')}: <strong>€{change}</strong></div>
               )}
               <div className={styles.payModalLines}>
                 {cart.map(({ product, qty }) => (
@@ -341,9 +471,9 @@ export default function CajaPage() {
               </div>
             </div>
             <div className={styles.payModalFooter}>
-              <button className={styles.payModalCancel} onClick={() => setShowPayModal(false)}>Cancelar</button>
+              <button className={styles.payModalCancel} onClick={() => setShowPayModal(false)}>{t('concession.cancel')}</button>
               <button className={styles.payModalConfirm} onClick={handlePay} disabled={paying}>
-                {paying ? <Loader size={16} /> : <CheckCircle size={16} />} Confirmar cobro
+                {paying ? <Loader size={16} /> : <CheckCircle size={16} />} {t('concession.confirmPay')}
               </button>
             </div>
           </div>
@@ -356,7 +486,7 @@ export default function CajaPage() {
           <div className={styles.receiptModal}>
             <div className={styles.receiptHeader}>
               <CheckCircle size={22} className={styles.receiptOk} />
-              <span>Cobro realizado</span>
+              <span>{t('concession.paid')}</span>
             </div>
             <div className={styles.receiptBody}>
               <div className={styles.receiptMeta}>
@@ -377,26 +507,143 @@ export default function CajaPage() {
                 <span>€{receipt.total.toFixed(2)}</span>
               </div>
               <div className={styles.receiptPayInfo}>
-                <span>Método: <strong>{PAY_LABEL[receipt.payMethod]}</strong></span>
+                <span>{t('concession.method')}: <strong>{PAY_LABEL[receipt.payMethod]}</strong></span>
                 {receipt.payMethod === 'cash' && (
                   <>
-                    <span>Entregado: <strong>€{receipt.cashGiven?.toFixed(2)}</strong></span>
-                    <span>Cambio: <strong className={styles.receiptChange}>€{receipt.change?.toFixed(2)}</strong></span>
+                    <span>{t('concession.given')}: <strong>€{receipt.cashGiven?.toFixed(2)}</strong></span>
+                    <span>{t('concession.change')}: <strong className={styles.receiptChange}>€{receipt.change?.toFixed(2)}</strong></span>
                   </>
                 )}
               </div>
             </div>
             <div className={styles.receiptFooter}>
               <button className={styles.receiptPrint} onClick={() => window.print()}>
-                <Printer size={14} /> Imprimir
+                <Printer size={14} /> {t('concession.print')}
               </button>
               <button className={styles.receiptNew} onClick={resetAll}>
-                <RotateCcw size={14} /> Nueva venta
+                <RotateCcw size={14} /> {t('concession.newSale')}
               </button>
             </div>
           </div>
         </div>
       )}
+      {/* ── Modal gestión de productos ────────────── */}
+      {showManager && (
+        <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && setShowManager(false)}>
+          <div className={styles.managerModal}>
+            <div className={styles.managerHeader}>
+              <span>{t('concession.manageTitle')}</span>
+              <button onClick={() => setShowManager(false)}><X size={16} /></button>
+            </div>
+
+            {productForm === null ? (
+              /* ── Lista ── */
+              <div className={styles.managerBody}>
+                <button className={styles.managerNewBtn} onClick={openNewProduct}>
+                  <Plus size={14} /> {t('concession.newProduct')}
+                </button>
+                <div className={styles.managerList}>
+                  {products.map(p => (
+                    <div key={p.id} className={styles.managerItem}>
+                      <span className={styles.managerItemEmoji}>
+                        {p.imageUrl
+                          ? <img src={p.imageUrl} alt={p.name} className={styles.managerItemImg} onError={e => { e.currentTarget.style.display='none'; }} />
+                          : getEmoji(p)}
+                      </span>
+                      <div className={styles.managerItemInfo}>
+                        <span className={styles.managerItemName}>{p.name}</span>
+                        <span className={styles.managerItemMeta}>{p.category} · €{getPrice(p).toFixed(2)}</span>
+                      </div>
+                      <button className={styles.managerEditBtn} onClick={() => openEditProduct(p)} title="Editar">
+                        <Edit2 size={13} />
+                      </button>
+                      <button
+                        className={styles.managerDeleteBtn}
+                        onClick={() => handleDeleteProduct(p)}
+                        disabled={deletingId === p.id}
+                        title="Eliminar"
+                      >
+                        {deletingId === p.id ? <Loader size={13} /> : <Trash2 size={13} />}
+                      </button>
+                    </div>
+                  ))}
+                  {products.length === 0 && (
+                    <p className={styles.managerEmpty}>{t('concession.noList')}</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* ── Formulario ── */
+              <div className={styles.managerBody}>
+                <button className={styles.managerBackBtn} onClick={() => { setProductForm(null); setEditingProduct(null); }}>
+                  {t('concession.backToList')}
+                </button>
+                <h3 className={styles.managerFormTitle}>{editingProduct ? t('concession.editProduct') : t('concession.newProduct')}</h3>
+                <div className={styles.managerFormGrid}>
+                  <div className={styles.managerFieldFull}>
+                    <label className={styles.managerLabel}>{t('concession.form.name')}</label>
+                    <input className={styles.managerInput} value={productForm.name} onChange={e => setField('name', e.target.value)} placeholder={t('concession.form.imgPh')} />
+                  </div>
+                  <div>
+                    <label className={styles.managerLabel}>{t('concession.form.category')}</label>
+                    <select className={styles.managerInput} value={productForm.category} onChange={e => setField('category', e.target.value)}>
+                      {[...new Set([...DEFAULT_CATEGORIES, ...products.map(p => p.category)])].map(c => (
+                        <option key={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={styles.managerLabel}>{t('concession.form.price')}</label>
+                    <input className={styles.managerInput} type="number" step="0.10" min="0" value={productForm.price} onChange={e => setField('price', e.target.value)} placeholder="0.00" />
+                  </div>
+                  <div>
+                    <label className={styles.managerLabel}>{t('concession.form.stock')}</label>
+                    <input className={styles.managerInput} type="number" min="0" value={productForm.quantity} onChange={e => setField('quantity', e.target.value)} placeholder={t('concession.form.noLimit')} />
+                  </div>
+                  <div>
+                    <label className={styles.managerLabel}>{t('concession.form.emoji')}</label>
+                    <input className={styles.managerInput} value={productForm.emoji} onChange={e => setField('emoji', e.target.value)} placeholder="🍿" maxLength={4} />
+                  </div>
+                  <div className={styles.managerFieldFull}>
+                    <label className={styles.managerLabel}>{t('concession.form.image')}</label>
+                    <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+                    {productForm.imageUrl ? (
+                      <div className={styles.imgPreviewWrap}>
+                        <img src={productForm.imageUrl} alt="preview" className={styles.managerImgPreview} />
+                        <button type="button" className={styles.imgRemoveBtn} onClick={() => setField('imageUrl', '')} title={t('concession.form.removeImg')}>
+                          <X size={11} /> {t('concession.form.removeImg')}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.imgUploadBtn}
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingImg}
+                      >
+                        {uploadingImg ? <Loader size={14} className={styles.spin} /> : <Upload size={14} />}
+                        {uploadingImg ? t('concession.form.uploading') : t('concession.form.selectImg')}
+                      </button>
+                    )}
+                  </div>
+                  <div className={styles.managerFieldFull}>
+                    <label className={styles.managerLabel}>{t('concession.form.desc')}</label>
+                    <input className={styles.managerInput} value={productForm.description} onChange={e => setField('description', e.target.value)} placeholder={t('concession.form.descPh')} />
+                  </div>
+                </div>
+                <div className={styles.managerFormActions}>
+                  <button className={styles.managerCancelBtn} onClick={() => { setProductForm(null); setEditingProduct(null); }}>{t('concession.cancel')}</button>
+                  <button className={styles.managerSaveBtn} onClick={handleSaveProduct} disabled={savingProduct}>
+                    {savingProduct ? <Loader size={14} /> : <Save size={14} />}
+                    {editingProduct ? t('common.saveChanges') : t('concession.createProduct')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

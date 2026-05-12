@@ -7,11 +7,11 @@ import Button from '../../components/ui/Button';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import KPICard from '../../components/shared/KPICard';
 import { useApp } from '../../contexts/AppContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { clientsService } from '../../services/clientsService';
 import styles from './ClientsPage.module.css';
 
 const STATUS_COLOR = { ACTIVE: 'green', INACTIVE: 'default', SUSPENDED: 'red' };
-const STATUS_LABEL = { ACTIVE: 'Activo', INACTIVE: 'Inactivo', SUSPENDED: 'Suspendido' };
 
 const EMPTY_FORM = {
   name: '', username: '', email: '', password: '',
@@ -22,12 +22,12 @@ function initials(name = '') {
   return name.split(' ').slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase() || '?';
 }
 
-// Backend /auth/register may return { userId, username } instead of { id, name }
 function normalizeClient(apiRes, formData = {}) {
+  const fullName = [apiRes?.name, apiRes?.lastName].filter(Boolean).join(' ').trim();
   return {
     ...apiRes,
     id:       apiRes?.id ?? apiRes?.userId ?? apiRes?.clientId ?? ('CLI-' + Date.now()),
-    name:     apiRes?.name ?? formData.name ?? apiRes?.username ?? '-',
+    name:     fullName || formData.name || apiRes?.username || '-',
     email:    apiRes?.email ?? formData.email ?? '-',
     username: apiRes?.username ?? formData.username ?? '',
     student:  apiRes?.student ?? apiRes?.isStudent ?? formData.student ?? false,
@@ -49,21 +49,44 @@ export default function ClientsPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const debounceRef = useRef(null);
   const { toast } = useApp();
+  const { t } = useLanguage();
+
+  const STATUS_LABEL = {
+    ACTIVE:    t('clients.status.ACTIVE'),
+    INACTIVE:  t('clients.status.INACTIVE'),
+    SUSPENDED: t('clients.status.SUSPENDED'),
+  };
+
+  const loadClients = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await clientsService.getAll();
+      setResults(data.map(c => normalizeClient(c)));
+      setSearched(true);
+    } catch {
+      toast('Error al cargar clientes.', 'error');
+      setResults([]);
+    }
+    setLoading(false);
+  }, [toast]);
 
   const runSearch = useCallback(async (q) => {
-    if (!q.trim()) { setResults([]); setSearched(false); return; }
+    if (!q.trim()) { loadClients(); return; }
     setLoading(true);
     try {
       const data = await clientsService.search(q);
-      const raw  = Array.isArray(data) ? data : (data?.content ?? []);
-      setResults(raw.map(c => normalizeClient(c)));
+      setResults(data.map(c => normalizeClient(c)));
       setSearched(true);
     } catch {
       toast('Error al buscar clientes.', 'error');
       setResults([]);
     }
     setLoading(false);
-  }, [toast]);
+  }, [loadClients, toast]);
+
+  useEffect(() => {
+    loadClients();
+  }, [loadClients]);
 
   useEffect(() => {
     clearTimeout(debounceRef.current);
@@ -111,7 +134,7 @@ export default function ClientsPage() {
         const merged  = updated ?? { ...editing, ...payload };
         setResults(prev => prev.map(c => c.id === editing.id ? merged : c));
         if (detail?.id === editing.id) setDetail(merged);
-        toast('Cliente actualizado.', 'success');
+        toast(t('clients.modalCreate') + ' ✓', 'success');
       } else {
         const payload = {
           name:        form.name,
@@ -120,13 +143,13 @@ export default function ClientsPage() {
           password:    form.password,
           dateOfBirth: form.dateOfBirth || null,
           student:     form.student,
-          role:        'CLIENT',
+          role:        'CLIENTE',
         };
         const raw     = await clientsService.create(payload);
         const created = normalizeClient(raw, payload);
         setResults(prev => [...prev, created]);
         setSearched(true);
-        toast('Cliente creado.', 'success');
+        toast(t('clients.createClient') + ' ✓', 'success');
       }
     } catch (err) {
       if (err?.status === 409) {
@@ -146,7 +169,7 @@ export default function ClientsPage() {
       await clientsService.remove(deleteTarget.id).catch(() => null);
       setResults(prev => prev.filter(c => c.id !== deleteTarget.id));
       if (detail?.id === deleteTarget.id) setDetail(null);
-      toast('Cliente eliminado.', 'warning');
+      toast(t('clients.deleteTitle') + ' ✓', 'warning');
     } catch {
       toast('Error al eliminar el cliente.', 'error');
     }
@@ -168,9 +191,9 @@ export default function ClientsPage() {
   const active   = results.filter(c => (c.status ?? 'ACTIVE') === 'ACTIVE');
 
   const columns = [
-    { key: 'id', label: 'ID', width: 80, render: v =>
+    { key: 'id', label: t('clients.col.id'), width: 80, render: v =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{v}</span> },
-    { key: 'name', label: 'Nombre', render: (v, row) => (
+    { key: 'name', label: t('clients.col.name'), render: (v, row) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div className={styles.detailAvatar} style={{ width: 28, height: 28, fontSize: 11 }}>
           {initials(v ?? row.username)}
@@ -181,17 +204,17 @@ export default function ClientsPage() {
         </div>
       </div>
     )},
-    { key: 'email', label: 'Email', render: v =>
+    { key: 'email', label: t('clients.col.email'), render: v =>
       <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v ?? '-'}</span> },
-    { key: 'student', label: 'Tipo', width: 100, render: (v, row) =>
+    { key: 'student', label: t('clients.col.type'), width: 100, render: (v, row) =>
       (v || row.isStudent)
-        ? <Badge variant="purple">Estudiante</Badge>
-        : <Badge variant="default">Estándar</Badge> },
-    { key: 'visitsPerYear', label: 'Visitas/año', width: 100, render: v =>
+        ? <Badge variant="purple">{t('clients.type.student')}</Badge>
+        : <Badge variant="default">{t('clients.type.standard')}</Badge> },
+    { key: 'visitsPerYear', label: t('clients.col.visits'), width: 100, render: v =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{v ?? '-'}</span> },
-    { key: 'fidelityDiscountEligible', label: 'Fidelidad', width: 110, render: v =>
-      v ? <Badge variant="accent" dot>Socio</Badge> : <Badge variant="default">No</Badge> },
-    { key: 'status', label: 'Estado', width: 110, render: v => {
+    { key: 'fidelityDiscountEligible', label: t('clients.col.loyalty'), width: 110, render: v =>
+      v ? <Badge variant="accent" dot>{t('clients.loyal')}</Badge> : <Badge variant="default">{t('clients.loyalNo')}</Badge> },
+    { key: 'status', label: t('clients.col.status'), width: 110, render: v => {
       const s = v ?? 'ACTIVE';
       return <Badge variant={STATUS_COLOR[s] ?? 'default'} dot>{STATUS_LABEL[s] ?? s}</Badge>;
     }},
@@ -200,16 +223,16 @@ export default function ClientsPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Clientes"
-        subtitle="Búsqueda y gestión de clientes registrados"
-        actions={<Button icon={Plus} onClick={openCreate}>Nuevo cliente</Button>}
+        title={t('clients.title')}
+        subtitle={t('clients.subtitle')}
+        actions={<Button icon={Plus} onClick={openCreate}>{t('clients.createBtn')}</Button>}
       />
 
       <div className={styles.kpiRow}>
-        <KPICard label="Resultados"       value={results.length}  icon={Users}         color="accent" />
-        <KPICard label="Activos"          value={active.length}   icon={UserCheck}     color="green" />
-        <KPICard label="Estudiantes"      value={students.length} icon={GraduationCap} color="purple" />
-        <KPICard label="Socios fidelidad" value={fidelity.length} icon={Star}          color="cyan" />
+        <KPICard label={t('clients.kpi.results')}  value={results.length}  icon={Users}         color="accent" />
+        <KPICard label={t('clients.kpi.active')}   value={active.length}   icon={UserCheck}     color="green" />
+        <KPICard label={t('clients.kpi.students')} value={students.length} icon={GraduationCap} color="purple" />
+        <KPICard label={t('clients.kpi.loyal')}    value={fidelity.length} icon={Star}          color="cyan" />
       </div>
 
       <div className={styles.searchBar}>
@@ -217,20 +240,20 @@ export default function ClientsPage() {
           <Search size={13} className={styles.searchIcon} />
           <input
             className={styles.searchInput}
-            placeholder="Buscar por nombre, email o usuario…"
+            placeholder={t('clients.search.placeholder')}
             value={query}
             onChange={e => setQuery(e.target.value)}
             autoFocus
           />
         </div>
-        {loading && <span className={styles.searchHint}>Buscando…</span>}
+        {loading && <span className={styles.searchHint}>{t('clients.search.loading')}</span>}
         {!loading && searched && (
           <span className={styles.searchHint}>
-            {results.length === 0 ? 'Sin resultados.' : `${results.length} resultado${results.length !== 1 ? 's' : ''}`}
+            {results.length === 0 ? t('clients.search.noResults') : t('clients.search.results', { count: results.length })}
           </span>
         )}
         {!loading && !searched && (
-          <span className={styles.searchHint}>Escribe para buscar clientes</span>
+          <span className={styles.searchHint}>{t('clients.search.hint')}</span>
         )}
       </div>
 
@@ -243,8 +266,8 @@ export default function ClientsPage() {
           rowKey="id"
           rowActions={(row) => (
             <div style={{ display: 'flex', gap: 2 }}>
-              <Button variant="ghost" size="sm" icon={Edit2}  onClick={() => openEdit(row)}         title="Editar" />
-              <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setDeleteTarget(row)}  title="Eliminar" />
+              <Button variant="ghost" size="sm" icon={Edit2}  onClick={() => openEdit(row)}         title={t('common.edit')} />
+              <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setDeleteTarget(row)}  title={t('common.delete')} />
             </div>
           )}
         />
@@ -254,39 +277,39 @@ export default function ClientsPage() {
       <Modal
         open={modal === 'form'}
         onClose={() => setModal(null)}
-        title={editing ? `Editar cliente — ${editing.name ?? editing.email}` : 'Nuevo cliente'}
+        title={editing ? t('clients.modalEditTitle', { name: editing.name ?? editing.email }) : t('clients.modalCreate')}
         footer={
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <Button variant="secondary" onClick={() => setModal(null)}>Cancelar</Button>
+            <Button variant="secondary" onClick={() => setModal(null)}>{t('common.cancel')}</Button>
             <Button variant="primary" onClick={handleSave} disabled={saving}>
-              {editing ? 'Guardar cambios' : 'Crear cliente'}
+              {editing ? t('common.saveChanges') : t('clients.createClient')}
             </Button>
           </div>
         }
       >
         <div className={styles.formGrid}>
           <div>
-            <label className={styles.formLabel}>Nombre completo *</label>
+            <label className={styles.formLabel}>{t('clients.form.fullName')}</label>
             <input className={styles.formInput} value={form.name}
-              onChange={e => setField('name', e.target.value)} placeholder="María García" />
+              onChange={e => setField('name', e.target.value)} placeholder={t('clients.form.namePh')} />
           </div>
           <div>
-            <label className={styles.formLabel}>Usuario</label>
+            <label className={styles.formLabel}>{t('clients.form.username')}</label>
             <input className={styles.formInput} value={form.username}
-              onChange={e => setField('username', e.target.value)} placeholder="maria.garcia" />
+              onChange={e => setField('username', e.target.value)} placeholder={t('clients.form.usernamePh')} />
           </div>
           <div>
-            <label className={styles.formLabel}>Email *</label>
+            <label className={styles.formLabel}>{t('clients.form.email')}</label>
             <input className={styles.formInput} type="email" value={form.email}
-              onChange={e => setField('email', e.target.value)} placeholder="maria@ejemplo.com" />
+              onChange={e => setField('email', e.target.value)} placeholder={t('clients.form.emailPh')} />
           </div>
           <div>
-            <label className={styles.formLabel}>{editing ? 'Nueva contraseña (dejar vacío = sin cambio)' : 'Contraseña *'}</label>
+            <label className={styles.formLabel}>{editing ? t('clients.form.passwordEdit') : t('clients.form.password')}</label>
             <input className={styles.formInput} type="password" value={form.password}
-              onChange={e => setField('password', e.target.value)} placeholder={editing ? '••••••••' : 'Mínimo 6 caracteres'} />
+              onChange={e => setField('password', e.target.value)} placeholder={editing ? '••••••••' : t('clients.form.passwordPh')} />
           </div>
           <div>
-            <label className={styles.formLabel}>Fecha de nacimiento</label>
+            <label className={styles.formLabel}>{t('clients.form.dateOfBirth')}</label>
             <input className={styles.formInput} type="date" value={form.dateOfBirth}
               onChange={e => setField('dateOfBirth', e.target.value)} />
           </div>
@@ -295,7 +318,7 @@ export default function ClientsPage() {
               onChange={e => setField('student', e.target.checked)}
               style={{ width: 15, height: 15, accentColor: 'var(--accent)', cursor: 'pointer' }} />
             <label htmlFor="student-check" style={{ fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
-              Cliente estudiante (precio reducido)
+              {t('clients.form.student')}
             </label>
           </div>
         </div>
@@ -305,7 +328,7 @@ export default function ClientsPage() {
       <Modal
         open={!!detail}
         onClose={() => setDetail(null)}
-        title={detailLoading ? 'Cargando…' : `Cliente — ${detail?.name ?? detail?.username ?? detail?.id}`}
+        title={detailLoading ? t('clients.detail.loading') : `${t('clients.title').slice(0, -1)} — ${detail?.name ?? detail?.username ?? detail?.id}`}
         size="sm"
       >
         {detail && !detailLoading && (() => {
@@ -324,35 +347,35 @@ export default function ClientsPage() {
               {eligible && (
                 <div className={styles.fidelityBanner}>
                   <Star size={14} />
-                  Socio fidelidad — descuento −10% en entradas de adulto
+                  {t('clients.loyalBanner')}
                 </div>
               )}
 
               <div className={styles.detailGrid}>
                 <div className={styles.detailCard}>
-                  <span className={styles.detailLbl}>Usuario</span>
+                  <span className={styles.detailLbl}>{t('clients.detail.username')}</span>
                   <span className={styles.detailVal}>{detail.username ?? '-'}</span>
                 </div>
                 <div className={styles.detailCard}>
-                  <span className={styles.detailLbl}>Estado</span>
+                  <span className={styles.detailLbl}>{t('clients.detail.status')}</span>
                   <Badge variant={STATUS_COLOR[status] ?? 'default'} dot>{STATUS_LABEL[status] ?? status}</Badge>
                 </div>
                 <div className={styles.detailCard}>
-                  <span className={styles.detailLbl}>Tipo</span>
+                  <span className={styles.detailLbl}>{t('clients.detail.type')}</span>
                   <span className={styles.detailVal}>
-                    {(detail.student || detail.isStudent) ? 'Estudiante' : 'Estándar'}
+                    {(detail.student || detail.isStudent) ? t('clients.type.student') : t('clients.type.standard')}
                   </span>
                 </div>
                 <div className={styles.detailCard}>
-                  <span className={styles.detailLbl}>Visitas / año</span>
+                  <span className={styles.detailLbl}>{t('clients.detail.visits')}</span>
                   <span className={styles.detailVal}>{detail.visitsPerYear ?? '-'}</span>
                 </div>
                 <div className={styles.detailCard}>
-                  <span className={styles.detailLbl}>Fidelidad</span>
-                  <span className={styles.detailVal}>{eligible ? 'Sí (> 10 visitas)' : 'No'}</span>
+                  <span className={styles.detailLbl}>{t('clients.detail.loyalty')}</span>
+                  <span className={styles.detailVal}>{eligible ? t('clients.loyalYes') : t('clients.loyalNo')}</span>
                 </div>
                 <div className={styles.detailCard}>
-                  <span className={styles.detailLbl}>Fecha nacimiento</span>
+                  <span className={styles.detailLbl}>{t('clients.detail.dob')}</span>
                   <span className={styles.detailVal} style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>
                     {detail.dateOfBirth ?? detail.birthDate ?? '-'}
                   </span>
@@ -362,11 +385,11 @@ export default function ClientsPage() {
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 4 }}>
                 <Button variant="secondary" size="sm" icon={Edit2}
                   onClick={() => { setDetail(null); openEdit(detail); }}>
-                  Editar
+                  {t('common.edit')}
                 </Button>
                 <Button variant="danger" size="sm" icon={Trash2}
                   onClick={() => { setDetail(null); setDeleteTarget(detail); }}>
-                  Eliminar
+                  {t('common.delete')}
                 </Button>
               </div>
             </div>
@@ -374,7 +397,7 @@ export default function ClientsPage() {
         })()}
         {detailLoading && (
           <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>
-            Cargando datos del cliente…
+            {t('clients.detail.loadingData')}
           </div>
         )}
       </Modal>
@@ -383,10 +406,10 @@ export default function ClientsPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Eliminar cliente"
+        title={t('clients.deleteTitle')}
         danger
-        message={`¿Eliminar el cliente ${deleteTarget?.name ?? deleteTarget?.email}? Esta acción no se puede deshacer.`}
-        confirmLabel="Eliminar cliente"
+        message={t('clients.deleteMsg', { name: deleteTarget?.name ?? deleteTarget?.email ?? '' })}
+        confirmLabel={t('clients.deleteConfirm')}
       />
     </div>
   );

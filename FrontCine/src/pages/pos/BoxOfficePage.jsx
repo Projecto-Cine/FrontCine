@@ -145,7 +145,7 @@ export default function TaquillaPage() {
     setLoadingSeats(true);
     try {
       const seats = await seatsService.getByScreening(session.id);
-      setRealSeats(Array.isArray(seats) ? seats : null);
+      setRealSeats(Array.isArray(seats) && seats.length > 0 ? seats : null);
     } catch {
       setRealSeats(null);
     } finally {
@@ -210,9 +210,15 @@ export default function TaquillaPage() {
     setPaying(true);
 
     const labelOf = (s) => `${s.row}${String(s.number).padStart(2, '0')}`;
-    const resolvedSeatIds = realSeats
-      ? selectedSeats.map(label => realSeats.find(s => labelOf(s) === label)?.id ?? label)
-      : selectedSeats;
+    const resolvedSeatIds = realSeats?.length
+      ? selectedSeats.map(label => realSeats.find(s => labelOf(s) === label)?.id).filter(Boolean)
+      : [];
+
+    if (!resolvedSeatIds.length) {
+      toast('No se pueden identificar los asientos. Recarga la sesión e inténtalo de nuevo.', 'error');
+      setPaying(false);
+      return;
+    }
 
     try {
       const res = await salesService.createTicketSale({
@@ -241,7 +247,8 @@ export default function TaquillaPage() {
 
       setTickets(buildTickets(res, selectedSeats));
       setStep('done');
-    } catch {
+    } catch (err) {
+      console.error('[BoxOffice] Error al crear la compra:', err?.message ?? err);
       toast('Error al procesar el cobro. Inténtalo de nuevo.', 'error');
     } finally {
       setPaying(false);
@@ -702,7 +709,7 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
         </div>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketQRWrap}>
-          <QRCodeSVG value={ticket.qrValue} size={110} bgColor="transparent" fgColor="var(--text-1)" level="M" />
+          <QRCodeSVG value={ticket.qrValue} size={110} bgColor="#ffffff" fgColor="#000000" level="M" />
           <div className={styles.ticketQRInfo}>
             <span className={styles.ticketQRLabel}>{t('box_office.ticket.scan')}</span>
             <span className={styles.ticketId}>{ticket.id}</span>

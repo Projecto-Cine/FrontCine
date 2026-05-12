@@ -492,3 +492,35 @@
 .fidelityBadge { display: flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 700; color: var(--accent); background: var(--accent-dim2); padding: 2px 7px; border-radius: 99px; }
 .clientChipRemove { background: transparent; border: none; color: var(--text-3); cursor: pointer; padding: 2px; display: flex; align-items: center; }
 .clientChipRemove:hover { color: var(--red); }
+
+/* ── Print — solo el ticket ─────────────────────────── */
+@media print {
+  /* Ocultar panel izquierdo (¡Cobro completado! + botones) */
+  .successLeft { display: none !important; }
+
+  /* El grid pasa a bloque para que el ticket ocupe todo */
+  .successShell {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* El ticket se adapta a la hoja */
+  .ticketCard {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    border-radius: 8px !important;
+    width: 340px !important;
+    margin: 0 auto !important;
+    page-break-inside: avoid;
+  }
+
+  /* Colores para impresión (evita que el navegador elimine fondos) */
+  .ticketCardHeader {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

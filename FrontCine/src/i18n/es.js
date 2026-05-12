@@ -3,7 +3,7 @@ export default {
     dashboard:    'Dashboard',
     pos:          'PUNTO DE VENTA',
     boxOffice:    'Taquilla',
-    concession:   'Caja / Concesión',
+    concession:   'Caja',
     operations:   'OPERACIONES',
     movies:       'Películas',
     rooms:        'Salas',
@@ -53,7 +53,7 @@ export default {
     routes: {
       '/':             'Dashboard',
       '/box-office':   'Taquilla — Venta de Entradas',
-      '/concession':   'Caja — Concesión',
+      '/concession':   'Caja',
       '/movies':       'Películas',
       '/rooms':        'Salas',
       '/schedules':    'Horarios',

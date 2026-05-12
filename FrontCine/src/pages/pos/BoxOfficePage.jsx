@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Film, ChevronRight,
-  CreditCard, Banknote, Smartphone, Printer,
+  CreditCard, Banknote, Printer,
   CheckCircle, X, Ticket, ArrowLeft, Search,
   LayoutGrid, List, Loader, Star, UserX
 } from 'lucide-react';
@@ -512,7 +512,6 @@ export default function TaquillaPage() {
                 {[
                   { id: 'card',   label: t('box_office.pay.card'),   Icon: CreditCard },
                   { id: 'cash',   label: t('box_office.pay.cash'),   Icon: Banknote   },
-                  { id: 'online', label: t('box_office.pay.online'), Icon: Smartphone },
                 ].map(({ id, label, Icon }) => (
                   <button key={id} className={`${styles.payMethod} ${payMethod === id ? styles.payActive : ''}`}
                     onClick={() => setPayMethod(id)}>

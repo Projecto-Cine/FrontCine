@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  Minus, Plus, X, CreditCard, Banknote, Smartphone,
+  Minus, Plus, X, CreditCard, Banknote,
   ShoppingCart, CheckCircle, Printer, Trash2, Search,
   RotateCcw, Loader, Settings, Edit2, Save, Upload,
 } from 'lucide-react';
@@ -10,7 +10,6 @@ import { uploadImage }      from '../../services/cloudinaryService';
 import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
-import StripePaymentModal   from '../../components/shared/StripePaymentModal';
 import EmptyState from '../../components/shared/EmptyState';
 import styles from './ConcessionPage.module.css';
 
@@ -47,8 +46,6 @@ export default function CajaPage() {
   const [showPayModal, setShowPayModal] = useState(false);
   const [receipt, setReceipt]         = useState(null);
   const [paying, setPaying]           = useState(false);
-  const [stripeData, setStripeData]   = useState(null);
-  const pendingReceipt                = useRef(null);
   const searchRef = useRef(null);
 
   // Gestión de productos (solo admin/supervisor/operator)
@@ -181,25 +178,12 @@ export default function CajaPage() {
           unit_price: getPrice(product),
         })),
         total,
-        payment_method: payMethod === 'online' ? 'QR' : payMethod.toUpperCase(),
+        payment_method: payMethod.toUpperCase(),
         userId:         user.id,
         cash_given:     payMethod === 'cash' ? parseFloat(cashGiven) : null,
         change:         change ? parseFloat(change) : null,
         cashier_id:     user?.id ?? null,
       });
-      if (payMethod === 'online') {
-        const purchaseId = sale?.purchaseId ?? sale?.purchase?.id;
-        if (!purchaseId) throw new Error('El backend no devuelve un purchaseId para pagos Stripe de concesión.');
-        const intent = await salesService.createPaymentIntent(purchaseId, total);
-        pendingReceipt.current = { rec, purchaseId };
-        setStripeData({
-          clientSecret:   intent.clientSecret,
-          publishableKey: intent.publishableKey,
-          purchaseId,
-        });
-        setShowPayModal(false);
-        return;
-      }
       finishSale(rec);
     } catch {
       toast('Error al procesar el cobro. Inténtalo de nuevo.', 'error');
@@ -207,24 +191,6 @@ export default function CajaPage() {
       setPaying(false);
     }
   };
-
-  const handleStripeSuccess = useCallback(async () => {
-    try {
-      await salesService.confirmPurchaseAfterStripe(stripeData.purchaseId);
-    } catch { /* el webhook también confirma la venta en backend */ }
-    if (pendingReceipt.current?.rec) finishSale(pendingReceipt.current.rec);
-    setStripeData(null);
-    pendingReceipt.current = null;
-  }, [stripeData, finishSale]);
-
-  const handleStripeCancel = useCallback(async () => {
-    try {
-      await salesService.cancelPurchase(stripeData.purchaseId);
-    } catch { /* ignorar si el backend ya la canceló o no aplica */ }
-    setStripeData(null);
-    pendingReceipt.current = null;
-    setPaying(false);
-  }, [stripeData]);
 
   const resetAll = () => {
     setReceipt(null);
@@ -288,11 +254,10 @@ export default function CajaPage() {
     return () => clearTimeout(t);
   }, [receipt]);
 
-  const PAY_LABEL = { card: 'Tarjeta', cash: 'Efectivo', online: 'QR / App' };
+  const PAY_LABEL = { card: 'Tarjeta', cash: 'Efectivo' };
   const PAY_METHODS = [
     { id: 'card',   label: t('concession.pay_methods.card'),   Icon: CreditCard },
     { id: 'cash',   label: t('concession.pay_methods.cash'),   Icon: Banknote },
-    { id: 'online', label: t('concession.pay_methods.online'), Icon: Smartphone },
   ];
 
   return (
@@ -672,16 +637,6 @@ export default function CajaPage() {
         </div>
       )}
 
-      {stripeData && (
-        <StripePaymentModal
-          clientSecret={stripeData.clientSecret}
-          publishableKey={stripeData.publishableKey}
-          amount={total}
-          title="Pago online de concesión"
-          onSuccess={handleStripeSuccess}
-          onCancel={handleStripeCancel}
-        />
-      )}
     </div>
   );
 }

@@ -247,14 +247,14 @@
 }
 
 .sessionCardTop { display: flex; align-items: center; justify-content: space-between; }
-.sessionTime { font-family: var(--mono); font-size: 18px; font-weight: 800; color: var(--accent); line-height: 1; }
-.sessionMovie { font-size: var(--fs-base); font-weight: 600; color: var(--text-1); line-height: 1.3; }
-.sessionRoom { font-size: var(--fs-sm); color: var(--text-3); }
+.sessionTime { font-family: var(--mono); font-size: 20px; font-weight: 800; color: var(--accent); line-height: 1; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+.sessionMovie { font-size: 13px; font-weight: 700; color: #fff; line-height: 1.3; text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
+.sessionRoom { font-size: 11px; color: rgba(255,255,255,0.65); text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
 .sessionOcc { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
 .occBar { flex: 1; height: 3px; background: rgba(255,255,255,0.15); border-radius: 99px; overflow: hidden; }
 .occFill { height: 100%; border-radius: 99px; transition: width 0.3s; }
-.occText { font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
-.sessionPrice { font-size: var(--fs-sm); color: var(--text-3); margin-top: 2px; }
+.occText { font-size: 10px; font-weight: 700; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+.sessionPrice { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 1px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
 .sessionArrow { position: absolute; right: 12px; bottom: 12px; color: var(--text-3); }
 .emptyMsg { grid-column: 1/-1; text-align: center; color: var(--text-3); font-size: var(--fs-base); padding: 40px; }
 

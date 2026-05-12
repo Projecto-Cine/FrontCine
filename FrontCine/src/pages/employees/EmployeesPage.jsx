@@ -11,17 +11,31 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { employeesService } from '../../services/employeesService';
 import styles from './EmployeesPage.module.css';
 
-const ROLES = ['CAJERO', 'GERENCIA', 'SEGURIDAD', 'LIMPIEZA'];
-const ROLE_COLOR = { CAJERO: 'accent', GERENCIA: 'red', SEGURIDAD: 'cyan', LIMPIEZA: 'green' };
-const ROLE_LABEL = { CAJERO: 'Cajero/a', GERENCIA: 'Gerencia', SEGURIDAD: 'Seguridad', LIMPIEZA: 'Limpieza' };
+const ROLES = ['CAJERO', 'GERENCIA', 'SEGURIDAD', 'LIMPIEZA', 'ADMIN', 'SUPERVISOR', 'OPERATOR', 'TICKET', 'MAINTENANCE'];
+const ROLE_COLOR = {
+  ADMIN: 'red', SUPERVISOR: 'purple', OPERATOR: 'accent', TICKET: 'yellow', MAINTENANCE: 'cyan',
+  CAJERO: 'accent', GERENCIA: 'red', SEGURIDAD: 'cyan', LIMPIEZA: 'green',
+};
+const ROLE_LABEL = {
+  ADMIN: 'Admin', SUPERVISOR: 'Supervisor', OPERATOR: 'Operador/a', TICKET: 'Taquilla', MAINTENANCE: 'Mantenimiento',
+  CAJERO: 'Cajero/a', GERENCIA: 'Gerencia', SEGURIDAD: 'Seguridad', LIMPIEZA: 'Limpieza',
+};
 
 const EMPTY = { name: '', email: '', role: 'CAJERO', phone: '', active: true };
 
-const normalize = (e) => ({
-  ...e,
-  role:   String(e.role ?? 'CAJERO').toUpperCase(),
-  active: e.active !== false,
-});
+const normalize = (e) => {
+  const role = String(e.role ?? e.position ?? e.workerRole ?? 'CAJERO').toUpperCase();
+  const fullName = [e.name, e.lastName].filter(Boolean).join(' ').trim();
+  return {
+    ...e,
+    id: e.id ?? e.workerId,
+    name: fullName || e.username || e.email || '-',
+    role,
+    active: e.active !== false && e.status !== 'INACTIVE',
+    email: e.email ?? '',
+    phone: e.phone ?? e.telephone ?? e.phoneNumber ?? '',
+  };
+};
 
 export default function EmployeesPage() {
   const { toast } = useApp();
@@ -92,6 +106,7 @@ export default function EmployeesPage() {
   ];
 
   const byRole = ROLES.reduce((acc, r) => ({ ...acc, [r]: employees.filter(e => e.role === r).length }), {});
+  const visibleRoles = ROLES.filter(r => byRole[r] > 0);
 
   return (
     <div className={styles.page}>
@@ -102,7 +117,7 @@ export default function EmployeesPage() {
       />
 
       <div className={styles.kpiRow}>
-        {ROLES.map(r => (
+        {(visibleRoles.length ? visibleRoles : ROLES.slice(0, 4)).map(r => (
           <KPICard key={r} label={ROLE_LABEL[r]} value={byRole[r]} icon={Users} color={ROLE_COLOR[r]} />
         ))}
       </div>

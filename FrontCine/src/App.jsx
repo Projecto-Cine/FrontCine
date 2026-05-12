@@ -25,8 +25,7 @@ function ProtectedRoute({ children }) {
 }
 
 function PublicRoute({ children }) {
-  const { user } = useAuth();
-  return user ? <Navigate to="/" replace /> : children;
+  return children;
 }
 
 export default function App() {

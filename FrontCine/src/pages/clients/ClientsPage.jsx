@@ -23,10 +23,11 @@ function initials(name = '') {
 }
 
 function normalizeClient(apiRes, formData = {}) {
+  const fullName = [apiRes?.name, apiRes?.lastName].filter(Boolean).join(' ').trim();
   return {
     ...apiRes,
     id:       apiRes?.id ?? apiRes?.userId ?? apiRes?.clientId ?? ('CLI-' + Date.now()),
-    name:     apiRes?.name ?? formData.name ?? apiRes?.username ?? '-',
+    name:     fullName || formData.name || apiRes?.username || '-',
     email:    apiRes?.email ?? formData.email ?? '-',
     username: apiRes?.username ?? formData.username ?? '',
     student:  apiRes?.student ?? apiRes?.isStudent ?? formData.student ?? false,
@@ -56,20 +57,36 @@ export default function ClientsPage() {
     SUSPENDED: t('clients.status.SUSPENDED'),
   };
 
+  const loadClients = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await clientsService.getAll();
+      setResults(data.map(c => normalizeClient(c)));
+      setSearched(true);
+    } catch {
+      toast('Error al cargar clientes.', 'error');
+      setResults([]);
+    }
+    setLoading(false);
+  }, [toast]);
+
   const runSearch = useCallback(async (q) => {
-    if (!q.trim()) { setResults([]); setSearched(false); return; }
+    if (!q.trim()) { loadClients(); return; }
     setLoading(true);
     try {
       const data = await clientsService.search(q);
-      const raw  = Array.isArray(data) ? data : (data?.content ?? []);
-      setResults(raw.map(c => normalizeClient(c)));
+      setResults(data.map(c => normalizeClient(c)));
       setSearched(true);
     } catch {
       toast('Error al buscar clientes.', 'error');
       setResults([]);
     }
     setLoading(false);
-  }, [toast]);
+  }, [loadClients, toast]);
+
+  useEffect(() => {
+    loadClients();
+  }, [loadClients]);
 
   useEffect(() => {
     clearTimeout(debounceRef.current);
@@ -126,7 +143,7 @@ export default function ClientsPage() {
           password:    form.password,
           dateOfBirth: form.dateOfBirth || null,
           student:     form.student,
-          role:        'CLIENT',
+          role:        'CLIENTE',
         };
         const raw     = await clientsService.create(payload);
         const created = normalizeClient(raw, payload);

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Users, RefreshCw, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
-import { usersService } from '../../services/usersService';
+import { workersService } from '../../services/workersService';
 import { useApp } from '../../contexts/AppContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import styles from './ShiftsPage.module.css';
@@ -16,6 +16,34 @@ const ROLE_SHIFTS = {
   maintenance: ['M', 'T', 'N'],
   readonly:    ['M'],
 };
+
+const ROLE_MAP = {
+  admin: 'admin',
+  administrador: 'admin',
+  gerencia: 'supervisor',
+  supervisor: 'supervisor',
+  operator: 'operator',
+  operador: 'operator',
+  cajero: 'ticket',
+  ticket: 'ticket',
+  taquilla: 'ticket',
+  maintenance: 'maintenance',
+  mantenimiento: 'maintenance',
+  limpieza: 'maintenance',
+  seguridad: 'maintenance',
+};
+
+function normalizeWorker(worker) {
+  const roleKey = String(worker.role ?? worker.position ?? worker.workerRole ?? 'operator').toLowerCase();
+  const fullName = [worker.name, worker.lastName].filter(Boolean).join(' ').trim();
+  return {
+    ...worker,
+    id: worker.id ?? worker.workerId,
+    name: fullName || worker.username || worker.email || '-',
+    role: ROLE_MAP[roleKey] ?? roleKey,
+    active: worker.active !== false && worker.status !== 'INACTIVE',
+  };
+}
 
 // ── Date helpers ───────────────────────────────────────
 function getWeekStart(date) {
@@ -211,7 +239,7 @@ export default function CuadrantePage() {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
-  const [allUsers, setAllUsers] = useState([]);
+  const [workers, setWorkers] = useState([]);
   const [scheduleMap, setScheduleMap] = useState(() => {
     try { return JSON.parse(localStorage.getItem('lumen_schedule_map') ?? '{}'); } catch { return {}; }
   });
@@ -240,14 +268,14 @@ export default function CuadrantePage() {
   };
 
   useEffect(() => {
-    usersService.getAll().then(data => {
-      setAllUsers(Array.isArray(data) ? data : []);
+    workersService.getAll().then(data => {
+      setWorkers((Array.isArray(data) ? data : []).map(normalizeWorker));
     }).catch(() => {});
   }, []);
 
   const activeEmployees = useMemo(
-    () => allUsers.filter(u => u.role && u.role.toLowerCase() !== 'client'),
-    [allUsers]
+    () => workers.filter(w => w.active !== false),
+    [workers]
   );
 
   const currentKey = weekKey(weekStart);

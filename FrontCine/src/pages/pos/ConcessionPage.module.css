@@ -82,8 +82,8 @@ kbd { background: var(--bg-4); border: 1px solid var(--border-l); border-radius:
   overflow-y: auto;
   padding: 14px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
   align-content: start;
 }
 
@@ -101,54 +101,78 @@ kbd { background: var(--bg-4); border: 1px solid var(--border-l); border-radius:
   text-align: center;
   user-select: none;
   overflow: hidden;
+  min-height: 300px;
 }
 .productCard:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.4); }
 .productCard:active { transform: translateY(0); }
 .productInCart { border-color: var(--green) !important; background: var(--green-dim) !important; }
 
-/* emoji fallback — cuadrado igual que la imagen */
+.productMedia {
+  width: 100%;
+  height: clamp(120px, 16vw, 168px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-4);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+
 .productEmoji {
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 52px;
   line-height: 1;
-  background: var(--bg-4);
   flex-shrink: 0;
 }
 
-/* imagen cuadrada, llena el ancho de la card, sin barras laterales */
 .productImg {
   width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
+  height: 100%;
+  object-fit: contain;
   object-position: center;
   display: block;
+  padding: 8px;
   flex-shrink: 0;
 }
 
 /* texto accesible con fondo sólido */
+.productInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 132px;
+}
+
 .productName {
   font-size: 14px;
   font-weight: 700;
   color: var(--text-1);
   line-height: 1.3;
-  padding: 9px 10px 3px;
+  padding: 10px 10px 3px;
+  overflow-wrap: anywhere;
 }
 .productDesc {
   font-size: 11px;
   color: var(--text-3);
   line-height: 1.4;
-  padding: 0 8px 4px;
+  padding: 0 10px 6px;
+  overflow-wrap: anywhere;
 }
 .productPrice {
   font-family: var(--mono);
   font-size: 20px;
   font-weight: 900;
   color: var(--accent);
-  padding: 0 10px 12px;
+  margin-top: auto;
+  padding: 10px 10px 14px;
+  line-height: 1.2;
+  white-space: nowrap;
+  display: block;
+  min-height: 48px;
 }
 
 .productQtyBadge {
@@ -391,7 +415,7 @@ kbd { background: var(--bg-4); border: 1px solid var(--border-l); border-radius:
 }
 .managerItem:hover { border-color: var(--border-l); }
 .managerItemEmoji { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }
-.managerItemImg { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; }
+.managerItemImg { width: 28px; height: 28px; object-fit: contain; border-radius: 4px; background: var(--bg-4); }
 .managerItemInfo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .managerItemName { font-size: 12px; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .managerItemMeta { font-size: 10px; color: var(--text-3); font-family: var(--mono); }
@@ -411,7 +435,7 @@ kbd { background: var(--bg-4); border: 1px solid var(--border-l); border-radius:
 .managerLabel { display: block; font-size: 10px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
 .managerInput { width: 100%; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px; color: var(--text-1); font-size: 12px; outline: none; transition: border-color var(--t); }
 .managerInput:focus { border-color: var(--accent); }
-.managerImgPreview { width: 72px; height: 72px; object-fit: cover; border-radius: var(--r); border: 1px solid var(--border); }
+.managerImgPreview { width: 72px; height: 72px; object-fit: contain; border-radius: var(--r); border: 1px solid var(--border); background: var(--bg-4); }
 .imgPreviewWrap { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
 .imgRemoveBtn { display: flex; align-items: center; gap: 4px; padding: 5px 10px; background: var(--red-dim); border: 1px solid rgba(239,68,68,0.3); border-radius: var(--r-sm); color: var(--red); font-size: 11px; cursor: pointer; transition: all var(--t); }
 .imgRemoveBtn:hover { background: var(--red); color: #fff; }

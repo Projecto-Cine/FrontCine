@@ -1,9 +1,9 @@
-import { api } from './api';
+import { workersService } from './workersService';
 
 export const employeesService = {
-  getAll:  ()           => api.get('/employees'),
-  getById: (id)         => api.get(`/employees/${id}`),
-  create:  (data)       => api.post('/employees', data),
-  update:  (id, data)   => api.put(`/employees/${id}`, data),
-  remove:  (id)         => api.delete(`/employees/${id}`),
+  getAll:  workersService.getAll,
+  getById: workersService.getById,
+  create:  workersService.create,
+  update:  workersService.update,
+  remove:  workersService.remove,
 };

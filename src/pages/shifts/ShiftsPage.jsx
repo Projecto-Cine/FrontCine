@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Users, RefreshCw, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
-import { usersService } from '../../services/usersService';
+import { workersService } from '../../services/workersService';
 import { useApp } from '../../contexts/AppContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import styles from './ShiftsPage.module.css';
@@ -240,13 +240,13 @@ export default function CuadrantePage() {
   };
 
   useEffect(() => {
-    usersService.getAll().then(data => {
+    workersService.getAll().then(data => {
       setAllUsers(Array.isArray(data) ? data : []);
     }).catch(() => {});
   }, []);
 
   const activeEmployees = useMemo(
-    () => allUsers.filter(u => u.role && u.role.toLowerCase() !== 'client'),
+    () => allUsers,
     [allUsers]
   );
 

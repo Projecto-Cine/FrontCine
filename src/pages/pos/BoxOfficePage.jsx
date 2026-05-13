@@ -158,9 +158,16 @@ export default function TaquillaPage() {
     }
 
     seatsService.getByScreening(session.id)
-      .then(seats => {
-        console.log('Seats received:', seats?.length, 'items');
-        setRealSeats(Array.isArray(seats) ? seats : null);
+      .then(raw => {
+        const arr = Array.isArray(raw) ? raw : [];
+        const normalized = arr.map(s => ({
+          id:     s.seat?.id     ?? s.id,
+          row:    s.seat?.row    ?? s.row,
+          number: s.seat?.number ?? s.number,
+          type:   s.seat?.type   ?? s.type,
+          status: s.status ?? (s.occupied ? 'occupied' : 'available'),
+        }));
+        setRealSeats(normalized.length > 0 ? normalized : null);
       })
       .catch(() => setRealSeats(null))
       .finally(() => setLoadingSeats(false));

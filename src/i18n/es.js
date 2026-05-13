@@ -20,6 +20,7 @@ export default {
   },
 
   login: {
+    pageTitle:        'Acceso al sistema',
     subtitle:         'Sistema de Gestión Interna',
     emailLabel:       'Email',
     emailPlaceholder: 'correo@ejemplo.com',

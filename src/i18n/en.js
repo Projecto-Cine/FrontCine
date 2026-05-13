@@ -20,6 +20,7 @@ export default {
   },
 
   login: {
+    pageTitle:        'System sign in',
     subtitle:         'Internal Management System',
     emailLabel:       'Email',
     emailPlaceholder: 'mail@example.com',

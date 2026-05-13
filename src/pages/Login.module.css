@@ -55,11 +55,11 @@
 }
 .brandText { display: flex; flex-direction: column; gap: 1px; }
 .brandName { font-size: 20px; font-weight: 800; color: var(--accent); letter-spacing: 0.1em; }
-.brandSub { font-size: var(--fs-sm); color: var(--text-3); letter-spacing: 0.05em; }
+.brandSub { font-size: var(--fs-sm); color: var(--text-2); letter-spacing: 0.05em; }
 
 .form { display: flex; flex-direction: column; gap: 16px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
-.label { font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; }
+.label { font-size: var(--fs-xs); font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.08em; }
 .input {
   background: var(--bg-3);
   border: 1px solid var(--border-l);
@@ -77,7 +77,7 @@
 
 .pwWrap { position: relative; }
 .pwWrap .input { padding-right: 40px; }
-.pwToggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); display: flex; }
+.pwToggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); color: var(--text-2); display: flex; align-items: center; justify-content: center; min-width: 28px; min-height: 28px; border-radius: var(--r-sm); }
 .pwToggle:hover { color: var(--text-1); }
 
 .error { font-size: var(--fs-md); color: var(--red); background: var(--red-dim); padding: 9px 12px; border-radius: var(--r-sm); border: 1px solid rgba(248,113,113,0.2); }
@@ -96,11 +96,11 @@
   position: absolute; top: 20px; right: 24px; z-index: 10;
 }
 
-.hint { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--text-3); }
+.hint { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--text-2); }
 .hint strong { color: var(--text-2); }
 
 .demoAccounts { border-top: 1px solid var(--border); padding-top: 18px; }
-.demoTitle { font-size: var(--fs-2xs); font-weight: 800; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+.demoTitle { font-size: var(--fs-2xs); font-weight: 800; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
 .demoGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .demoBtn {
   display: flex; flex-direction: column; align-items: flex-start;

@@ -32,7 +32,7 @@ export default function Login() {
   };
 
   return (
-    <div className={styles.page}>
+    <main className={styles.page} aria-label={t('login.pageTitle')}>
       <div className={styles.langFloat}>
         <LanguageSwitcher variant="login" />
       </div>
@@ -116,7 +116,6 @@ export default function Login() {
                 className={styles.demoBtn}
                 type="button"
                 onClick={() => fillDemo(e)}
-                aria-label={`${t(rKey)}: ${e}`}
               >
                 <span className={styles.demoUser}>{e}</span>
                 <span className={styles.demoRole}>{t(rKey)}</span>
@@ -130,6 +129,6 @@ export default function Login() {
         <div className={styles.bgGrid} />
         <div className={styles.bgGlow} />
       </div>
-    </div>
+    </main>
   );
 }

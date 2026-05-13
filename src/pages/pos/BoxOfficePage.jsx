@@ -120,9 +120,10 @@ export default function TaquillaPage() {
   const movieGroups = useMemo(() => {
     const groups = {};
     filteredSessions.forEach(s => {
-      const mid = s.movie?.id;
+      const mv = s.movie ?? {};
+      const mid = mv.id ?? s.movie_id;
       if (mid == null) return;
-      if (!groups[mid]) groups[mid] = { movie: s.movie, sessions: [] };
+      if (!groups[mid]) groups[mid] = { movie: mv, sessions: [] };
       groups[mid].sessions.push(s);
     });
     return Object.values(groups);
@@ -258,9 +259,9 @@ export default function TaquillaPage() {
               <div className={styles.emptyMsg}><Loader size={16} /> {t('box_office.loading')}</div>
             ) : (
               <div className={styles.sessionGrid}>
-                {movieGroups.map(group => {
+                  {movieGroups.map(group => {
                   const mv = group.movie ?? {};
-                  const anyFull = group.sessions.every(s => s.status === 'FULL');
+                  const anyFull = group.sessions.every(s => (s.status ?? '').toUpperCase() === 'FULL');
 
                   return (
                     <div key={mv.id} className={`${styles.sessionCard} ${anyFull ? styles.sessionFull : ''}`}>
@@ -280,21 +281,26 @@ export default function TaquillaPage() {
                         <div className={styles.sessionTimesGrid}>
                           {group.sessions.map(s => {
                             const rm = s.theater ?? {};
-                            const isFull = s.status === 'FULL';
+                            const isFull = (s.status ?? '').toUpperCase() === 'FULL';
                             const soldCnt = s.soldCount ?? s.sold ?? 0;
-                            const cap = rm.capacity ?? 1;
+                            const cap = rm.capacity ?? s.capacity ?? 1;
                             const occPct = Math.round((soldCnt / cap) * 100);
-                            const time = s.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
+                            const time = s.time
+                              ?? (s.dateTime
+                                ? (s.dateTime.split('T')[1]?.substring(0, 5)
+                                  ?? s.dateTime.split(' ')[1]?.substring(0, 5)
+                                  ?? s.dateTime)
+                                : '');
 
                             return (
                               <button
                                 key={s.id}
                                 className={`${styles.timeBtn} ${isFull ? styles.timeBtnFull : ''}`}
-                                onClick={() => !isFull && selectSession(s)}
+                                onClick={() => selectSession(s)}
                                 disabled={isFull}
                               >
                                 <span className={styles.timeBtnHour}>{time}</span>
-                                <span className={styles.timeBtnRoom}>{rm.name?.split('—')[0]?.trim()}</span>
+                                <span className={styles.timeBtnRoom}>{rm.name?.split('—')[0]?.trim() ?? `Sala ${s.room_id}`}</span>
                                 <span className={styles.timeBtnOcc} style={{ color: OCC_COLOR(occPct) }}>
                                   {isFull ? t('box_office.full') : `${soldCnt}/${cap}`}
                                 </span>

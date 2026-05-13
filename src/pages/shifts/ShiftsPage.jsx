@@ -241,8 +241,10 @@ export default function CuadrantePage() {
     }).catch(() => {});
   }, []);
 
+  const VALID_ROLES = new Set(['CAJERO', 'GERENCIA', 'SEGURIDAD', 'LIMPIEZA']);
+
   const activeEmployees = useMemo(
-    () => allUsers,
+    () => allUsers.filter(e => VALID_ROLES.has(String(e.role).toUpperCase())),
     [allUsers]
   );
 

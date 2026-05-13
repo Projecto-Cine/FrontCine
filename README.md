@@ -1,719 +1,450 @@
-# Lumen Cinema — Frontend (Backoffice Intranet)
+<p align="center">
+  <img src="./src/assets/logoLumen.png" alt="Lumen Cinema Logo" width="180"/>
+</p>
 
-Aplicación React interna para la gestión operativa del cine Lumen. Incluye POS de taquilla y concesión, cuadrante de turnos, gestión de películas, salas, horarios, reservas, incidencias, inventario, informes, usuarios y auditoría.
+<h1 align="center">🎬 Lumen Cinema</h1>
+
+<p align="center">
+  <strong>Backoffice Intranet para la gestión integral de un cine moderno</strong>
+</p>
+
+<p align="center">
+  Sistema completo de operación cinematográfica desarrollado con React + Vite.<br/>
+  Incluye POS, reservas, analytics, inventario, RRHH, accesibilidad e internacionalización.
+</p>
 
 ---
 
-## Stack técnico
+<p align="center">
+  <img src="https://img.shields.io/badge/React-19.x-61DAFB?logo=react&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Vite-8.x-646CFF?logo=vite&logoColor=white"/>
+  <img src="https://img.shields.io/badge/React_Router-7.x-CA4245?logo=reactrouter&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Recharts-3.x-22C55E"/>
+  <img src="https://img.shields.io/badge/Stripe-Enabled-635BFF?logo=stripe&logoColor=white"/>
+  <img src="https://img.shields.io/badge/i18n-ES%20%7C%20EN-orange"/>
+  <img src="https://img.shields.io/badge/Status-En%20Desarrollo-yellow"/>
+</p>
 
-| Herramienta | Versión |
+---
+
+# 📚 Tabla de contenidos
+
+- [✨ Características principales](#-características-principales)
+- [🧱 Stack tecnológico](#-stack-tecnológico)
+- [🏗️ Arquitectura](#️-arquitectura)
+- [📁 Estructura del proyecto](#-estructura-del-proyecto)
+- [🚀 Instalación](#-instalación)
+- [⚙️ Variables de entorno](#️-variables-de-entorno)
+- [🔐 Autenticación y roles](#-autenticación-y-roles)
+- [🧭 Rutas del sistema](#-rutas-del-sistema)
+- [🌍 Internacionalización](#-internacionalización)
+- [♿ Accesibilidad](#-accesibilidad)
+- [🧪 Modo demo](#-modo-demo)
+- [🔌 Integración backend](#-integración-backend)
+- [📦 Scripts disponibles](#-scripts-disponibles)
+
+---
+
+# ✨ Características principales
+
+## 🏪 Punto de Venta (POS)
+
+### 🎟️ Taquilla
+- Selección de sesiones
+- Mapa interactivo de butacas
+- Gestión de tipos de entrada
+- Búsqueda de clientes
+- Pago con tarjeta, efectivo y QR
+- Generación de tickets con QR
+
+### 🍿 Concesiones
+- Grid de productos por categorías
+- Carrito dinámico
+- Gestión de cantidades
+- Cálculo automático de cambio
+- CRUD completo de productos
+
+---
+
+## 📊 Dashboard & Analytics
+
+- KPIs en tiempo real
+- Tendencias de ingresos
+- Ocupación por salas
+- Top películas
+- Productos más vendidos
+- Alertas operativas
+- Reportes exportables CSV
+
+---
+
+## 🎞️ Gestión de contenido
+
+| Módulo | Funcionalidades |
 |---|---|
-| React | 19.x |
-| Vite | 8.x |
-| React Router DOM | 7.x |
-| recharts | 3.x |
-| lucide-react | 1.x |
-| qrcode.react | 4.x |
-| CSS Modules | — |
+| 🎬 Películas | CRUD, posters Cloudinary, filtros |
+| 🏛️ Salas | Gestión de capacidad y estados |
+| 🕒 Horarios | Programación de sesiones |
+| 🎫 Reservas | Estados, pagos, cancelaciones, QR |
 
 ---
 
-## Arrancar en local
+## 🛠️ Gestión operativa
 
-```bash
-cd FrontCine
-npm install
-npm run dev        # http://localhost:5173
-npm run build      # dist/ listo para producción
-npm run preview    # sirve el build en local
-```
+| Módulo | Funcionalidades |
+|---|---|
+| 🚨 Incidencias | Prioridades, asignación, estados |
+| 📦 Inventario | Stock mínimo, categorías |
+| 📈 Reportes | Analytics avanzados |
 
 ---
 
-## Variables de entorno
+## 👥 Recursos Humanos
 
-Crear `.env` en la raíz de `FrontCine/`:
-
-```env
-VITE_API_URL=http://localhost:8080/api
-VITE_API_TIMEOUT=10000
-```
-
-> En producción crear `.env.production` con la URL real.
+| Módulo | Funcionalidades |
+|---|---|
+| 👨‍💼 Empleados | Roles y estados |
+| 📅 Turnos | Calendario inteligente |
+| 👤 Clientes | Fidelización y descuentos |
 
 ---
 
-## Estructura del proyecto
+## 🌍 Internacionalización
+
+- Español 🇪🇸 / Inglés 🇬🇧
+- Detección automática del idioma
+- Formateo Intl
+- Traducciones dinámicas
+- Persistencia en localStorage
+
+---
+
+## ♿ Accesibilidad
+
+- Navegación completa por teclado
+- Focus trap en modales
+- ARIA labels
+- Alto contraste
+- Escalado tipográfico
+- Screen Reader API
+- Skip to content
+
+---
+
+# 🧱 Stack tecnológico
+
+| Categoría | Tecnología |
+|---|---|
+| Frontend | React 19 |
+| Bundler | Vite 8 |
+| Routing | React Router 7 |
+| Charts | Recharts |
+| Pagos | Stripe |
+| Iconos | Lucide React |
+| QR | qrcode.react |
+| Estilos | CSS Modules |
+| Uploads | Cloudinary |
+| Estado global | Context API |
+| Linter | ESLint |
+
+---
+
+# 🏗️ Arquitectura
+
+## Flujo principal
+
+```txt
+BrowserRouter
+ └── AuthProvider
+      └── LanguageProvider
+           └── AppProvider
+                └── Routes
 
 ```
+## Arquitectura frontend
+ ```
+pages/
+ ├── Dashboard
+ ├── POS
+ ├── Movies
+ ├── Reports
+ └── ...
+
+components/
+ ├── shared/
+ ├── ui/
+ └── accessibility/
+
+contexts/
+ ├── AuthContext
+ ├── AppContext
+ └── LanguageContext
+
+services/
+ ├── api.js
+ ├── moviesService.js
+ ├── reportsService.js
+ └── ...
+
+```
+## 📁 Estructura del proyecto
+
+```
+
 FrontCine/
+│
 ├── public/
 ├── src/
 │   ├── assets/
-│   │   └── logoLumen.png
 │   ├── components/
-│   │   ├── shared/
-│   │   │   ├── DataTable.jsx       # Tabla (sort, search, paginación cliente)
-│   │   │   ├── KPICard.jsx         # Tarjeta de métrica
-│   │   │   ├── SeatMap.jsx         # Mapa de butacas interactivo
-│   │   │   └── PageHeader.jsx
-│   │   └── ui/
-│   │       ├── Button.jsx
-│   │       ├── Badge.jsx
-│   │       └── Modal.jsx
 │   ├── contexts/
-│   │   ├── AuthContext.jsx         # ← Login, rol, permisos
-│   │   └── AppContext.jsx          # Estado UI (sidebar, toasts)
 │   ├── data/
-│   │   └── mockData.js             # ← SUSTITUIR POR LLAMADAS API
-│   ├── services/                   # ← CREADOS PARA LA INTEGRACIÓN
-│   │   ├── api.js                  # Cliente HTTP base (fetch + auth header)
-│   │   ├── authService.js
-│   │   ├── moviesService.js
-│   │   ├── roomsService.js
-│   │   ├── sessionsService.js
-│   │   ├── reservationsService.js
-│   │   ├── incidentsService.js
-│   │   ├── inventoryService.js
-│   │   ├── usersService.js
-│   │   ├── auditService.js
-│   │   ├── reportsService.js
-│   │   └── salesService.js
-│   ├── hooks/                      # ← CREADOS PARA LA INTEGRACIÓN
-│   │   ├── useMovies.js
-│   │   ├── useRooms.js
-│   │   ├── useSessions.js
-│   │   ├── useReservations.js
-│   │   ├── useIncidents.js
-│   │   ├── useInventory.js
-│   │   ├── useUsers.js
-│   │   ├── useAuditLogs.js
-│   │   └── useReports.js
+│   ├── hooks/
+│   ├── i18n/
 │   ├── layouts/
-│   │   ├── MainLayout.jsx
-│   │   ├── Header.jsx
-│   │   └── Sidebar.jsx
 │   ├── pages/
-│   │   ├── Login.jsx
-│   │   ├── Dashboard.jsx
-│   │   ├── movies/MoviesPage.jsx
-│   │   ├── rooms/RoomsPage.jsx
-│   │   ├── schedules/SchedulesPage.jsx
-│   │   ├── reservations/ReservationsPage.jsx
-│   │   ├── incidents/IncidentsPage.jsx
-│   │   ├── reports/ReportsPage.jsx
-│   │   ├── inventory/InventoryPage.jsx
-│   │   ├── users/UsersPage.jsx
-│   │   ├── audit/AuditPage.jsx
-│   │   ├── cuadrante/CuadrantePage.jsx
-│   │   └── pos/
-│   │       ├── TaquillaPage.jsx
-│   │       └── CajaPage.jsx
+│   ├── services/
 │   ├── App.jsx
-│   └── index.css                   # Design system (variables CSS)
+│   └── main.jsx
+│
+├── .env
+├── package.json
+├── vite.config.js
+└── README.md
+
+```
+---
+
+# 🚀 Instalación
+
+Requisitos
+
+Node.js >= 18
+
+npm >= 9
+
+ ---
+ 
+## Clonar proyecto
+
+```
+git clone <repo-url>
+cd FrontCine
+
+```
+## Instalar dependencias
+
+```
+npm install
+
+```
+
+## Ejecutar entorno desarrollo
+
+```
+npm run dev
+
+```
+## Abrir:
+
+```
+http://localhost:5173
+
+```
+## Build producción
+
+```
+npm run build
+
+```
+## Preview producción
+
+```
+npm run preview
+
+```
+# ⚙️ Variables de entorno
+
+## Crear .env:
+
+```
+VITE_API_URL=http://localhost:8080/api
+VITE_API_TIMEOUT=10000
+
+```
+
+# 🔐 Autenticación y roles
+
+---
+
+## Sistema de autenticación
+
+- JWT Authentication
+
+- Persistencia en localStorage
+
+- Restauración automática de sesión
+
+- Logout automático por expiración
+
+---
+
+## Roles disponibles
+
+| Rol         | Acceso            |
+| ----------- | ----------------- |
+| admin       | Acceso completo   |
+| supervisor  | Gestión avanzada  |
+| operator    | Operativa general |
+| ticket      | Taquilla          |
+| maintenance | Incidencias       |
+| readonly    | Solo lectura      |
+
+---
+
+## Usuarios demo
+
+| Usuario     | Password  |
+| ----------- | --------- |
+| admin1      | lumen2024 |
+| supervisor1 | lumen2024 |
+| operador1   | lumen2024 |
+| taquilla1   | lumen2024 |
+
+---
+
+# 🧭 Rutas del sistema
+
+---
+
+| Ruta            | Descripción     |
+| --------------- | --------------- |
+| `/`             | Dashboard       |
+| `/box-office`   | POS Taquilla    |
+| `/concession`   | POS Concesiones |
+| `/movies`       | Películas       |
+| `/rooms`        | Salas           |
+| `/schedules`    | Horarios        |
+| `/reservations` | Reservas        |
+| `/reports`      | Reportes        |
+| `/inventory`    | Inventario      |
+| `/employees`    | Empleados       |
+
+---
+
+# 🌍 Internacionalización
+
+---
+
+```
+const { t, fmt } = useLanguage();
+
+t('common.save');
+
+fmt.currency(18.5);
+
+fmt.date(new Date());
+
 ```
 
 ---
 
-## Rutas
+## Características
 
-| Ruta | Página |
-|---|---|
-| `/login` | Login |
-| `/` | Dashboard |
-| `/taquilla` | POS Taquilla |
-| `/caja` | POS Concesión |
-| `/peliculas` | Películas |
-| `/salas` | Salas |
-| `/horarios` | Sesiones/Horarios |
-| `/reservas` | Reservas |
-| `/incidencias` | Incidencias |
-| `/inventario` | Inventario |
-| `/informes` | Informes |
-| `/cuadrante` | Cuadrante de turnos |
-| `/usuarios` | Usuarios (solo admin) |
-| `/auditoria` | Auditoría (solo admin) |
+- Traducción ES/EN
+
+- Intl API
+  
+- Formateo regional
+
+- Persistencia automática
 
 ---
 
-## Roles y permisos
+# ♿ Accesibilidad
 
-`role` debe ser uno de: `admin | supervisor | operator | ticket | maintenance | readonly`
+Lumen Cinema sigue buenas prácticas modernas de accesibilidad:
 
-```js
-// AuthContext — can(action) devuelve true/false
-can('read')               // todos excepto sin sesión
-can('create')             // admin, supervisor, operator
-can('update')             // admin, supervisor, operator
-can('approve')            // admin, supervisor
-can('create_reservation') // ticket
-can('create_incident')    // maintenance
-```
+- ✅ Navegación por teclado
+- ✅ Compatibilidad con screen readers
+- ✅ Focus management
+- ✅ Contraste accesible
+- ✅ Preferencias persistentes
+- ✅ ARIA labels
+- ✅ Skip navigation
 
 ---
 
-## Cuentas de demo (mock actual)
+# 🧪 Modo demo
 
-| Username | Rol | Password |
-|---|---|---|
-| `admin1` | Administrador | `lumen2024` |
-| `supervisor1` | Supervisor | `lumen2024` |
-| `operador1` | Operador | `lumen2024` |
-| `taquilla1` | Taquilla | `lumen2024` |
-| `mantenimiento1` | Mantenimiento | `lumen2024` |
-| `auditor1` | Consulta | `lumen2024` |
+El sistema funciona sin backend gracias a:
+
+```txt
+src/data/mockData.js
+src/services/mockStore.js
+```
+
+## Incluye
+
+- 🎬 Películas
+- 🎫 Reservas
+- 👥 Usuarios
+- 🍿 Productos
+- 📦 Inventario
+- 📊 Analytics
+- 💰 Ventas
 
 ---
 
+# 🔌 Integración backend
+
+Preparado para backend Spring Boot:
+
+```txt
+/api/auth
+/api/movies
+/api/rooms
+/api/schedules
+/api/reservations
+```
+
+## Características
+
+- Cliente HTTP centralizado
+- Bearer Token
+- Manejo global de errores
+- Hooks reutilizables
+- Servicios desacoplados
+
 ---
 
-# Guía de integración Backend
+# 📦 Scripts disponibles
 
-## CORS — configuración requerida en el servidor
-
-El servidor debe responder con estas cabeceras en **todos** los endpoints (incluido `OPTIONS`):
-
-```
-Access-Control-Allow-Origin: http://localhost:5173
-Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
-Access-Control-Allow-Headers: Content-Type, Authorization
-Access-Control-Allow-Credentials: true
-```
-
-Para producción, cambiar el origen al dominio real del frontend.
-
-Si el backend es **Spring Boot**:
-
-```java
-@Configuration
-public class CorsConfig implements WebMvcConfigurer {
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/api/**")
-            .allowedOrigins("http://localhost:5173")
-            .allowedMethods("GET","POST","PUT","DELETE","OPTIONS")
-            .allowedHeaders("*")
-            .allowCredentials(true);
-    }
-}
-```
-
-Si el backend es **Node/Express**:
-
-```js
-const cors = require('cors');
-app.use(cors({
-  origin: 'http://localhost:5173',
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization'],
-  credentials: true,
-}));
+```bash
+npm run dev
+npm run build
+npm run preview
+npm run lint
 ```
 
 ---
 
-## Cliente HTTP base — `src/services/api.js`
+# 🧠 Características destacadas
 
-Ya creado en el proyecto. Añade el token JWT a todas las peticiones y centraliza el manejo de errores:
-
-```js
-// src/services/api.js
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api';
-
-async function request(path, options = {}) {
-  const token = localStorage.getItem('lumen_token');
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-    ...options,
-  });
-  if (res.status === 401) {
-    localStorage.removeItem('lumen_token');
-    window.location.href = '/login';
-    return;
-  }
-  if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
-  if (res.status === 204) return null;
-  return res.json();
-}
-
-export const api = {
-  get:    (path)         => request(path),
-  post:   (path, body)   => request(path, { method: 'POST',   body: JSON.stringify(body) }),
-  put:    (path, body)   => request(path, { method: 'PUT',    body: JSON.stringify(body) }),
-  delete: (path)         => request(path, { method: 'DELETE' }),
-};
-```
+- ✅ Arquitectura escalable
+- ✅ Responsive Design
+- ✅ POS completo
+- ✅ Dashboard analítico
+- ✅ Accesibilidad avanzada
+- ✅ Sistema modular
+- ✅ Modo demo
+- ✅ Integración Stripe
+- ✅ i18n ES/EN
+- ✅ Gestión integral de cine
 
 ---
 
-## Autenticación — `src/services/authService.js`
+# ❤️ Autor
 
-```js
-import { api } from './api';
-
-export const authService = {
-  login: (username, password) =>
-    api.post('/auth/login', { username, password }),
-  // Respuesta esperada: { user: {...}, token: string }
-
-  logout: () =>
-    api.post('/auth/logout', {}),
-
-  me: () =>
-    api.get('/auth/me'),
-  // Para restaurar sesión desde token guardado
-};
-```
-
-**Integrar en `AuthContext.jsx`** — reemplazar la función `login`:
-
-```js
-import { authService } from '../services/authService';
-
-const login = async (username, password) => {
-  try {
-    const { user, token } = await authService.login(username, password);
-    localStorage.setItem('lumen_token', token);
-    setUser(user);
-    return true;
-  } catch {
-    setError('Credenciales inválidas o cuenta desactivada.');
-    return false;
-  }
-};
-```
-
-**Forma del objeto `user`:**
-
-```json
-{
-  "id": 1,
-  "name": "Administrador Sistema",
-  "username": "admin1",
-  "email": "admin@lumen.es",
-  "role": "admin",
-  "status": "active"
-}
-```
-
----
-
-## Servicios por módulo
-
-### `src/services/moviesService.js`
-
-```js
-import { api } from './api';
-export const moviesService = {
-  getAll:  ()           => api.get('/movies'),
-  create:  (data)       => api.post('/movies', data),
-  update:  (id, data)   => api.put(`/movies/${id}`, data),
-  remove:  (id)         => api.delete(`/movies/${id}`),
-};
-```
-
-**Endpoint:** `GET /api/movies` → `Movie[]`
-
-```json
-{
-  "id": 1, "title": "Dune: Parte Dos", "duration": 166,
-  "genre": "Ciencia ficción", "language": "ES", "format": "IMAX",
-  "rating": "PG-13", "status": "active", "director": "Denis Villeneuve",
-  "year": 2024, "poster": null
-}
-```
-
-`status`: `active | upcoming | inactive`
-
----
-
-### `src/services/roomsService.js`
-
-```js
-import { api } from './api';
-export const roomsService = {
-  getAll:  ()           => api.get('/rooms'),
-  create:  (data)       => api.post('/rooms', data),
-  update:  (id, data)   => api.put(`/rooms/${id}`, data),
-  remove:  (id)         => api.delete(`/rooms/${id}`),
-};
-```
-
-**Endpoint:** `GET /api/rooms` → `Room[]`
-
-```json
-{
-  "id": 1, "name": "Sala 1 — IMAX", "capacity": 280,
-  "format": "IMAX", "status": "active", "screen": "Pantalla curva 28m",
-  "audio": "Dolby Atmos", "seats_available": 280,
-  "last_maintenance": "2024-04-10"
-}
-```
-
-`status`: `active | maintenance | inactive`
-
----
-
-### `src/services/sessionsService.js`
-
-```js
-import { api } from './api';
-export const sessionsService = {
-  getAll:       (params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    return api.get(`/sessions${q ? '?' + q : ''}`);
-  },
-  create:  (data)       => api.post('/sessions', data),
-  update:  (id, data)   => api.put(`/sessions/${id}`, data),
-  remove:  (id)         => api.delete(`/sessions/${id}`),
-};
-```
-
-**Endpoint:** `GET /api/sessions` → `Session[]`
-
-```json
-{
-  "id": 1, "movie_id": 1, "room_id": 1,
-  "date": "2024-04-30", "time": "16:00", "end_time": "18:46",
-  "capacity": 280, "sold": 241,
-  "status": "active", "price": 18.50
-}
-```
-
-`status`: `active | full | scheduled | cancelled`
-
-> **Clave para TaquillaPage:** el frontend usa `session.sold` + `room.capacity` para el mapa de butacas. Mantener `sold` actualizado en tiempo real es importante para la ocupación.
-
----
-
-### `src/services/reservationsService.js`
-
-```js
-import { api } from './api';
-export const reservationsService = {
-  getAll:  ()           => api.get('/reservations'),
-  create:  (data)       => api.post('/reservations', data),
-  update:  (id, data)   => api.put(`/reservations/${id}`, data),
-  remove:  (id)         => api.delete(`/reservations/${id}`),
-};
-```
-
-```json
-{
-  "id": "RES-2024-0001", "session_id": 1,
-  "client": "María García", "email": "mgarcia@email.com",
-  "seats": ["A12", "A13"], "amount": 37.00,
-  "payment": "card", "status": "confirmed",
-  "created_at": "2024-04-28T10:23:00Z"
-}
-```
-
-`payment`: `card | cash | online` · `status`: `confirmed | pending | cancelled | refunded`
-
----
-
-### `src/services/incidentsService.js`
-
-```js
-import { api } from './api';
-export const incidentsService = {
-  getAll:  ()           => api.get('/incidents'),
-  create:  (data)       => api.post('/incidents', data),
-  update:  (id, data)   => api.put(`/incidents/${id}`, data),
-  remove:  (id)         => api.delete(`/incidents/${id}`),
-};
-```
-
-```json
-{
-  "id": "INC-001", "title": "Proyector Sala 2 — parpadeo",
-  "category": "Técnico", "priority": "high", "status": "open",
-  "room": "Sala 2 — 4DX", "reported_by": "operador2",
-  "assigned_to": "mantenimiento1",
-  "created_at": "2024-04-30T07:30:00Z",
-  "updated_at": "2024-04-30T08:15:00Z",
-  "description": "El proyector 4DX presenta parpadeo..."
-}
-```
-
-`priority`: `low | medium | high | critical` · `status`: `open | in_progress | resolved`
-
----
-
-### `src/services/inventoryService.js`
-
-```js
-import { api } from './api';
-export const inventoryService = {
-  getAll:  ()           => api.get('/inventory'),
-  create:  (data)       => api.post('/inventory', data),
-  update:  (id, data)   => api.put(`/inventory/${id}`, data),
-  remove:  (id)         => api.delete(`/inventory/${id}`),
-};
-```
-
-```json
-{
-  "id": 1, "name": "Bombilla proyector IMAX",
-  "category": "Técnico", "quantity": 3, "min_stock": 2,
-  "unit": "ud", "location": "Almacén técnico A",
-  "supplier": "Christie Digital",
-  "last_order": "2024-03-15", "price_unit": 1200.00
-}
-```
-
----
-
-### `src/services/usersService.js`
-
-```js
-import { api } from './api';
-export const usersService = {
-  getAll:  ()           => api.get('/users'),
-  create:  (data)       => api.post('/users', data),
-  update:  (id, data)   => api.put(`/users/${id}`, data),
-  remove:  (id)         => api.delete(`/users/${id}`),
-};
-```
-
-```json
-{
-  "id": 1, "name": "Administrador Sistema",
-  "username": "admin1", "email": "admin@lumen.es",
-  "role": "admin", "status": "active",
-  "last_login": "2024-04-30T08:00:00Z",
-  "created_at": "2023-01-15"
-}
-```
-
----
-
-### `src/services/auditService.js`
-
-```js
-import { api } from './api';
-export const auditService = {
-  getAll: (params = {}) => {
-    const q = new URLSearchParams(params).toString();
-    return api.get(`/audit-logs${q ? '?' + q : ''}`);
-  },
-};
-```
-
-```json
-{
-  "id": 1, "user": "admin1", "action": "UPDATE",
-  "resource": "Película #4",
-  "detail": "Cambio de estado: upcoming → active",
-  "ip": "192.168.1.10",
-  "timestamp": "2024-04-30T08:05:44Z",
-  "severity": "info"
-}
-```
-
-`action`: `LOGIN | LOGIN_FAIL | CREATE | UPDATE | DELETE | PERMISSION | CONFIG`
-`severity`: `info | warning | danger`
-
----
-
-### `src/services/reportsService.js`
-
-```js
-import { api } from './api';
-export const reportsService = {
-  salesWeek:   () => api.get('/reports/sales-week'),
-  occupancy:   () => api.get('/reports/occupancy'),
-  kpis:        () => api.get('/reports/kpis'),
-};
-```
-
-**`GET /api/reports/sales-week`**
-```json
-[{ "day": "Lun", "ventas": 4200, "entradas": 312 }, ...]
-```
-
-**`GET /api/reports/occupancy`**
-```json
-[{ "sala": "IMAX", "pct": 86 }, ...]
-```
-
-**`GET /api/reports/kpis`**
-```json
-{
-  "revenue_today": 8420.50,
-  "tickets_today": 624,
-  "occupancy_avg": 74,
-  "incidents_open": 3
-}
-```
-
----
-
-### `src/services/salesService.js`
-
-```js
-import { api } from './api';
-export const salesService = {
-  createTicketSale:     (data) => api.post('/sales/tickets', data),
-  createConcessionSale: (data) => api.post('/sales/concession', data),
-};
-```
-
-**`POST /api/sales/tickets`**
-```json
-{
-  "session_id": 1,
-  "seats": ["A05", "A06"],
-  "ticket_type": "adulto",
-  "format_extra": "imax",
-  "unit_price": 18.50,
-  "surcharge": 5.00,
-  "total": 47.00,
-  "payment_method": "card",
-  "cashier_id": 5
-}
-```
-
-**`POST /api/sales/concession`**
-```json
-{
-  "items": [{ "product_id": "p2", "name": "Palomitas M", "qty": 2, "unit_price": 4.50 }],
-  "total": 9.00,
-  "payment_method": "cash",
-  "cash_given": 10.00,
-  "change": 1.00,
-  "cashier_id": 5
-}
-```
-
----
-
-## Hooks de datos — `src/hooks/`
-
-Patrón genérico. Todos los hooks siguen la misma estructura:
-
-```js
-// src/hooks/useMovies.js
-import { useState, useEffect, useCallback } from 'react';
-import { moviesService } from '../services/moviesService';
-import { MOVIES } from '../data/mockData';   // ← eliminar al conectar API
-
-const USE_MOCK = !import.meta.env.VITE_API_URL;
-
-export function useMovies() {
-  const [data, setData]       = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = USE_MOCK ? MOVIES : await moviesService.getAll();
-      setData(result);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const create = async (movie) => {
-    const created = USE_MOCK
-      ? { ...movie, id: Date.now() }
-      : await moviesService.create(movie);
-    setData(prev => [...prev, created]);
-    return created;
-  };
-
-  const update = async (id, changes) => {
-    const updated = USE_MOCK
-      ? { ...data.find(m => m.id === id), ...changes }
-      : await moviesService.update(id, changes);
-    setData(prev => prev.map(m => m.id === id ? updated : m));
-    return updated;
-  };
-
-  const remove = async (id) => {
-    if (!USE_MOCK) await moviesService.remove(id);
-    setData(prev => prev.filter(m => m.id !== id));
-  };
-
-  return { data, loading, error, reload: load, create, update, remove };
-}
-```
-
-El mismo patrón aplica a: `useRooms`, `useSessions`, `useReservations`, `useIncidents`, `useInventory`, `useUsers`, `useAuditLogs`, `useReports`.
-
-**Cómo usar en una página:**
-
-```jsx
-// Antes (mock directo)
-import { MOVIES } from '../../data/mockData';
-
-// Después (con hook)
-import { useMovies } from '../../hooks/useMovies';
-
-export default function MoviesPage() {
-  const { data: movies, loading, error, create, update, remove } = useMovies();
-  if (loading) return <div>Cargando...</div>;
-  if (error)   return <div>Error: {error}</div>;
-  // ...
-}
-```
-
----
-
-## Paginación servidor (opcional)
-
-El `DataTable` actual pagina en cliente. Para paginar en servidor, el endpoint debe aceptar:
-
-```
-GET /api/movies?page=1&limit=20&search=dune&sort=title&order=asc
-```
-
-Y responder:
-
-```json
-{
-  "data": [...],
-  "total": 87,
-  "page": 1,
-  "limit": 20
-}
-```
-
----
-
-## Mapa de sustitución (qué y dónde)
-
-| Archivo mock | Páginas que lo consumen | Servicio sustituto |
-|---|---|---|
-| `MOVIES` | MoviesPage, TaquillaPage, Dashboard | `moviesService` |
-| `ROOMS` | RoomsPage, TaquillaPage, SeatMap | `roomsService` |
-| `SESSIONS` | SchedulesPage, TaquillaPage, ReservationsPage | `sessionsService` |
-| `RESERVATIONS` | ReservationsPage | `reservationsService` |
-| `INCIDENTS` | IncidentsPage | `incidentsService` |
-| `INVENTORY` | InventoryPage | `inventoryService` |
-| `USERS` | UsersPage, AuthContext, CuadrantePage | `usersService` |
-| `AUDIT_LOGS` | AuditPage | `auditService` |
-| `SALES_WEEK`, `OCCUPANCY_BY_ROOM` | ReportsPage, Dashboard | `reportsService` |
-| `TICKET_TYPES` | TaquillaPage | Estático o `GET /api/ticket-types` |
-| `CONCESSION_PRODUCTS` | CajaPage | Estático o `GET /api/products` |
-
----
-
-## Orden de integración sugerido
-
-1. **CORS** — sin esto nada llega al frontend desde otra origin.
-2. **Auth** (`POST /auth/login`) — bloquea todo lo demás hasta que funcione.
-3. **Películas + Salas + Sesiones** — base del módulo de Taquilla (el más crítico).
-4. **Reservas** — depende de sesiones.
-5. **Ventas** (`POST /sales/tickets`, `POST /sales/concession`) — cierre del flujo POS.
-6. **Incidencias, Inventario, Usuarios, Auditoría** — en paralelo.
-7. **Informes / KPIs** — últimos, necesitan agregados del lado servidor.
+<p align="center">
+  Desarrollado con pasión para la gestión moderna de cines 🎬

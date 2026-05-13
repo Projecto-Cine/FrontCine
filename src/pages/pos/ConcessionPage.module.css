@@ -92,11 +92,11 @@ kbd { background: var(--bg-4); border: 1px solid var(--border-l); border-radius:
   background: var(--bg-3);
   border: 2px solid var(--border);
   border-radius: var(--r-lg);
-  padding: 16px 14px;
+  padding: 0 0 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   cursor: pointer;
   transition: all var(--t);
   text-align: center;
@@ -106,11 +106,11 @@ kbd { background: var(--bg-4); border: 1px solid var(--border-l); border-radius:
 .productCard:active { transform: translateY(0); }
 .productInCart { border-color: var(--green) !important; background: var(--green-dim) !important; }
 
-.productEmoji { font-size: 36px; line-height: 1; }
-.productImg { width: 96px; height: 96px; object-fit: cover; border-radius: var(--r); }
-.productName { font-size: var(--fs-md); font-weight: 600; color: var(--text-1); line-height: 1.3; }
-.productDesc { font-size: var(--fs-xs); color: var(--text-3); line-height: 1.3; }
-.productPrice { font-family: var(--mono); font-size: 16px; font-weight: 800; color: var(--accent); margin-top: 2px; }
+.productEmoji { font-size: 64px; line-height: 1; padding: 20px 0; }
+.productImg { width: 100%; aspect-ratio: 1 / 1; object-fit: contain; border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.productName { font-size: var(--fs-md); font-weight: 600; color: var(--text-1); line-height: 1.3; padding: 0 10px; }
+.productDesc { font-size: var(--fs-xs); color: var(--text-3); line-height: 1.3; padding: 0 10px; }
+.productPrice { font-family: var(--mono); font-size: 16px; font-weight: 800; color: var(--accent); margin-top: 2px; padding: 0 10px 4px; }
 
 .productQtyBadge {
   position: absolute;

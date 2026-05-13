@@ -13,12 +13,14 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import EmptyState from '../../components/shared/EmptyState';
 import styles from './ConcessionPage.module.css';
 
-const CATEGORY_EMOJI = { Palomitas: '🍿', Bebidas: '🥤', Snacks: '🌮', Combos: '🎁', Concesión: '🛒' };
-const DEFAULT_CATEGORIES = ['Palomitas', 'Bebidas', 'Snacks', 'Combos', 'Concesión'];
-const getEmoji = (p) => p.emoji ?? CATEGORY_EMOJI[p.category] ?? '🔲';
+const CAT_LABEL = { Todo: 'Todo', FOOD: 'Comida', DRINK: 'Bebida', MERCHANDISE: 'Merchandising' };
+const CAT_EMOJI = { FOOD: '🍿', DRINK: '🥤', MERCHANDISE: '🛒' };
+const FIXED_CATS = ['Todo', 'FOOD', 'DRINK', 'MERCHANDISE'];
+
+const getEmoji = (p) => p.emoji ?? CAT_EMOJI[p.category] ?? '🔲';
 const getPrice = (p) => p.price ?? p.price_unit ?? 0;
 
-const EMPTY_PRODUCT = { name: '', category: 'Palomitas', price: '', description: '', emoji: '', imageUrl: '', quantity: '' };
+const EMPTY_PRODUCT = { name: '', category: 'FOOD', price: '', description: '', emoji: '', imageUrl: '', stock: '' };
 const MANAGE_ROLES  = ['admin', 'supervisor', 'operator'];
 
 const IMG_KEY = 'lumen_product_images';
@@ -97,7 +99,7 @@ export default function CajaPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const CATEGORIES = ['Todo', ...new Set(products.map(p => p.category))];
+  const CATEGORIES = FIXED_CATS;
 
   // Atajos de teclado: F2 = buscar, F4 = cobrar, Esc = vaciar carrito
   useEffect(() => {
@@ -189,7 +191,7 @@ export default function CajaPage() {
   };
 
   const openNewProduct  = () => { setEditingProduct(null); setProductForm({ ...EMPTY_PRODUCT }); };
-  const openEditProduct = (p) => { setEditingProduct(p);   setProductForm({ ...EMPTY_PRODUCT, ...p, price: String(getPrice(p)), quantity: String(p.quantity ?? '') }); };
+  const openEditProduct = (p) => { setEditingProduct(p);   setProductForm({ ...EMPTY_PRODUCT, ...p, price: String(getPrice(p)), stock: String(p.stock ?? '') }); };
 
   const handleSaveProduct = async () => {
     if (!productForm.name.trim() || !productForm.price) { toast('Nombre y precio son obligatorios.', 'error'); return; }
@@ -201,19 +203,19 @@ export default function CajaPage() {
       description: productForm.description,
       emoji:       productForm.emoji,
       imageUrl:    productForm.imageUrl,
-      quantity:    productForm.quantity !== '' ? Number(productForm.quantity) : undefined,
+      stock:       productForm.stock !== '' ? Number(productForm.stock) : 0,
     };
     try {
       if (editingProduct) {
+        if (payload.imageUrl) saveStoredImg(editingProduct.id, payload.imageUrl);
         const saved = await inventoryService.update(editingProduct.id, payload);
-        const merged = { ...editingProduct, ...(saved ?? {}), ...payload };
-        saveStoredImg(editingProduct.id, payload.imageUrl);
+        const merged = { ...editingProduct, ...payload, ...(saved ?? {}), imageUrl: payload.imageUrl || saved?.imageUrl || editingProduct.imageUrl };
         setProducts(prev => prev.map(p => p.id === editingProduct.id ? merged : p));
         toast(`"${payload.name}" actualizado.`, 'success');
       } else {
         const saved = await inventoryService.create(payload);
-        const created = { ...(saved ?? {}), ...payload, id: saved?.id ?? Date.now() };
-        saveStoredImg(created.id, payload.imageUrl);
+        const created = { ...payload, ...(saved ?? {}), id: saved?.id ?? Date.now(), imageUrl: payload.imageUrl || saved?.imageUrl || '' };
+        if (created.imageUrl) saveStoredImg(created.id, created.imageUrl);
         setProducts(prev => [...prev, created]);
         toast(`"${payload.name}" añadido.`, 'success');
       }
@@ -289,7 +291,7 @@ export default function CajaPage() {
               aria-pressed={category === c && !search}
               onClick={() => { setCategory(c); setSearch(''); }}
             >
-              {CATEGORY_EMOJI[c] ?? '🔲'} {c === 'Todo' ? t('concession.all') : c}
+              {c !== 'Todo' && (CAT_EMOJI[c] ?? '🔲') + ' '}{CAT_LABEL[c] ?? c}
             </button>
           ))}
         </div>
@@ -539,7 +541,7 @@ export default function CajaPage() {
                       </span>
                       <div className={styles.managerItemInfo}>
                         <span className={styles.managerItemName}>{p.name}</span>
-                        <span className={styles.managerItemMeta}>{p.category} · €{getPrice(p).toFixed(2)}</span>
+                        <span className={styles.managerItemMeta}>{CAT_LABEL[p.category] ?? p.category} · €{getPrice(p).toFixed(2)}</span>
                       </div>
                       <button className={styles.managerEditBtn} aria-label={`${t('concession.editProduct')} ${p.name}`} onClick={() => openEditProduct(p)}>
                         <Edit2 size={13} aria-hidden="true" />
@@ -574,9 +576,9 @@ export default function CajaPage() {
                   <div>
                     <label className={styles.managerLabel} htmlFor="pf-category">{t('concession.form.category')}</label>
                     <select id="pf-category" className={styles.managerInput} value={productForm.category} onChange={e => setField('category', e.target.value)}>
-                      {[...new Set([...DEFAULT_CATEGORIES, ...products.map(p => p.category)])].map(c => (
-                        <option key={c}>{c}</option>
-                      ))}
+                      <option value="FOOD">Comida</option>
+                      <option value="DRINK">Bebida</option>
+                      <option value="MERCHANDISE">Merchandising</option>
                     </select>
                   </div>
                   <div>
@@ -585,7 +587,7 @@ export default function CajaPage() {
                   </div>
                   <div>
                     <label className={styles.managerLabel} htmlFor="pf-stock">{t('concession.form.stock')}</label>
-                    <input id="pf-stock" className={styles.managerInput} type="number" min="0" value={productForm.quantity} onChange={e => setField('quantity', e.target.value)} placeholder={t('concession.form.noLimit')} />
+                    <input id="pf-stock" className={styles.managerInput} type="number" min="0" value={productForm.stock} onChange={e => setField('stock', e.target.value)} placeholder={t('concession.form.noLimit')} />
                   </div>
                   <div>
                     <label className={styles.managerLabel} htmlFor="pf-emoji">{t('concession.form.emoji')}</label>

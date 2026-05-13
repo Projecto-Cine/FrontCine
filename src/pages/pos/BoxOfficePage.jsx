@@ -166,14 +166,11 @@ export default function TaquillaPage() {
       .then(([screeningData, theaterData]) => {
         const screeningSeats = Array.isArray(screeningData) ? screeningData : [];
         const theaterSeats   = Array.isArray(theaterData)   ? theaterData   : [];
-        console.log('ScreeningSeats:', screeningSeats.length, '| TheaterSeats:', theaterSeats.length);
 
-        // mapa seatId → occupied
         const occupancyMap = new Map(
           screeningSeats.map(ss => [ss.seat.id, ss.occupied])
         );
 
-        // usamos todos los asientos del teatro como layout base
         const source = theaterSeats.length > 0
           ? theaterSeats
           : screeningSeats.map(ss => ss.seat);

@@ -1,0 +1,14 @@
+{
+  "name": "Lumen Cinema — Gestión Interna",
+  "short_name": "Lumen",
+  "description": "Sistema de gestión interna para cines Lumen",
+  "icons": [
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/favicon-32x32.png",    "sizes": "32x32",   "type": "image/png" },
+    { "src": "/favicon.svg",          "sizes": "any",      "type": "image/svg+xml" }
+  ],
+  "theme_color": "#111111",
+  "background_color": "#0D0D0D",
+  "display": "standalone",
+  "start_url": "/"
+}

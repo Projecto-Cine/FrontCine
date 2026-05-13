@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <radialGradient id="corona" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#EDE4D4"/>
+      <stop offset="55%"  stop-color="#D4AA7A"/>
+      <stop offset="82%"  stop-color="#C49A6C" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#C49A6C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#C49A6C" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#C49A6C" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="32" height="32" rx="7" fill="#111111"/>
+
+  <!-- Outer atmospheric glow -->
+  <circle cx="12" cy="20" r="14" fill="url(#glow)"/>
+
+  <!-- Sun / corona -->
+  <circle cx="12" cy="20" r="11" fill="url(#corona)"/>
+
+  <!-- Eclipse body — dark moon offset upper-right -->
+  <circle cx="17" cy="14" r="10" fill="#111111"/>
+</svg>

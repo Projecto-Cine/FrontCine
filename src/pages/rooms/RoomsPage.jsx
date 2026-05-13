@@ -61,11 +61,18 @@ export default function RoomsPage() {
     setDeleteTarget(null);
   };
 
-  const totalCap = rooms.reduce((sum, room) => sum + Number(room.capacity ?? 0), 0);
+  const totalCap = rooms.reduce((sum, room) => sum + Number(room.totalSeats ?? room.capacity ?? 0), 0);
 
   const columns = [
-    { key: 'name',     label: t('rooms.col.name'),     render: value => <span style={{ fontWeight: 500 }}>{value}</span> },
-    { key: 'capacity', label: t('rooms.col.capacity'), width: 120, render: value => <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{value} but.</span> },
+    { key: 'name',       label: t('rooms.col.name'),     render: value => <span style={{ fontWeight: 500 }}>{value}</span> },
+    { key: 'totalSeats', label: t('rooms.col.capacity'), width: 140, render: (value, row) => (
+      <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>
+        {value ?? 0} but.
+        {row.capacity && row.capacity !== value && (
+          <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>/ {row.capacity} cap.</span>
+        )}
+      </span>
+    )},
   ];
 
   return (

@@ -9,12 +9,10 @@ import styles from './ShiftsPage.module.css';
 const SHIFT_ORDER = ['M', 'T', 'N', 'L'];
 
 const ROLE_SHIFTS = {
-  admin:       ['M', 'M', 'T'],
-  supervisor:  ['M', 'T', 'T', 'N'],
-  operator:    ['M', 'T', 'N'],
-  ticket:      ['M', 'T'],
-  maintenance: ['M', 'T', 'N'],
-  readonly:    ['M'],
+  CAJERO:    ['M', 'T'],
+  GERENCIA:  ['M', 'M', 'T'],
+  SEGURIDAD: ['M', 'T', 'N'],
+  LIMPIEZA:  ['M', 'N'],
 };
 
 // ── Date helpers ───────────────────────────────────────
@@ -226,12 +224,10 @@ export default function CuadrantePage() {
   };
   const DAY_NAMES  = t('shifts.day');
   const ROLE_LABELS = {
-    admin:       t('shifts.role.admin'),
-    supervisor:  t('shifts.role.supervisor'),
-    operator:    t('shifts.role.operator'),
-    ticket:      t('shifts.role.ticket'),
-    maintenance: t('shifts.role.maintenance'),
-    readonly:    t('shifts.role.readonly'),
+    CAJERO:    t('shifts.role.CAJERO'),
+    GERENCIA:  t('shifts.role.GERENCIA'),
+    SEGURIDAD: t('shifts.role.SEGURIDAD'),
+    LIMPIEZA:  t('shifts.role.LIMPIEZA'),
   };
   const COL_LABELS = {
     employee: t('shifts.col.employee'),

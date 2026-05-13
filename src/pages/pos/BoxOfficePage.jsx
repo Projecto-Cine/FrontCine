@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  Film, ChevronRight, Minus, Plus,
-  CreditCard, Banknote, Smartphone, Printer,
+  Film, ChevronRight,
+  CreditCard, Banknote, Printer,
   CheckCircle, X, Ticket, ArrowLeft, Search,
   Loader, Star, UserX
 } from 'lucide-react';
@@ -29,7 +29,7 @@ const TICKET_TYPES = [
   { id: 'vip',      price: 8.00,  extra: true },
 ];
 
-const PAY_METHOD_MAP = { card: 'CARD', cash: 'CASH', online: 'QR' };
+const PAY_METHOD_MAP = { card: 'CARD', cash: 'CASH' };
 
 const FORMAT_BADGE = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', VIP: 'yellow', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
 
@@ -157,10 +157,38 @@ export default function TaquillaPage() {
       }).catch(() => {});
     }
 
-    seatsService.getByScreening(session.id)
-      .then(seats => {
-        console.log('Seats received:', seats?.length, 'items');
-        setRealSeats(Array.isArray(seats) ? seats : null);
+    const theaterId = session.theater?.id ?? session.room?.id ?? null;
+
+    Promise.all([
+      seatsService.getByScreening(session.id),
+      theaterId ? seatsService.getByTheater(theaterId) : Promise.resolve([]),
+    ])
+      .then(([screeningData, theaterData]) => {
+        const screeningSeats = Array.isArray(screeningData) ? screeningData : [];
+        const theaterSeats   = Array.isArray(theaterData)   ? theaterData   : [];
+        console.log('ScreeningSeats:', screeningSeats.length, '| TheaterSeats:', theaterSeats.length);
+
+        // mapa seatId → occupied
+        const occupancyMap = new Map(
+          screeningSeats.map(ss => [ss.seat.id, ss.occupied])
+        );
+
+        // usamos todos los asientos del teatro como layout base
+        const source = theaterSeats.length > 0
+          ? theaterSeats
+          : screeningSeats.map(ss => ss.seat);
+
+        const normalized = source.map(seat => ({
+          id:     `${seat.row}${String(seat.number).padStart(2, '0')}`,
+          row:    seat.row,
+          number: seat.number,
+          status: occupancyMap.has(seat.id)
+            ? (occupancyMap.get(seat.id) ? 'occupied' : 'available')
+            : 'unavailable',
+          seatId: seat.id,
+        }));
+
+        setRealSeats(normalized.length ? normalized : null);
       })
       .catch(() => setRealSeats(null))
       .finally(() => setLoadingSeats(false));
@@ -201,37 +229,49 @@ export default function TaquillaPage() {
     if (!selectedSeats.length) { toast('Selecciona al menos una butaca.', 'error'); return; }
     setPaying(true);
     try {
-      const res = await salesService.createTicketSale({
-        screeningId:   selectedSession.id,
-        seats:         selectedSeats,
-        ticketType:    baseType.backendType ?? 'ADULT',
-        unitPrice:     discountedBase,
-        surcharge:     extra?.price ?? 0,
-        total,
-        paymentMethod: PAY_METHOD_MAP[payMethod] ?? 'CARD',
-        cashierId:     user?.id ?? null,
-        userId:        selectedClient?.id ?? null,
+      const seatIds = selectedSeats
+        .map(seatStr => realSeats?.find(s => s.id === seatStr)?.seatId)
+        .filter(Boolean);
+
+      const res = await salesService.createPurchase({
+        userId:      selectedClient?.id ?? user?.id,
+        screeningId: selectedSession.id,
+        tickets:     seatIds.map(seatId => ({
+          seatId,
+          ticketType: baseType.backendType ?? 'ADULT',
+        })),
       });
+
+      if (res?.id) {
+        await salesService.confirmPurchase(res.id);
+      }
 
       const time = selectedSession.startTime?.split('T')[1]?.substring(0, 5) ?? selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
       const date = selectedSession.startTime?.split('T')[0] ?? selectedSession.dateTime?.split('T')[0] ?? '';
 
-      const generated = selectedSeats.map((seat, i) => {
-        const qrValue = res?.qrCodes?.[i]
-          ?? `LUMEN:${generateTicketId()}|${movie?.title}|${theater?.name}|${date}|${time}|${seat}|${baseType.backendType ?? 'ADULT'}`;
-        const parts = qrValue.replace('LUMEN:', '').split('|');
+      const generated = (res?.tickets?.length > 0 ? res.tickets : []).map(tk => {
+        const seatStr = `${tk.row}${String(tk.number).padStart(2, '0')}`;
+        const qrValue = `LUMEN:${res.id}-${tk.id}|${movie?.title}|${theater?.name}|${date}|${time}|${seatStr}|${tk.ticketType}`;
         return {
-          id:       parts[0] ?? generateTicketId(),
-          movie:    parts[1] ?? movie?.title,
-          room:     parts[2] ?? theater?.name,
-          date:     parts[3] ?? date,
-          time:     parts[4] ?? time,
-          seat:     parts[5] ?? seat,
+          id:       `${res.id}-${tk.id}`,
+          movie:    movie?.title,
+          room:     theater?.name,
+          date,
+          time,
+          seat:     seatStr,
           format:   movie?.format,
           language: movie?.language,
           qrValue,
         };
       });
+
+      if (!generated.length) {
+        selectedSeats.forEach(seat => {
+          const qrValue = `LUMEN:${generateTicketId()}|${movie?.title}|${theater?.name}|${date}|${time}|${seat}|${baseType.backendType ?? 'ADULT'}`;
+          generated.push({ id: generateTicketId(), movie: movie?.title, room: theater?.name, date, time, seat, format: movie?.format, language: movie?.language, qrValue });
+        });
+      }
+
       setTickets(generated);
       setStep('done');
     } catch {
@@ -239,7 +279,7 @@ export default function TaquillaPage() {
     } finally {
       setPaying(false);
     }
-  }, [selectedSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, user, selectedClient, movie, theater, toast]);
+  }, [selectedSeats, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, user, selectedClient, movie, theater, toast]);
 
   const reset = () => {
     setStep('sessions');
@@ -456,9 +496,8 @@ export default function TaquillaPage() {
               <p className={styles.paySectionLabel}>{t('box_office.payMethod')}</p>
               <div className={styles.payMethods}>
                 {[
-                  { id: 'card',   label: t('box_office.pay.card'),   Icon: CreditCard },
-                  { id: 'cash',   label: t('box_office.pay.cash'),   Icon: Banknote   },
-                  { id: 'online', label: t('box_office.pay.online'), Icon: Smartphone },
+                  { id: 'card', label: t('box_office.pay.card'), Icon: CreditCard },
+                  { id: 'cash', label: t('box_office.pay.cash'), Icon: Banknote   },
                 ].map(({ id, label, Icon }) => (
                   <button key={id} className={`${styles.payMethod} ${payMethod === id ? styles.payActive : ''}`}
                     aria-pressed={payMethod === id}
@@ -593,10 +632,14 @@ export default function TaquillaPage() {
 function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
   const [current, setCurrent] = useState(0);
   const ticket    = tickets[current];
+
+  useEffect(() => {
+    const id = setTimeout(() => window.print(), 300);
+    return () => clearTimeout(id);
+  }, []);
   const PAY_LABEL = {
-    card:   t('box_office.pay.card'),
-    cash:   t('box_office.pay.cash'),
-    online: t('box_office.pay.online'),
+    card: t('box_office.pay.card'),
+    cash: t('box_office.pay.cash'),
   };
 
   const langLabel = (lang) => {

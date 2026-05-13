@@ -658,7 +658,7 @@ export default {
     selectSeat:    'Haz clic en una butaca libre',
     fidelity:      'Descuento socio −10%',
     selectSessionBtn: 'Selecciona sesión',
-    pay:           'Cobrar →',
+    payButton: 'Cobrar',
     confirmPay:    'Confirmar cobro',
     processing:    'Procesando...',
     success: {

@@ -658,7 +658,7 @@ export default {
     selectSeat:    'Click a free seat',
     fidelity:      'Member discount −10%',
     selectSessionBtn: 'Select session',
-    pay:           'Pay →',
+    payButton: 'Pay',
     confirmPay:    'Confirm payment',
     processing:    'Processing...',
     success: {

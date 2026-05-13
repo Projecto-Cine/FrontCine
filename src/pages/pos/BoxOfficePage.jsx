@@ -6,10 +6,11 @@ import {
   CheckCircle, X, Ticket, ArrowLeft, Search,
   Loader, Star, UserX
 } from 'lucide-react';
-import { sessionsService } from '../../services/sessionsService';
-import { seatsService }    from '../../services/seatsService';
-import { salesService }    from '../../services/salesService';
-import { clientsService }  from '../../services/clientsService';
+import { sessionsService }    from '../../services/sessionsService';
+import { seatsService }       from '../../services/seatsService';
+import { salesService }       from '../../services/salesService';
+import { clientsService }     from '../../services/clientsService';
+import { roomsService }       from '../../services/roomsService';
 import { useApp }  from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -81,6 +82,7 @@ export default function TaquillaPage() {
   const [tickets, setTickets]             = useState([]);
   const [paying, setPaying]               = useState(false);
   const [searchQuery, setSearchQuery]     = useState('');
+  const [renderError, setRenderError]     = useState(false);
   const [clientQuery, setClientQuery]     = useState('');
   const [clientResults, setClientResults] = useState([]);
   const [clientSearching, setClientSearching] = useState(false);
@@ -93,7 +95,11 @@ export default function TaquillaPage() {
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     sessionsService.getAll({ date: today })
-      .then(data => setSessions(mergeSessionPosters(Array.isArray(data) ? data.filter(s => s.status !== 'CANCELLED') : [])))
+      .then(data => {
+        const arr = Array.isArray(data) ? data : [];
+        console.log('Sessions from API:', arr.length, 'items, first item:', arr[0]);
+        setSessions(mergeSessionPosters(arr));
+      })
       .catch(() => toast('Error al cargar sesiones.', 'error'))
       .finally(() => setLoadingSessions(false));
   }, []);
@@ -123,30 +129,45 @@ export default function TaquillaPage() {
       const mv = s.movie ?? {};
       const mid = mv.id ?? s.movie_id;
       if (mid == null) return;
-      if (!groups[mid]) groups[mid] = { movie: mv, sessions: [] };
+      if (!groups[mid]) {
+        groups[mid] = {
+          movie: mv,
+          sessions: [],
+        };
+      }
       groups[mid].sessions.push(s);
     });
     return Object.values(groups);
   }, [filteredSessions]);
 
-  const selectSession = async (session) => {
+  const selectSession = (session) => {
+    console.log('selectSession called with:', session);
+    if (!session) return;
     setSelectedSession(session);
     setSelectedSeats([]);
     setRealSeats(null);
     setStep('seats');
     setLoadingSeats(true);
-    try {
-      const seats = await seatsService.getByScreening(session.id);
-      setRealSeats(Array.isArray(seats) ? seats : null);
-    } catch {
-      setRealSeats(null);
-    } finally {
-      setLoadingSeats(false);
+
+    if (!session.theater && !session.room && session.room_id) {
+      roomsService.getById(session.room_id).then(room => {
+        if (room) {
+          setSelectedSession(prev => prev ? { ...prev, theater: room, room } : prev);
+        }
+      }).catch(() => {});
     }
+
+    seatsService.getByScreening(session.id)
+      .then(seats => {
+        console.log('Seats received:', seats?.length, 'items');
+        setRealSeats(Array.isArray(seats) ? seats : null);
+      })
+      .catch(() => setRealSeats(null))
+      .finally(() => setLoadingSeats(false));
   };
 
-  const movie   = selectedSession?.movie ?? null;
-  const theater = selectedSession?.theater ?? null;
+  const movie   = selectedSession?.movie ?? selectedSession?.film ?? null;
+  const theater = selectedSession?.theater ?? selectedSession?.room ?? null;
 
   const seatMapSession = selectedSession ? {
     id:   selectedSession.id,
@@ -192,8 +213,8 @@ export default function TaquillaPage() {
         userId:        selectedClient?.id ?? null,
       });
 
-      const time = selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
-      const date = selectedSession.dateTime?.split('T')[0] ?? '';
+      const time = selectedSession.startTime?.split('T')[1]?.substring(0, 5) ?? selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
+      const date = selectedSession.startTime?.split('T')[0] ?? selectedSession.dateTime?.split('T')[0] ?? '';
 
       const generated = selectedSeats.map((seat, i) => {
         const qrValue = res?.qrCodes?.[i]
@@ -261,14 +282,15 @@ export default function TaquillaPage() {
               <div className={styles.sessionGrid}>
                   {movieGroups.map(group => {
                   const mv = group.movie ?? {};
-                  const anyFull = group.sessions.every(s => (s.status ?? '').toUpperCase() === 'FULL');
+                  const anyFull = group.sessions.every(s => s.full === true);
+                  const movieTitle = mv.title ?? group.sessions[0]?.movie?.title ?? '';
 
                   return (
-                    <div key={mv.id} className={`${styles.sessionCard} ${anyFull ? styles.sessionFull : ''}`}>
+                    <div key={mv.id ?? group.sessions[0]?.id} className={`${styles.sessionCard} ${anyFull ? styles.sessionFull : ''}`}>
                       <div className={styles.sessionPoster} style={mv.imageUrl ? {} : { background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
                         {mv.imageUrl
-                          ? <img src={mv.imageUrl} alt={mv.title} className={styles.sessionPosterImg} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.style.background = GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT; }} />
-                          : <span className={styles.sessionPosterInitials}>{getInitials(mv.title)}</span>
+                          ? <img src={mv.imageUrl} alt={movieTitle} className={styles.sessionPosterImg} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.style.background = GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT; }} />
+                          : <span className={styles.sessionPosterInitials}>{getInitials(movieTitle)}</span>
                         }
                         <div className={styles.sessionPosterBadges}>
                           <Badge variant={FORMAT_BADGE[mv.format] || 'default'}>{mv.format}</Badge>
@@ -277,20 +299,18 @@ export default function TaquillaPage() {
                         {anyFull && <div className={styles.posterFullOverlay}>{t('box_office.full')}</div>}
                       </div>
                       <div className={styles.sessionCardBody}>
-                        <div className={styles.sessionMovie}>{mv.title}</div>
+                        <div className={styles.sessionMovie}>{movieTitle}</div>
                         <div className={styles.sessionTimesGrid}>
-                          {group.sessions.map(s => {
-                            const rm = s.theater ?? {};
-                            const isFull = (s.status ?? '').toUpperCase() === 'FULL';
-                            const soldCnt = s.soldCount ?? s.sold ?? 0;
+                              {group.sessions.map(s => {
+                            const rm = s.theater ?? s.room ?? {};
+                            const isFull = s.full === true;
                             const cap = rm.capacity ?? s.capacity ?? 1;
-                            const occPct = Math.round((soldCnt / cap) * 100);
-                            const time = s.time
-                              ?? (s.dateTime
-                                ? (s.dateTime.split('T')[1]?.substring(0, 5)
-                                  ?? s.dateTime.split(' ')[1]?.substring(0, 5)
-                                  ?? s.dateTime)
-                                : '');
+                            const soldCnt = cap - (s.availableSeats ?? cap);
+                            const occPct = cap > 0 ? Math.round((soldCnt / cap) * 100) : 0;
+                            const time = s.startTime?.split('T')[1]?.substring(0, 5)
+                              || s.time?.trim()?.substring(0, 5)
+                              || s.dateTime?.split('T')[1]?.substring(0, 5)
+                              || '--:--';
 
                             return (
                               <button
@@ -300,7 +320,7 @@ export default function TaquillaPage() {
                                 disabled={isFull}
                               >
                                 <span className={styles.timeBtnHour}>{time}</span>
-                                <span className={styles.timeBtnRoom}>{rm.name?.split('—')[0]?.trim() ?? `Sala ${s.room_id}`}</span>
+                                <span className={styles.timeBtnRoom}>{rm.name?.split('—')[0]?.trim() ?? `Sala ${s.room_id ?? ''}`}</span>
                                 <span className={styles.timeBtnOcc} style={{ color: OCC_COLOR(occPct) }}>
                                   {isFull ? t('box_office.full') : `${soldCnt}/${cap}`}
                                 </span>
@@ -308,7 +328,7 @@ export default function TaquillaPage() {
                             );
                           })}
                         </div>
-                        <div className={styles.sessionPrice}>{t('box_office.from', { price: (group.sessions[0]?.price ?? 0).toFixed(2) })}</div>
+                        <div className={styles.sessionPrice}>{t('box_office.from', { price: (group.sessions[0]?.basePrice ?? group.sessions[0]?.price ?? 0).toFixed(2) })}</div>
                       </div>
                     </div>
                   );
@@ -320,14 +340,14 @@ export default function TaquillaPage() {
         )}
 
         {/* STEP: seats */}
-        {step === 'seats' && selectedSession && (
+        {step === 'seats' && selectedSession && selectedSession.id && (
           <>
             <div className={styles.leftHeader}>
               <button className={styles.backBtn} onClick={() => setStep('sessions')}>
                 <ArrowLeft size={13} /> {t('box_office.changeSession')}
               </button>
               <div className={styles.sessionPill}>
-                <span className={styles.sessionPillTime}>{selectedSession.dateTime?.split('T')[1]?.substring(0, 5)}</span>
+                <span className={styles.sessionPillTime}>{selectedSession.startTime?.split('T')[1]?.substring(0, 5) || selectedSession.time?.trim()?.substring(0, 5) || selectedSession.dateTime?.split('T')[1]?.substring(0, 5) || '--:--'}</span>
                 <span className={styles.sessionPillMovie}>{movie?.title}</span>
                 <Badge variant={FORMAT_BADGE[movie?.format] || 'default'}>{movie?.format}</Badge>
               </div>
@@ -349,7 +369,7 @@ export default function TaquillaPage() {
             </div>
 
             <div className={styles.seatMapWrap}>
-              {loadingSeats ? (
+              {loadingSeats || !seatMapRoom ? (
                 <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-3)' }}>
                   <Loader size={20} /> {t('box_office.loadingSeats')}
                 </div>
@@ -367,7 +387,7 @@ export default function TaquillaPage() {
 
             {selectedSeats.length > 0 && (
               <button className={styles.proceedBtn} onClick={() => setStep('payment')}>
-                {selectedSeats.length} butaca{selectedSeats.length !== 1 ? 's' : ''} · {t('box_office.pay')}
+                {selectedSeats.length} butaca{selectedSeats.length !== 1 ? 's' : ''} · {t('box_office.payButton')}
                 <strong> €{total.toFixed(2)}</strong>
                 <ChevronRight size={15} />
               </button>
@@ -487,8 +507,8 @@ export default function TaquillaPage() {
             <Film size={12} />
             <div>
               <div className={styles.cartSessionTitle}>{movie?.title}</div>
-              <div className={styles.cartSessionMeta}>{selectedSession.dateTime?.split('T')[1]?.substring(0, 5)} · {theater?.name?.split('—')[0]?.trim()}</div>
-              <div className={styles.cartSessionMeta}>{selectedSession.dateTime?.split('T')[0]}</div>
+              <div className={styles.cartSessionMeta}>{selectedSession.startTime?.split('T')[1]?.substring(0, 5) || selectedSession.time?.trim()?.substring(0, 5) || selectedSession.dateTime?.split('T')[1]?.substring(0, 5) || '--:--'} · {theater?.name?.split('—')[0]?.trim()}</div>
+              <div className={styles.cartSessionMeta}>{selectedSession.startTime?.split('T')[0] || selectedSession.date?.split('T')[0] || selectedSession.dateTime?.split('T')[0] || ''}</div>
             </div>
           </div>
         )}
@@ -554,7 +574,7 @@ export default function TaquillaPage() {
               disabled={!selectedSeats.length || step === 'sessions'}
               onClick={() => step === 'seats' ? setStep('payment') : undefined}>
               <CreditCard size={17} />
-              {step === 'sessions' ? t('box_office.selectSessionBtn') : t('box_office.pay')}
+              {step === 'sessions' ? t('box_office.selectSessionBtn') : t('box_office.payButton')}
             </button>
           )}
         </div>

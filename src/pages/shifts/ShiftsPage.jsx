@@ -248,11 +248,17 @@ export default function CuadrantePage() {
     [allUsers]
   );
 
+  const filterRows = (rows) => rows.filter(emp => VALID_ROLES.has(String(emp.role).toUpperCase()));
+
   const currentKey = weekKey(weekStart);
-  const weekRows = useMemo(
-    () => scheduleMap[currentKey] ?? generateWeekSchedule(activeEmployees, weekStart, 0),
-    [currentKey, scheduleMap, activeEmployees, weekStart]
-  );
+  const weekRows = useMemo(() => {
+    const cached = scheduleMap[currentKey];
+    if (cached) {
+      const filtered = filterRows(cached);
+      if (filtered.length > 0) return filtered;
+    }
+    return generateWeekSchedule(activeEmployees, weekStart, 0);
+  }, [currentKey, scheduleMap, activeEmployees, weekStart]);
 
   const monthWeeks = useMemo(() => {
     const weeks = [];
@@ -263,10 +269,12 @@ export default function CuadrantePage() {
         .some(d => d.getMonth() === targetMonth);
       if (!hasMonth) break;
       const key = weekKey(cursor);
+      const cached = scheduleMap[key];
+      const filtered = cached ? filterRows(cached) : [];
       weeks.push({
         start: new Date(cursor),
         key,
-        rows: scheduleMap[key] ?? generateWeekSchedule(activeEmployees, cursor, 0),
+        rows: filtered.length > 0 ? filtered : generateWeekSchedule(activeEmployees, cursor, 0),
       });
       cursor = addDays(cursor, 7);
     }

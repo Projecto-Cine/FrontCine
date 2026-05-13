@@ -101,11 +101,12 @@ export default function CajaPage() {
 
   const CATEGORIES = FIXED_CATS;
 
-  // Atajos de teclado: F2 = buscar, F4 = cobrar, Esc = vaciar carrito
+  // Atajos POS: F2=buscar, F4=cobrar, F5=nueva venta, Esc=vaciar carrito
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'F2') { e.preventDefault(); searchRef.current?.focus(); }
       if (e.key === 'F4' && cart.length > 0) { e.preventDefault(); setShowPayModal(true); }
+      if (e.key === 'F5') { e.preventDefault(); setCart([]); setReceipt(null); setShowPayModal(false); setTimeout(() => searchRef.current?.focus(), 50); }
       if (e.key === 'Escape' && !showPayModal && !receipt) setCart([]);
     };
     window.addEventListener('keydown', handler);

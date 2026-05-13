@@ -88,6 +88,7 @@ export default function TaquillaPage() {
   const [clientSearching, setClientSearching] = useState(false);
   const [selectedClient, setSelectedClient]   = useState(null);
   const clientDebounce = useRef(null);
+  const searchRef = useRef(null);
 
   // Translated ticket types (computed in render so they react to language changes)
   const ticketTypes = TICKET_TYPES.map(tt => ({ ...tt, label: t(`box_office.type.${tt.id}`) }));
@@ -278,7 +279,7 @@ export default function TaquillaPage() {
     }
   }, [selectedSeats, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, user, selectedClient, movie, theater, toast]);
 
-  const reset = () => {
+  const reset = useCallback(() => {
     setStep('sessions');
     setSelectedSession(null);
     setRealSeats(null);
@@ -290,7 +291,29 @@ export default function TaquillaPage() {
     setClientQuery('');
     setClientResults([]);
     setSelectedClient(null);
-  };
+  }, []);
+
+  // Atajos POS: F2=buscar sesión, F4=cobrar, F5=nueva venta, Esc=paso anterior
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'F2' && step === 'sessions') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      } else if (e.key === 'F4' && step === 'seats' && selectedSeats.length > 0 && !paying) {
+        e.preventDefault();
+        handlePay();
+      } else if (e.key === 'F5') {
+        e.preventDefault();
+        reset();
+        setTimeout(() => searchRef.current?.focus(), 50);
+      } else if (e.key === 'Escape' && step === 'seats') {
+        setStep('sessions');
+        setSelectedSeats([]);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [step, selectedSeats, paying, handlePay, reset]);
 
   if (step === 'done') {
     return <TicketSuccess tickets={tickets} total={total} payMethod={payMethod} onReset={reset} t={t} />;
@@ -309,6 +332,7 @@ export default function TaquillaPage() {
               <div className={styles.searchBox}>
                 <Search size={12} className={styles.searchIcon} aria-hidden="true" />
                 <input className={styles.searchInput}
+                  ref={searchRef}
                   aria-label={t('box_office.search')}
                   placeholder={t('box_office.search')}
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />

@@ -1,10 +1,10 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Film, ChevronRight, Minus, Plus,
   CreditCard, Banknote, Smartphone, Printer,
   CheckCircle, X, Ticket, ArrowLeft, Search,
-  LayoutGrid, List, Loader, Star, UserX
+  Loader, Star, UserX
 } from 'lucide-react';
 import { sessionsService } from '../../services/sessionsService';
 import { seatsService }    from '../../services/seatsService';
@@ -81,7 +81,6 @@ export default function TaquillaPage() {
   const [tickets, setTickets]             = useState([]);
   const [paying, setPaying]               = useState(false);
   const [searchQuery, setSearchQuery]     = useState('');
-  const [viewMode, setViewMode]           = useState('grid');
   const [clientQuery, setClientQuery]     = useState('');
   const [clientResults, setClientResults] = useState([]);
   const [clientSearching, setClientSearching] = useState(false);
@@ -117,6 +116,17 @@ export default function TaquillaPage() {
     if (!searchQuery) return true;
     return s.movie?.title?.toLowerCase().includes(searchQuery.toLowerCase());
   });
+
+  const movieGroups = useMemo(() => {
+    const groups = {};
+    filteredSessions.forEach(s => {
+      const mid = s.movie?.id;
+      if (mid == null) return;
+      if (!groups[mid]) groups[mid] = { movie: s.movie, sessions: [] };
+      groups[mid].sessions.push(s);
+    });
+    return Object.values(groups);
+  }, [filteredSessions]);
 
   const selectSession = async (session) => {
     setSelectedSession(session);
@@ -237,95 +247,67 @@ export default function TaquillaPage() {
           <>
             <div className={styles.leftHeader}>
               <h2 className={styles.leftTitle}>{t('box_office.title')}</h2>
-              <div className={styles.headerRight}>
-                <div className={styles.searchBox}>
-                  <Search size={12} className={styles.searchIcon} />
-                  <input className={styles.searchInput} placeholder={t('box_office.search')}
-                    value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                </div>
-                <div className={styles.viewToggle}>
-                  <button className={`${styles.viewBtn} ${viewMode === 'grid' ? styles.viewActive : ''}`} onClick={() => setViewMode('grid')}><LayoutGrid size={13} /></button>
-                  <button className={`${styles.viewBtn} ${viewMode === 'list' ? styles.viewActive : ''}`} onClick={() => setViewMode('list')}><List size={13} /></button>
-                </div>
+              <div className={styles.searchBox}>
+                <Search size={12} className={styles.searchIcon} />
+                <input className={styles.searchInput} placeholder={t('box_office.search')}
+                  value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
               </div>
             </div>
 
             {loadingSessions ? (
               <div className={styles.emptyMsg}><Loader size={16} /> {t('box_office.loading')}</div>
             ) : (
-              <div className={`${styles.sessionGrid} ${viewMode === 'list' ? styles.sessionList : ''}`}>
-                {filteredSessions.map(s => {
-                  const mv      = s.movie   ?? {};
-                  const rm      = s.theater ?? {};
-                  const isFull  = s.status === 'FULL';
-                  const soldCnt = s.soldCount ?? s.sold ?? 0;
-                  const cap     = rm.capacity ?? 1;
-                  const occPct  = Math.round((soldCnt / cap) * 100);
-                  const avail   = cap - soldCnt;
-                  const time    = s.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
+              <div className={styles.sessionGrid}>
+                {movieGroups.map(group => {
+                  const mv = group.movie ?? {};
+                  const anyFull = group.sessions.every(s => s.status === 'FULL');
 
                   return (
-                    <button
-                      key={s.id}
-                      className={`${styles.sessionCard} ${isFull ? styles.sessionFull : ''} ${viewMode === 'list' ? styles.sessionCardList : ''}`}
-                      onClick={() => !isFull && selectSession(s)}
-                      disabled={isFull}
-                    >
-                      {viewMode === 'grid' ? (
-                        <>
-                          <div className={styles.sessionPoster} style={mv.imageUrl ? {} : { background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
-                            {mv.imageUrl
-                              ? <img src={mv.imageUrl} alt={mv.title} className={styles.sessionPosterImg} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.style.background = GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT; }} />
-                              : <span className={styles.sessionPosterInitials}>{getInitials(mv.title)}</span>
-                            }
-                            <div className={styles.sessionPosterBadges}>
-                              <Badge variant={FORMAT_BADGE[mv.format] || 'default'}>{mv.format}</Badge>
-                              <Badge variant="default">{mv.language}</Badge>
-                            </div>
-                            {isFull && <div className={styles.posterFullOverlay}>{t('box_office.full')}</div>}
-                          </div>
-                          <div className={styles.sessionCardBody}>
-                            <div className={styles.sessionTime}>{time}</div>
-                            <div className={styles.sessionMovie}>{mv.title}</div>
-                            <div className={styles.sessionRoom}>{rm.name?.split('—')[0]?.trim()}</div>
-                            {soldCnt > 0 && (
-                              <div className={styles.sessionOcc}>
-                                <div className={styles.occBar}>
-                                  <div className={styles.occFill} style={{ width: `${occPct}%`, background: OCC_COLOR(occPct) }} />
-                                </div>
-                                <span className={styles.occText} style={{ color: OCC_COLOR(occPct) }}>
-                                  {isFull ? t('box_office.full') : t('box_office.available', { n: avail })}
+                    <div key={mv.id} className={`${styles.sessionCard} ${anyFull ? styles.sessionFull : ''}`}>
+                      <div className={styles.sessionPoster} style={mv.imageUrl ? {} : { background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
+                        {mv.imageUrl
+                          ? <img src={mv.imageUrl} alt={mv.title} className={styles.sessionPosterImg} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.style.background = GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT; }} />
+                          : <span className={styles.sessionPosterInitials}>{getInitials(mv.title)}</span>
+                        }
+                        <div className={styles.sessionPosterBadges}>
+                          <Badge variant={FORMAT_BADGE[mv.format] || 'default'}>{mv.format}</Badge>
+                          <Badge variant="default">{mv.language}</Badge>
+                        </div>
+                        {anyFull && <div className={styles.posterFullOverlay}>{t('box_office.full')}</div>}
+                      </div>
+                      <div className={styles.sessionCardBody}>
+                        <div className={styles.sessionMovie}>{mv.title}</div>
+                        <div className={styles.sessionTimesGrid}>
+                          {group.sessions.map(s => {
+                            const rm = s.theater ?? {};
+                            const isFull = s.status === 'FULL';
+                            const soldCnt = s.soldCount ?? s.sold ?? 0;
+                            const cap = rm.capacity ?? 1;
+                            const occPct = Math.round((soldCnt / cap) * 100);
+                            const time = s.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
+
+                            return (
+                              <button
+                                key={s.id}
+                                className={`${styles.timeBtn} ${isFull ? styles.timeBtnFull : ''}`}
+                                onClick={() => !isFull && selectSession(s)}
+                                disabled={isFull}
+                              >
+                                <span className={styles.timeBtnHour}>{time}</span>
+                                <span className={styles.timeBtnRoom}>{rm.name?.split('—')[0]?.trim()}</span>
+                                <span className={styles.timeBtnOcc} style={{ color: OCC_COLOR(occPct) }}>
+                                  {isFull ? t('box_office.full') : `${soldCnt}/${cap}`}
                                 </span>
-                              </div>
-                            )}
-                            <div className={styles.sessionPrice}>{t('box_office.from', { price: (s.price ?? 0).toFixed(2) })}</div>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className={styles.sessionListThumb} style={mv.imageUrl ? {} : { background: GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT }}>
-                            {mv.imageUrl
-                              ? <img src={mv.imageUrl} alt={mv.title} className={styles.sessionListThumbImg} onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.style.background = GENRE_GRADIENT[mv.genre] || DEFAULT_GRADIENT; }} />
-                              : <span className={styles.sessionListInitials}>{getInitials(mv.title)}</span>
-                            }
-                          </div>
-                          <div className={styles.sessionCardTop}>
-                            <div className={styles.sessionTime}>{time}</div>
-                            <div style={{ display: 'flex', gap: 4 }}>
-                              <Badge variant={FORMAT_BADGE[mv.format] || 'default'}>{mv.format}</Badge>
-                              <Badge variant="default">{mv.language}</Badge>
-                            </div>
-                          </div>
-                          <div className={styles.sessionMovie}>{mv.title}</div>
-                          <div className={styles.sessionRoom}>{rm.name?.split('—')[0]?.trim()}</div>
-                          <div className={styles.sessionPrice}>{t('box_office.from', { price: (s.price ?? 0).toFixed(2) })}</div>
-                          {!isFull && <ChevronRight size={14} className={styles.sessionArrow} />}
-                        </>
-                      )}
-                    </button>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className={styles.sessionPrice}>{t('box_office.from', { price: (group.sessions[0]?.price ?? 0).toFixed(2) })}</div>
+                      </div>
+                    </div>
                   );
                 })}
-                {filteredSessions.length === 0 && <EmptyState icon={Film} title={t('box_office.noSessions')} />}
+                {movieGroups.length === 0 && <EmptyState icon={Film} title={t('box_office.noSessions')} />}
               </div>
             )}
           </>

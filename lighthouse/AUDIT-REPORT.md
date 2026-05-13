@@ -1,35 +1,45 @@
 # Auditoría Lighthouse — FrontCine
 
-> Fecha: 2026-05-13 | Rama: `dev` | Commit: tras `fix(a11y)` + `fix(login)`
+> Última actualización: 2026-05-13 | Rama: `dev`
 
 ---
 
-## Resultados Finales
+## Resultados — Progresión completa
 
-| Categoría | Antes (pre-fix) | Tras fixes POS | **Final** |
-|---|---|---|---|
-| **Accesibilidad** | 89 | 96 | **100** ✅ |
-| **Best Practices** | 100 | 100 | **100** ✅ |
-| **SEO** | 92 | 92 | **92** ✅ |
-| Performance | 72 | 73 | 70 ⚠️ |
+| Categoría | Baseline | Tras fixes a11y POS | Tras fixes Login | **Final (perf)** |
+|---|---|---|---|---|
+| **Accesibilidad** | 89 | 96 | **100** ✅ | **100** ✅ |
+| **Best Practices** | 100 | 100 | 100 ✅ | **100** ✅ |
+| **SEO** | 92 | 92 | 92 | **100** ✅ |
+| **Performance** | 72 | 73 | 70 | **95** ✅ |
 
-> Los archivos HTML interactivos de cada auditoría están en esta carpeta.
+---
+
+## Métricas de rendimiento (auditoría final)
+
+| Métrica | Valor |
+|---|---|
+| First Contentful Paint | 2.4 s |
+| Largest Contentful Paint | 2.4 s |
+| Total Blocking Time | **0 ms** ✅ |
+| Speed Index | 2.4 s |
+| Cumulative Layout Shift | **0** ✅ |
+| Time to Interactive | 2.4 s |
 
 ---
 
 ## Archivos de auditoría generados
 
-| Archivo | Descripción |
-|---|---|
-| `report-login.report.html/json` | Auditoría inicial (pre-fix Login) — Accesibilidad: 89 |
-| `report-login-v2.report.html/json` | Tras fixes POS — Accesibilidad: 96 |
-| `report-login-final.report.html/json` | **Auditoría final** — Accesibilidad: 100 |
+| Archivo | Descripción | Score a11y | Score perf |
+|---|---|---|---|
+| `report-login.report.html/json` | Baseline (pre-fix) | 89 | 72 |
+| `report-login-v2.report.html/json` | Tras fixes POS | 96 | 73 |
+| `report-login-final.report.html/json` | Tras fixes Login | 100 | 70 |
+| `report-performance-final.report.html/json` | **Auditoría final** | 100 | **95** |
 
 ---
 
-## Issues resueltos durante la auditoría
-
-### Ronda 1 — Fixes POS (BoxOffice, Concession, Stripe)
+## Ronda 1 — Fixes Accesibilidad POS (BoxOffice, Concession, Stripe)
 
 | Componente | Issue | Fix aplicado |
 |---|---|---|
@@ -53,39 +63,58 @@
 | StripePaymentModal | Strings hardcodeados en ES | Migrado a i18n completo |
 | StripePaymentModal | Íconos decorativos no ocultos | `aria-hidden="true"` en todos |
 
-### Ronda 2 — Fixes Login (detectados por Lighthouse)
+---
+
+## Ronda 2 — Fixes Login (detectados por Lighthouse a11y)
 
 | Issue Lighthouse | Fix aplicado |
 |---|---|
 | `landmark-one-main` — Login sin `<main>` | `<div>` → `<main aria-label>` |
-| `color-contrast` — `.brandSub`, `.label` en `var(--text-3)` | Cambiado a `var(--text-2)` (+1.5 contrast ratio) |
-| `color-contrast` — `.hint`, `.demoTitle` en `var(--text-3)` | Cambiado a `var(--text-2)` |
-| `target-size` — `.pwToggle` demasiado pequeño | `min-width: 28px; min-height: 28px` añadido |
-| `label-content-name-mismatch` — `aria-label` no coincide con texto visible en demo buttons | Eliminado `aria-label` redundante (texto visible ya es suficiente) |
+| `color-contrast` — `.brandSub`, `.label`, `.hint`, `.demoTitle` con ratio 3.44 | `var(--text-3)` → `var(--text-2)` (ratio ~5.9:1) |
+| `target-size` — `.pwToggle` sin tamaño mínimo | `min-width/height: 28px` añadido |
+| `label-content-name-mismatch` — `aria-label` redundante en botones demo | Eliminado (texto visible es suficiente) |
 
 ---
 
-## Issues pendientes (no bloqueantes)
+## Ronda 3 — Optimización de Performance
 
-| Categoría | Issue | Prioridad |
+| Issue | Fix | Impacto |
 |---|---|---|
-| Performance | Chunk JS >500 kB — falta code-splitting | Baja (build) |
-| Performance | Imágenes no optimizadas (logoLumen.png: 2.1 MB) | Media |
-| Performance | Unused CSS/JS (Stripe cargado siempre) | Baja |
-| SEO | `robots.txt` no válido o inexistente | Baja |
+| Bundle JS monolítico 888 kB | `React.lazy()` + `Suspense` en todas las páginas | 888 kB → chunks de 4–381 kB |
+| Sin vendor splitting | `manualChunks` en `vite.config.js` (Rolldown fn) | Chunks cacheables por separado |
+| `logoLumen.png`: 2.1 MB | Comprimido con `sharp-cli` → 87 kB PNG + 3.6 kB WebP | −96% tamaño imagen |
+| Componentes servidos en WebP | `<picture>` + `<source type="image/webp">` en Login y Sidebar | Browsers modernos usan WebP |
+| Sin `robots.txt` | Creado `public/robots.txt` | SEO 92 → 100 |
+| Sin `@keyframes spin` global | Añadido en `index.css` para `PageLoader` | Spinner funcional |
+
+### Distribución de chunks tras la optimización
+
+| Chunk | Tamaño | Descripción |
+|---|---|---|
+| `vendor-charts` | 381 kB | recharts — carga lazy (solo Dashboard) |
+| `vendor-react` | 220 kB | React + React DOM + React Router |
+| `index` | 81 kB | App shell (Login, Layout, contextos) |
+| `vendor-ui` | 32 kB | lucide-react + qrcode.react |
+| Páginas individuales | 4–31 kB cada una | Carga bajo demanda |
+| **Total inicial** | **~333 kB** | (vs. 888 kB monolítico) |
+
+---
+
+## Issues pendientes (lower priority)
+
+| Categoría | Issue | Nota |
+|---|---|---|
+| Performance | FCP 2.4 s — podría bajar con preload del logo WebP | `<link rel="preload">` en index.html |
+| Performance | recharts (381 kB) — considerar alternativa más ligera | Largo plazo |
 
 ---
 
 ## Cómo reproducir la auditoría
 
 ```bash
-# Construir la app
 npm run build
-
-# Iniciar servidor de preview
 npx vite preview --port 4173
 
-# En otra terminal, lanzar Lighthouse
 npx lighthouse http://localhost:4173 \
   --output=json,html \
   --output-path=lighthouse/report-nueva \
@@ -93,4 +122,4 @@ npx lighthouse http://localhost:4173 \
   --only-categories=accessibility,performance,best-practices,seo
 ```
 
-Los reportes `.html` se pueden abrir directamente en el navegador.
+Los reportes `.html` se abren directamente en el navegador.

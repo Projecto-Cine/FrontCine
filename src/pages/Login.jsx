@@ -6,6 +6,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import Button from '../components/ui/Button';
 import LanguageSwitcher from '../components/ui/LanguageSwitcher';
 import logoSrc from '../assets/logoLumen.png';
+import logoWebp from '../assets/logoLumen.webp';
 import styles from './Login.module.css';
 
 export default function Login() {
@@ -39,7 +40,10 @@ export default function Login() {
 
       <div className={styles.panel}>
         <div className={styles.brand}>
-          <img src={logoSrc} alt="Lumen Cinema" className={styles.brandLogo} width={48} height={48} />
+          <picture>
+            <source srcSet={logoWebp} type="image/webp" />
+            <img src={logoSrc} alt="Lumen Cinema" className={styles.brandLogo} width={48} height={48} />
+          </picture>
           <div className={styles.brandText}>
             <span className={styles.brandName}>LUMEN</span>
             <span className={styles.brandSub}>{t('login.subtitle')}</span>

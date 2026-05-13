@@ -9,6 +9,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import logoSrc from '../assets/logoLumen.png';
+import logoWebp from '../assets/logoLumen.webp';
 import styles from './Sidebar.module.css';
 
 const NAV = [
@@ -83,13 +84,16 @@ export default function Sidebar() {
       aria-label="Navegación principal"
     >
       <div className={styles.logo}>
-        <img
-          src={logoSrc}
-          alt="Lumen Cinema"
-          className={`${styles.logoImg} ${sidebarCollapsed ? styles.logoImgCollapsed : ''}`}
-          width={sidebarCollapsed ? 32 : 120}
-          height={32}
-        />
+        <picture>
+          <source srcSet={logoWebp} type="image/webp" />
+          <img
+            src={logoSrc}
+            alt="Lumen Cinema"
+            className={`${styles.logoImg} ${sidebarCollapsed ? styles.logoImgCollapsed : ''}`}
+            width={sidebarCollapsed ? 32 : 120}
+            height={32}
+          />
+        </picture>
       </div>
 
       <nav aria-label="Menú principal">

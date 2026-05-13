@@ -12,4 +12,17 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('react-router-dom')) return 'vendor-react';
+          if (id.includes('@stripe'))      return 'vendor-stripe';
+          if (id.includes('recharts'))     return 'vendor-charts';
+          if (id.includes('lucide-react') || id.includes('qrcode.react')) return 'vendor-ui';
+        },
+      },
+    },
+  },
 })

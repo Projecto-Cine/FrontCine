@@ -221,3 +221,5 @@ html.a11y-light-mode {
   --shadow:      0 2px 8px rgba(0,0,0,0.15);
   --shadow-lg:   0 8px 32px rgba(0,0,0,0.18);
 }
+
+@keyframes spin { to { transform: rotate(360deg); } }

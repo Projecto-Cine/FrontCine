@@ -1,7 +1,7 @@
 import {
   MOVIES, ROOMS, SESSIONS, RESERVATIONS, INCIDENTS,
   USERS, AUDIT_LOGS, INVENTORY, SALES_WEEK, OCCUPANCY_BY_ROOM,
-} from '../data/mockData';
+} from './mockData';
 
 function clone(x) { return JSON.parse(JSON.stringify(x)); }
 

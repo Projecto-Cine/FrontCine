@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useLanguage } from '../i18n/LanguageContext';
-import Button from '../components/ui/Button';
-import LanguageSwitcher from '../components/ui/LanguageSwitcher';
-import logoSrc from '../assets/logoLumen.png';
-import logoWebp from '../assets/logoLumen.webp';
+import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../i18n/LanguageContext';
+import Button from '../../components/ui/Button';
+import LanguageSwitcher from '../../components/ui/LanguageSwitcher';
+import logoSrc from '../../assets/logoLumen.png';
+import logoWebp from '../../assets/logoLumen.webp';
 import styles from './Login.module.css';
 
 export default function Login() {

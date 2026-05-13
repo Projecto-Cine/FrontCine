@@ -4,9 +4,9 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppProvider } from './contexts/AppContext';
 import { LanguageProvider } from './i18n/LanguageContext';
 import MainLayout from './layouts/MainLayout';
-import Login from './pages/Login';
+import Login from './pages/auth/Login';
 
-const Dashboard       = lazy(() => import('./pages/Dashboard'));
+const Dashboard       = lazy(() => import('./pages/dashboard/Dashboard'));
 const MoviesPage      = lazy(() => import('./pages/movies/MoviesPage'));
 const RoomsPage       = lazy(() => import('./pages/rooms/RoomsPage'));
 const SchedulesPage   = lazy(() => import('./pages/schedules/SchedulesPage'));

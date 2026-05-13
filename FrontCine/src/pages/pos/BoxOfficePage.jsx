@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  Film, ChevronRight, Minus, Plus,
+  Film, ChevronRight,
   CreditCard, Banknote, Smartphone, Printer,
   CheckCircle, X, Ticket, ArrowLeft, Search,
   LayoutGrid, List, Loader, Star, UserX
@@ -38,7 +38,7 @@ const mergeSessionPosters = (sessions) => {
   const s = getStoredPosters();
   return sessions.map(sess => {
     if (!sess.movie) return sess;
-    const imgUrl = s[String(sess.movie.id)] || sess.movie.imageUrl || sess.movie.poster || '';
+    const imgUrl = s[String(sess.movie.id)] || s[`title:${sess.movie.title}`] || sess.movie.imageUrl || sess.movie.poster || '';
     return imgUrl ? { ...sess, movie: { ...sess.movie, imageUrl: imgUrl } } : sess;
   });
 };
@@ -53,6 +53,14 @@ const GENRE_GRADIENT = {
   'Fantasía':        'linear-gradient(145deg, #0a0818 0%, #1e1440 100%)',
 };
 const DEFAULT_GRADIENT = 'linear-gradient(145deg, #161008 0%, #2a1e10 100%)';
+
+function langLabel(language = '', t) {
+  const normalized = language.toUpperCase();
+  if (normalized.includes('VOSE')) return t('box_office.ticket.subbed');
+  if (normalized.includes('VO')) return t('box_office.ticket.original');
+  if (normalized.includes('ES')) return t('box_office.ticket.dubbed');
+  return language;
+}
 
 function getInitials(title = '') {
   const words = title.split(' ').filter(w => w.length > 2);
@@ -80,6 +88,8 @@ export default function TaquillaPage() {
   const [cashGiven, setCashGiven]         = useState('');
   const [tickets, setTickets]             = useState([]);
   const [paying, setPaying]               = useState(false);
+  const [stripeData, setStripeData]       = useState(null); // { clientSecret, publishableKey, purchaseId }
+  const pendingTickets                    = useRef(null);   // tickets generados antes del pago online
   const [searchQuery, setSearchQuery]     = useState('');
   const [viewMode, setViewMode]           = useState('grid');
   const [clientQuery, setClientQuery]     = useState('');
@@ -92,16 +102,24 @@ export default function TaquillaPage() {
   const ticketTypes = TICKET_TYPES.map(tt => ({ ...tt, label: t(`box_office.type.${tt.id}`) }));
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    sessionsService.getAll({ date: today })
-      .then(data => setSessions(mergeSessionPosters(Array.isArray(data) ? data.filter(s => s.status !== 'CANCELLED') : [])))
+    sessionsService.getUpcoming()
+      .then(data => setSessions(mergeSessionPosters(Array.isArray(data) ? data.filter(s => s.status !== 'CANCELLED' && s.full !== true) : [])))
       .catch(() => toast('Error al cargar sesiones.', 'error'))
       .finally(() => setLoadingSessions(false));
+  }, [toast]);
+
+  useEffect(() => {
+    const handler = () => setSessions(prev => mergeSessionPosters(prev));
+    window.addEventListener('lumen:poster-updated', handler);
+    return () => window.removeEventListener('lumen:poster-updated', handler);
   }, []);
 
   useEffect(() => {
     clearTimeout(clientDebounce.current);
-    if (!clientQuery.trim()) { setClientResults([]); return; }
+    if (!clientQuery.trim()) {
+      clientDebounce.current = setTimeout(() => setClientResults([]), 0);
+      return () => clearTimeout(clientDebounce.current);
+    }
     clientDebounce.current = setTimeout(async () => {
       setClientSearching(true);
       try {
@@ -165,13 +183,40 @@ export default function TaquillaPage() {
   const total            = totalPerTicket * selectedSeats.length;
   const change           = cashGiven && payMethod === 'cash' ? (parseFloat(cashGiven) - total).toFixed(2) : null;
 
-  const handlePay = useCallback(async () => {
+  const buildTickets = (res, seats) => {
+    const time = selectedSession.startTime?.split('T')[1]?.substring(0, 5) ?? '';
+    const date = selectedSession.startTime?.split('T')[0] ?? '';
+    return seats.map((seat, i) => {
+      const qrValue = res?.qrCodes?.[i]
+        ?? `LUMEN:${generateTicketId()}|${movie?.title}|${theater?.name}|${date}|${time}|${seat}|${baseType.backendType ?? 'ADULT'}`;
+      const parts = qrValue.replace('LUMEN:', '').split('|');
+      return {
+        id:       parts[0] ?? generateTicketId(),
+        movie:    parts[1] ?? movie?.title,
+        room:     parts[2] ?? theater?.name,
+        date:     parts[3] ?? date,
+        time:     parts[4] ?? time,
+        seat:     parts[5] ?? seat,
+        format:   movie?.format,
+        language: movie?.language,
+        qrValue,
+      };
+    });
+  };
+
+  const handlePay = async () => {
     if (!selectedSeats.length) { toast('Selecciona al menos una butaca.', 'error'); return; }
     setPaying(true);
+
+    const labelOf = (s) => `${s.row}${String(s.number).padStart(2, '0')}`;
+    const resolvedSeatIds = realSeats
+      ? selectedSeats.map(label => realSeats.find(s => labelOf(s) === label)?.id ?? label)
+      : selectedSeats;
+
     try {
       const res = await salesService.createTicketSale({
         screeningId:   selectedSession.id,
-        seats:         selectedSeats,
+        seats:         resolvedSeatIds,
         ticketType:    baseType.backendType ?? 'ADULT',
         unitPrice:     discountedBase,
         surcharge:     extra?.price ?? 0,
@@ -181,8 +226,17 @@ export default function TaquillaPage() {
         userId:        selectedClient?.id ?? null,
       });
 
-      const time = selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
-      const date = selectedSession.dateTime?.split('T')[0] ?? '';
+      // Pago online → abrir modal de Stripe
+      if (payMethod === 'online') {
+        const intent = await salesService.createPaymentIntent(res.id, total);
+        pendingTickets.current = { res, seats: selectedSeats };
+        setStripeData({
+          clientSecret:   intent.clientSecret,
+          publishableKey: intent.publishableKey,
+          purchaseId:     res.id,
+        });
+        return; // esperar confirmación Stripe — no avanzar todavía
+      }
 
       const generated = selectedSeats.map((seat, i) => {
         const qrValue = res?.qrCodes?.[i]
@@ -207,7 +261,27 @@ export default function TaquillaPage() {
     } finally {
       setPaying(false);
     }
-  }, [selectedSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, user, selectedClient, movie, theater, toast]);
+  };
+
+  const handleStripeSuccess = async () => {
+    try {
+      await salesService.confirmPurchaseAfterStripe(stripeData.purchaseId);
+    } catch { /* webhook ya lo confirma en el backend */ }
+    const { res, seats } = pendingTickets.current;
+    setTickets(buildTickets(res, seats));
+    setStripeData(null);
+    pendingTickets.current = null;
+    setStep('done');
+  };
+
+  const handleStripeCancel = async () => {
+    try {
+      await salesService.cancelPurchase(stripeData.purchaseId);
+    } catch { /* ignorar si falla la cancelación */ }
+    setStripeData(null);
+    pendingTickets.current = null;
+    setPaying(false);
+  };
 
   const reset = () => {
     setStep('sessions');
@@ -257,12 +331,12 @@ export default function TaquillaPage() {
                 {filteredSessions.map(s => {
                   const mv      = s.movie   ?? {};
                   const rm      = s.theater ?? {};
-                  const isFull  = s.status === 'FULL';
-                  const soldCnt = s.soldCount ?? s.sold ?? 0;
+                  const isFull  = s.full === true || s.status === 'FULL';
                   const cap     = rm.capacity ?? 1;
+                  const soldCnt = Math.max(0, cap - (s.availableSeats ?? s.soldCount ?? s.sold ?? cap));
                   const occPct  = Math.round((soldCnt / cap) * 100);
                   const avail   = cap - soldCnt;
-                  const time    = s.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
+                  const time    = s.startTime?.split('T')[1]?.substring(0, 5) ?? '';
 
                   return (
                     <button
@@ -339,7 +413,7 @@ export default function TaquillaPage() {
                 <ArrowLeft size={13} /> {t('box_office.changeSession')}
               </button>
               <div className={styles.sessionPill}>
-                <span className={styles.sessionPillTime}>{selectedSession.dateTime?.split('T')[1]?.substring(0, 5)}</span>
+                <span className={styles.sessionPillTime}>{selectedSession.startTime?.split('T')[1]?.substring(0, 5)}</span>
                 <span className={styles.sessionPillMovie}>{movie?.title}</span>
                 <Badge variant={FORMAT_BADGE[movie?.format] || 'default'}>{movie?.format}</Badge>
               </div>
@@ -499,8 +573,8 @@ export default function TaquillaPage() {
             <Film size={12} />
             <div>
               <div className={styles.cartSessionTitle}>{movie?.title}</div>
-              <div className={styles.cartSessionMeta}>{selectedSession.dateTime?.split('T')[1]?.substring(0, 5)} · {theater?.name?.split('—')[0]?.trim()}</div>
-              <div className={styles.cartSessionMeta}>{selectedSession.dateTime?.split('T')[0]}</div>
+              <div className={styles.cartSessionMeta}>{selectedSession.startTime?.split('T')[1]?.substring(0, 5)} · {theater?.name?.split('—')[0]?.trim()}</div>
+              <div className={styles.cartSessionMeta}>{selectedSession.startTime?.split('T')[0]}</div>
             </div>
           </div>
         )}
@@ -571,6 +645,17 @@ export default function TaquillaPage() {
           )}
         </div>
       </div>
+
+      {stripeData && (
+        <StripePaymentModal
+          clientSecret={stripeData.clientSecret}
+          publishableKey={stripeData.publishableKey}
+          amount={total}
+          title="Pago online de entradas"
+          onSuccess={handleStripeSuccess}
+          onCancel={handleStripeCancel}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ticket, Building2, AlertTriangle, Euro, Film } from 'lucide-react';
+import { Ticket, Building2, AlertTriangle, Euro, Film, ShoppingBag, CalendarDays } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import KPICard from '../components/shared/KPICard';
 import PageHeader from '../components/shared/PageHeader';
@@ -27,6 +27,33 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+function RankList({ items, valueKey = 'revenue', nameKey = 'title', max }) {
+  const topVal = max ?? (items[0]?.[valueKey] ?? 1);
+  return (
+    <div className={styles.rankList}>
+      {items.map((item, i) => {
+        const val = item[valueKey] ?? 0;
+        const pct = topVal > 0 ? Math.round((val / topVal) * 100) : 0;
+        return (
+          <div key={i} className={styles.rankItem}>
+            <span className={styles.rankPos}>{i + 1}</span>
+            <div className={styles.rankInfo}>
+              <span className={styles.rankName}>{item[nameKey]}</span>
+              <div className={styles.rankBarWrap}>
+                <div className={styles.rankBar}>
+                  <div className={styles.rankBarFill} style={{ width: `${pct}%`, background: i === 0 ? 'var(--accent)' : i === 1 ? 'var(--cyan)' : 'var(--green)' }} />
+                </div>
+                <span className={styles.rankVal}>€{val.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      {items.length === 0 && <p className={styles.empty}>Sin datos</p>}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { t, fmt } = useLanguage();
@@ -38,7 +65,9 @@ export default function Dashboard() {
   const [loading, setLoading]       = useState(true);
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today       = new Date().toISOString().split('T')[0];
+    const currentYear = new Date().getFullYear().toString();
+
     Promise.all([
       dashboardService.get().catch(() => null),
       reportsService.salesWeek().catch(() => []),
@@ -70,7 +99,7 @@ export default function Dashboard() {
       setOccupancy(Object.entries(byRoom).map(([room, pct]) => ({ room, pct: Math.round(pct) })));
 
       const todaySessions = (Array.isArray(scr) ? scr : [])
-        .filter(s => s.dateTime?.startsWith(today));
+        .filter(s => (s.startTime ?? s.dateTime ?? '').startsWith(today));
       setSessions(todaySessions);
 
       const SEVERITY_MAP = { HIGH: 'critical', MEDIUM: 'high', LOW: 'medium' };
@@ -78,12 +107,62 @@ export default function Dashboard() {
         .filter(i => !i.resolved)
         .map(i => ({ ...i, priority: SEVERITY_MAP[i.severity] ?? 'low', status: 'open' }));
       setIncidents(mapped);
+
+      // ── Purchases → top movies + ticket revenue ────────────
+      const purchaseList = Array.isArray(purchases) ? purchases : [];
+      const confirmedPurchases = purchaseList.filter(p =>
+        p.status === 'CONFIRMED' || p.status === 'PAID' || p.status === 'COMPLETED'
+      );
+      const ticketRevenue = confirmedPurchases.reduce((sum, p) => sum + Number(p.total ?? 0), 0);
+
+      const movieRevMap = {};
+      confirmedPurchases
+        .filter(p => (p.createdAt ?? '').startsWith(currentYear))
+        .forEach(p => {
+          const title = p.screening?.movie?.title ?? p.movie?.title;
+          if (title) movieRevMap[title] = (movieRevMap[title] ?? 0) + Number(p.total ?? 0);
+        });
+      const top3Movies = Object.entries(movieRevMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([title, revenue]) => ({ title, revenue }));
+
+      // ── Merch sales → top products + merch revenue ─────────
+      const merchList = Array.isArray(merchSales) ? merchSales : [];
+      const productRevMap = {};
+      merchList.forEach(sale => {
+        const name = sale.merchandise?.name ?? sale.product?.name;
+        const total = Number(sale.total ?? (sale.quantity ?? 1) * (sale.unitPrice ?? sale.price ?? 0));
+        if (name) productRevMap[name] = (productRevMap[name] ?? 0) + total;
+      });
+      const top3Products = Object.entries(productRevMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([name, revenue]) => ({ name, revenue }));
+      const merchandiseRevenue = Object.values(productRevMap).reduce((s, v) => s + v, 0);
+
+      setRevenueSplit({ tickets: ticketRevenue, merch: merchandiseRevenue });
+      setTopMovies(top3Movies);
+      setTopProducts(top3Products);
+
+      // ── Year stats (screenings count) ──────────────────────
+      const allScr = Array.isArray(allScreenings) ? allScreenings : [];
+      const yearScr = allScr.filter(s => (s.startTime ?? s.dateTime ?? '').startsWith(currentYear));
+      const yearMovieIds = new Set(yearScr.map(s => s.movie?.id ?? s.movieId).filter(Boolean));
+      setYearStats({ sessions: yearScr.length, movies: yearMovieIds.size });
+
     }).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <SkeletonPage />;
 
-  const criticalInc = incidents.filter(i => i.priority === 'critical');
+  const criticalInc    = incidents.filter(i => i.priority === 'critical');
+  const subtitle       = `${t('dashboard.subtitle')} — ${fmt.date(new Date(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+  const totalRevenue   = revenueSplit.tickets + revenueSplit.merch;
+  const splitData      = [
+    { label: t('dashboard.label.tickets'), value: revenueSplit.tickets, fill: 'var(--accent)' },
+    { label: t('dashboard.label.merch'),   value: revenueSplit.merch,   fill: 'var(--cyan)'   },
+  ];
 
   const subtitle = `${t('dashboard.subtitle')} — ${fmt.date(new Date(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
 
@@ -132,6 +211,50 @@ export default function Dashboard() {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ── Analytics row ───────────────────────────────────── */}
+      <div className={styles.analyticsRow}>
+        <div className={styles.analyticsCard}>
+          <h3 className={styles.sectionTitle}>{t('dashboard.section.revenueBreakdown')}</h3>
+          <div className={styles.splitStats}>
+            {splitData.map(d => (
+              <div key={d.label} className={styles.splitStat}>
+                <span className={styles.splitStatLabel}>{d.label}</span>
+                <span className={styles.splitStatVal} style={{ color: d.fill }}>
+                  €{d.value.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </span>
+                <span className={styles.splitStatPct}>
+                  {totalRevenue > 0 ? Math.round((d.value / totalRevenue) * 100) : 0}%
+                </span>
+              </div>
+            ))}
+            <div className={styles.splitStat} style={{ borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 4 }}>
+              <span className={styles.splitStatLabel}>Total</span>
+              <span className={styles.splitStatVal}>€{totalRevenue.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={100}>
+            <BarChart data={splitData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+              <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-3)' }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-2)' }} axisLine={false} tickLine={false} width={90} />
+              <Tooltip formatter={(v) => `€${v.toLocaleString('es-ES', { minimumFractionDigits: 0 })}`} />
+              <Bar dataKey="value" radius={[0, 3, 3, 0]}>
+                {splitData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className={styles.analyticsCard}>
+          <h3 className={styles.sectionTitle}>{t('dashboard.section.topMovies')}</h3>
+          <RankList items={topMovies} valueKey="revenue" nameKey="title" />
+        </div>
+
+        <div className={styles.analyticsCard}>
+          <h3 className={styles.sectionTitle}>{t('dashboard.section.topProducts')}</h3>
+          <RankList items={topProducts} valueKey="revenue" nameKey="name" />
         </div>
       </div>
 

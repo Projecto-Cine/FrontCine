@@ -1,5 +1,5 @@
-import { Outlet, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Toasts from '../components/shared/Toasts';
@@ -24,7 +24,17 @@ const ALT_ROUTES = [
 export default function MainLayout() {
   const { sidebarCollapsed, toggleSidebar } = useApp();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [pageKey, setPageKey] = useState(0);
   const navigate = useNavigate();
+  const location = useLocation();
+  const prevPath = useRef(location.pathname);
+
+  useEffect(() => {
+    if (location.pathname !== prevPath.current) {
+      prevPath.current = location.pathname;
+      setPageKey(k => k + 1);
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -57,7 +67,9 @@ export default function MainLayout() {
       <div className={`main-area ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <Header onOpenPalette={() => setPaletteOpen(true)} />
         <main id="main-content" className="page-content" tabIndex={-1}>
-          <Outlet />
+          <div key={pageKey} className="page-enter" style={{ display: 'flex', flexDirection: 'column', gap: 20, flex: 1 }}>
+            <Outlet />
+          </div>
         </main>
         <StatusBar />
       </div>

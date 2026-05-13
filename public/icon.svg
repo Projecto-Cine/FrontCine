@@ -1,43 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+    <radialGradient id="bg" cx="50%" cy="50%" r="70%">
       <stop offset="0%"   stop-color="#1C1C1C"/>
       <stop offset="100%" stop-color="#0A0A0A"/>
     </radialGradient>
-    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%"   stop-color="#C49A6C" stop-opacity="0.20"/>
+    <radialGradient id="glow" cx="42%" cy="62%" r="55%">
+      <stop offset="0%"   stop-color="#C49A6C" stop-opacity="0.18"/>
       <stop offset="100%" stop-color="#C49A6C" stop-opacity="0"/>
     </radialGradient>
-    <clipPath id="circle">
-      <circle cx="256" cy="256" r="256"/>
-    </clipPath>
   </defs>
 
-  <!-- Circular background (the "round" shape) -->
-  <circle cx="256" cy="256" r="256" fill="url(#bg)"/>
+  <!-- Fondo sólido (sin transparencia — imprescindible para Windows taskbar) -->
+  <rect width="512" height="512" fill="url(#bg)"/>
 
-  <!-- Atmospheric outer glow -->
-  <circle cx="210" cy="316" r="230" fill="url(#glow)" clip-path="url(#circle)"/>
+  <!-- Halo atmosférico -->
+  <circle cx="210" cy="316" r="230" fill="url(#glow)"/>
 
-  <!-- Sun / corona — solid amber -->
-  <circle cx="210" cy="316" r="192" fill="#D4A96A" clip-path="url(#circle)"/>
+  <!-- Corona / sol — ámbar sólido -->
+  <circle cx="210" cy="316" r="192" fill="#D4A96A"/>
 
-  <!-- Eclipse body — same as bg, carves the crescent -->
-  <circle cx="306" cy="212" r="180" fill="#111111" clip-path="url(#circle)"/>
+  <!-- Cuerpo eclipse — mismo color que fondo, crea el crescent -->
+  <circle cx="306" cy="212" r="180" fill="#111111"/>
 
-  <!-- Thin bright corona rim -->
+  <!-- Rim luminoso (borde corona) -->
   <circle cx="210" cy="316" r="192"
-    fill="none"
-    stroke="#FFF8EE"
-    stroke-width="6"
-    opacity="0.55"
-    clip-path="url(#circle)"/>
+    fill="none" stroke="#FFF8EE" stroke-width="7" opacity="0.50"/>
 
-  <!-- Inner edge of eclipse (subtle depth) -->
+  <!-- Borde sutil del eclipse (profundidad) -->
   <circle cx="306" cy="212" r="180"
-    fill="none"
-    stroke="#2A2A2A"
-    stroke-width="3"
-    opacity="0.7"
-    clip-path="url(#circle)"/>
+    fill="none" stroke="#2C2C2C" stroke-width="4" opacity="0.80"/>
 </svg>

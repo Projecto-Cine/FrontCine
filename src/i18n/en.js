@@ -692,6 +692,11 @@ export default {
       cash:   'Cash',
       online: 'Online/QR',
     },
+    removeClient:    'Remove selected client',
+    clearSelection:  'Clear seat selection',
+    removeSeat:      'Remove seat',
+    ticketNavLabel:  'Navigate between tickets',
+    qrLabel:         'Ticket QR code, seat',
   },
 
   concession: {
@@ -730,8 +735,9 @@ export default {
       imgPh:    'E.g.: Large popcorn',
       descPh:   'Short description (optional)',
       uploading:'Uploading...',
-      selectImg:'Select image',
-      removeImg:'Remove',
+      selectImg:    'Select image',
+      removeImg:    'Remove',
+      imgPreviewAlt:'Product image preview',
     },
     pay_methods: {
       card:   'Card',
@@ -740,6 +746,26 @@ export default {
     },
     createProduct: 'Create product',
     cashDelivery:  'Amount given (min €{min})',
+    close:         'Close',
+    clearCart:     'Clear cart',
+    clearSearch:   'Clear search',
+    decreaseQty:   'Decrease quantity of',
+    increaseQty:   'Increase quantity of',
+    removeItem:    'Remove from cart:',
+    deleteProduct: 'Delete product:',
+  },
+
+  stripe: {
+    modalTitle:      'Online payment',
+    totalLabel:      'Total to pay',
+    loadingForm:     'Loading payment form…',
+    processing:      'Processing…',
+    cancel:          'Cancel',
+    pay:             'Pay €{amount}',
+    close:           'Close',
+    secureNote:      'Secure payment encrypted by Stripe · We do not store your card data',
+    errorGeneric:    'Error processing payment.',
+    errorUnexpected: 'Unexpected payment status. Please try again.',
   },
 
   reports: {

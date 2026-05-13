@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -7,6 +7,7 @@ import {
   useElements,
 } from '@stripe/react-stripe-js';
 import { Loader, X, CreditCard, ShieldCheck, AlertCircle } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import styles from './StripePaymentModal.module.css';
 
 const STRIPE_APPEARANCE = {
@@ -44,6 +45,7 @@ const STRIPE_APPEARANCE = {
 export function StripePaymentForm({ amount, onSuccess, onCancel }) {
   const stripe    = useStripe();
   const elements  = useElements();
+  const { t }     = useLanguage();
   const [paying,  setPaying]  = useState(false);
   const [error,   setError]   = useState(null);
   const [ready,   setReady]   = useState(false);
@@ -61,20 +63,20 @@ export function StripePaymentForm({ amount, onSuccess, onCancel }) {
     });
 
     if (stripeErr) {
-      setError(stripeErr.message ?? 'Error al procesar el pago.');
+      setError(stripeErr.message ?? t('stripe.errorGeneric'));
       setPaying(false);
     } else if (paymentIntent?.status === 'succeeded') {
       onSuccess(paymentIntent);
     } else {
-      setError('Estado de pago inesperado. Inténtalo de nuevo.');
+      setError(t('stripe.errorUnexpected'));
       setPaying(false);
     }
-  }, [stripe, elements, onSuccess]);
+  }, [stripe, elements, onSuccess, t]);
 
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
       <div className={styles.amountRow}>
-        <span className={styles.amountLabel}>Total a pagar</span>
+        <span className={styles.amountLabel}>{t('stripe.totalLabel')}</span>
         <span className={styles.amountValue}>€{amount.toFixed(2)}</span>
       </div>
 
@@ -86,15 +88,15 @@ export function StripePaymentForm({ amount, onSuccess, onCancel }) {
       </div>
 
       {!ready && (
-        <div className={styles.loadingEl}>
-          <Loader size={16} className={styles.spin} />
-          <span>Cargando formulario de pago…</span>
+        <div className={styles.loadingEl} role="status" aria-live="polite">
+          <Loader size={16} className={styles.spin} aria-hidden="true" />
+          <span>{t('stripe.loadingForm')}</span>
         </div>
       )}
 
       {error && (
-        <div className={styles.errorBox}>
-          <AlertCircle size={14} />
+        <div className={styles.errorBox} role="alert">
+          <AlertCircle size={14} aria-hidden="true" />
           <span>{error}</span>
         </div>
       )}
@@ -106,23 +108,24 @@ export function StripePaymentForm({ amount, onSuccess, onCancel }) {
           onClick={onCancel}
           disabled={paying}
         >
-          <X size={14} /> Cancelar
+          <X size={14} aria-hidden="true" /> {t('stripe.cancel')}
         </button>
         <button
           type="submit"
           className={styles.payBtn}
           disabled={!stripe || !elements || !ready || paying}
+          aria-busy={paying}
         >
           {paying
-            ? <><Loader size={15} className={styles.spin} /> Procesando…</>
-            : <><CreditCard size={15} /> Pagar €{amount.toFixed(2)}</>
+            ? <><Loader size={15} className={styles.spin} aria-hidden="true" /> {t('stripe.processing')}</>
+            : <><CreditCard size={15} aria-hidden="true" /> {t('stripe.pay', { amount: amount.toFixed(2) })}</>
           }
         </button>
       </div>
 
       <div className={styles.secure}>
-        <ShieldCheck size={11} />
-        <span>Pago seguro cifrado por Stripe · No almacenamos datos de tu tarjeta</span>
+        <ShieldCheck size={11} aria-hidden="true" />
+        <span>{t('stripe.secureNote')}</span>
       </div>
     </form>
   );
@@ -133,21 +136,48 @@ export default function StripePaymentModal({
   clientSecret,
   publishableKey,
   amount,
-  title = 'Pago online',
+  title,
   onSuccess,
   onCancel,
 }) {
+  const { t } = useLanguage();
   const [stripePromise] = useState(() => loadStripe(publishableKey));
+  const modalRef = useRef(null);
+
+  const modalTitle = title ?? t('stripe.modalTitle');
+
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    modalRef.current?.focus();
+    return () => { previousFocus?.focus(); };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
 
   return (
     <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onCancel()}>
-      <div className={styles.modal}>
+      <div
+        className={styles.modal}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="stripe-modal-title"
+        ref={modalRef}
+        tabIndex={-1}
+      >
         <div className={styles.header}>
           <div className={styles.headerLeft}>
-            <CreditCard size={16} className={styles.headerIcon} />
-            <span>{title}</span>
+            <CreditCard size={16} className={styles.headerIcon} aria-hidden="true" />
+            <span id="stripe-modal-title">{modalTitle}</span>
           </div>
-          <button className={styles.closeBtn} onClick={onCancel}><X size={16} /></button>
+          <button className={styles.closeBtn} aria-label={t('stripe.close')} onClick={onCancel}>
+            <X size={16} aria-hidden="true" />
+          </button>
         </div>
 
         <Elements

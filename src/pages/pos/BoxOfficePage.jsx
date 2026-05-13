@@ -270,8 +270,10 @@ export default function TaquillaPage() {
             <div className={styles.leftHeader}>
               <h2 className={styles.leftTitle}>{t('box_office.title')}</h2>
               <div className={styles.searchBox}>
-                <Search size={12} className={styles.searchIcon} />
-                <input className={styles.searchInput} placeholder={t('box_office.search')}
+                <Search size={12} className={styles.searchIcon} aria-hidden="true" />
+                <input className={styles.searchInput}
+                  aria-label={t('box_office.search')}
+                  placeholder={t('box_office.search')}
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
               </div>
             </div>
@@ -359,6 +361,7 @@ export default function TaquillaPage() {
                 {ticketTypes.filter(tt => !tt.extra).map(tt => (
                   <button key={tt.id}
                     className={`${styles.typeBtn} ${ticketType === tt.id ? styles.typeBtnActive : ''}`}
+                    aria-pressed={ticketType === tt.id}
                     onClick={() => setTicketType(tt.id)}>
                     <span>{tt.label}</span>
                     <span className={styles.typeBtnPrice}>€{tt.price.toFixed(2)}</span>
@@ -416,8 +419,8 @@ export default function TaquillaPage() {
                   {selectedClient.fidelityDiscountEligible && (
                     <span className={styles.fidelityBadge}><Star size={10} /> Socio</span>
                   )}
-                  <button className={styles.clientChipRemove} onClick={() => { setSelectedClient(null); setClientQuery(''); setClientResults([]); }}>
-                    <UserX size={13} />
+                  <button className={styles.clientChipRemove} aria-label={t('box_office.removeClient')} onClick={() => { setSelectedClient(null); setClientQuery(''); setClientResults([]); }}>
+                    <UserX size={13} aria-hidden="true" />
                   </button>
                 </div>
               ) : (
@@ -426,6 +429,7 @@ export default function TaquillaPage() {
                     <Search size={12} className={styles.searchIcon} />
                     <input
                       className={styles.clientSearchInput}
+                      aria-label={t('box_office.clientSearch')}
                       placeholder={t('box_office.clientSearch')}
                       value={clientQuery}
                       onChange={e => setClientQuery(e.target.value)}
@@ -457,16 +461,17 @@ export default function TaquillaPage() {
                   { id: 'online', label: t('box_office.pay.online'), Icon: Smartphone },
                 ].map(({ id, label, Icon }) => (
                   <button key={id} className={`${styles.payMethod} ${payMethod === id ? styles.payActive : ''}`}
+                    aria-pressed={payMethod === id}
                     onClick={() => setPayMethod(id)}>
-                    <Icon size={22} /><span>{label}</span>
+                    <Icon size={22} aria-hidden="true" /><span>{label}</span>
                   </button>
                 ))}
               </div>
 
               {payMethod === 'cash' && (
                 <div className={styles.cashSection}>
-                  <label className={styles.cashLabel}>{t('box_office.cashGiven')}</label>
-                  <input className={styles.cashInput} type="number" step="0.50" min={total}
+                  <label className={styles.cashLabel} htmlFor="bo-cash-input">{t('box_office.cashGiven')}</label>
+                  <input id="bo-cash-input" className={styles.cashInput} type="number" step="0.50" min={total}
                     placeholder={`Mínimo €${total.toFixed(2)}`}
                     value={cashGiven} onChange={e => setCashGiven(e.target.value)} autoFocus />
                   {change !== null && parseFloat(change) >= 0 && (
@@ -496,8 +501,8 @@ export default function TaquillaPage() {
           <Ticket size={14} />
           <span>{t('box_office.summary')}</span>
           {selectedSeats.length > 0 && (
-            <button className={styles.clearCart} onClick={() => setSelectedSeats([])} title="Vaciar selección">
-              <X size={12} />
+            <button className={styles.clearCart} aria-label={t('box_office.clearSelection')} onClick={() => setSelectedSeats([])}>
+              <X size={12} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -545,8 +550,9 @@ export default function TaquillaPage() {
                     <span className={styles.cartSeatId}>{s}</span>
                     <span className={styles.cartSeatPrice}>€{totalPerTicket.toFixed(2)}</span>
                     <button className={styles.cartSeatRemove}
+                      aria-label={`${t('box_office.removeSeat')} ${s}`}
                       onClick={() => setSelectedSeats(prev => prev.filter(x => x !== s))}>
-                      <X size={10} />
+                      <X size={10} aria-hidden="true" />
                     </button>
                   </div>
                 ))}
@@ -606,9 +612,10 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
         <h2 className={styles.successTitle}>{t('box_office.success.title')}</h2>
         <p className={styles.successSub}>{tickets.length} entrada{tickets.length !== 1 ? 's' : ''} · €{total.toFixed(2)} · {PAY_LABEL[payMethod]}</p>
         {tickets.length > 1 && (
-          <div className={styles.ticketNav}>
+          <div className={styles.ticketNav} role="group" aria-label={t('box_office.ticketNavLabel')}>
             {tickets.map((_, i) => (
               <button key={i} className={`${styles.ticketNavBtn} ${i === current ? styles.ticketNavActive : ''}`}
+                aria-pressed={i === current}
                 onClick={() => setCurrent(i)}>{i + 1}</button>
             ))}
           </div>
@@ -645,7 +652,9 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
         </div>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketQRWrap}>
-          <QRCodeSVG value={ticket.qrValue} size={110} bgColor="transparent" fgColor="var(--text-1)" level="M" />
+          <div role="img" aria-label={`${t('box_office.qrLabel')} ${ticket.seat}`}>
+            <QRCodeSVG value={ticket.qrValue} size={110} bgColor="transparent" fgColor="var(--text-1)" level="M" />
+          </div>
           <div className={styles.ticketQRInfo}>
             <span className={styles.ticketQRLabel}>{t('box_office.ticket.scan')}</span>
             <span className={styles.ticketId}>{ticket.id}</span>

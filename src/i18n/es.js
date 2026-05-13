@@ -692,6 +692,11 @@ export default {
       cash:   'Efectivo',
       online: 'Online/QR',
     },
+    removeClient:    'Quitar cliente seleccionado',
+    clearSelection:  'Vaciar selección de butacas',
+    removeSeat:      'Eliminar butaca',
+    ticketNavLabel:  'Navegar entre entradas',
+    qrLabel:         'Código QR del ticket, butaca',
   },
 
   concession: {
@@ -730,8 +735,9 @@ export default {
       imgPh:    'Ej: Palomitas grandes',
       descPh:   'Descripción breve (opcional)',
       uploading:'Subiendo...',
-      selectImg:'Seleccionar imagen',
-      removeImg:'Quitar',
+      selectImg:    'Seleccionar imagen',
+      removeImg:    'Quitar',
+      imgPreviewAlt:'Vista previa de imagen del producto',
     },
     pay_methods: {
       card:   'Tarjeta',
@@ -740,6 +746,26 @@ export default {
     },
     createProduct: 'Crear producto',
     cashDelivery:  'Entrega (mín €{min})',
+    close:         'Cerrar',
+    clearCart:     'Vaciar carrito',
+    clearSearch:   'Limpiar búsqueda',
+    decreaseQty:   'Reducir cantidad de',
+    increaseQty:   'Aumentar cantidad de',
+    removeItem:    'Eliminar del carrito:',
+    deleteProduct: 'Eliminar producto:',
+  },
+
+  stripe: {
+    modalTitle:      'Pago online',
+    totalLabel:      'Total a pagar',
+    loadingForm:     'Cargando formulario de pago…',
+    processing:      'Procesando…',
+    cancel:          'Cancelar',
+    pay:             'Pagar €{amount}',
+    close:           'Cerrar',
+    secureNote:      'Pago seguro cifrado por Stripe · No almacenamos datos de tu tarjeta',
+    errorGeneric:    'Error al procesar el pago.',
+    errorUnexpected: 'Estado de pago inesperado. Inténtalo de nuevo.',
   },
 
   reports: {

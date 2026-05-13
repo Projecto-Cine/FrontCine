@@ -75,7 +75,7 @@ export async function mockRequest(path, options = {}) {
 
   // AUTH
   if (match('/auth/login', path) && method === 'POST') {
-    const u = _users.find(x => x.username === body.username && x.status !== 'inactive');
+    const u = _users.find(x => x.email === body.email && x.status !== 'inactive');
     if (!u || body.password !== 'lumen2026') throw new Error('Credenciales inválidas');
     return { user: u, token: 'mock-' + u.id };
   }

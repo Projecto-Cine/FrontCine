@@ -216,7 +216,19 @@ export default function CuadrantePage() {
   useEffect(() => {
     setLoading(true);
     employeesService.getAll()
-      .then(data => setAllUsers(Array.isArray(data) ? data : []))
+      .then(data => {
+        const list = Array.isArray(data) ? data : [];
+        setAllUsers(list.map(e => {
+          const role = String(e.role ?? e.position ?? e.workerRole ?? '').toUpperCase();
+          const fullName = [e.name, e.lastName].filter(Boolean).join(' ').trim();
+          return {
+            ...e,
+            id: e.id ?? e.workerId,
+            name: fullName || e.username || e.email || '-',
+            role,
+          };
+        }));
+      })
       .catch(() => setAllUsers([]))
       .finally(() => setLoading(false));
   }, []);
@@ -439,6 +451,14 @@ export default function CuadrantePage() {
         <div className={styles.loadingState}>
           <Loader size={24} className={styles.spinner} />
           <span>{t('shifts.loading') || 'Cargando turnos...'}</span>
+        </div>
+      )}
+
+      {!loading && activeEmployees.length === 0 && (
+        <div className={styles.loadingState} style={{ color: 'var(--text-3)', flexDirection: 'column', gap: 8 }}>
+          <Users size={32} style={{ opacity: 0.3 }} />
+          <span>No hay empleados con rol válido en el sistema.</span>
+          <span style={{ fontSize: '0.78rem', opacity: 0.6 }}>Crea empleados en la sección <strong>Empleados</strong> con rol CAJERO, GERENCIA, LIMPIEZA o MANTENIMIENTO.</span>
         </div>
       )}
 

@@ -29,9 +29,9 @@ function CatchAll() {
 }
 
 function RoleRoute({ children, allowedRoles }) {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && !allowedRoles.includes(user.role) && !canAccess('*')) {
     return <Navigate to={ROLE_DEFAULTS[user.role] ?? '/shifts'} replace />;
   }
   return children;

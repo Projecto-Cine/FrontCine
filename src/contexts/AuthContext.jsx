@@ -88,7 +88,7 @@ export function AuthProvider({ children }) {
   const canAccess = useCallback((path) => {
     if (!user) return false;
     const perms = EMPLOYEE_PERMISSIONS[user.role];
-    if (!perms) return false;
+    if (perms === undefined) return true;  // roles no empleado (admin, supervisor…) acceso total
     if (perms === '*') return true;
     return perms.includes(path);
   }, [user]);

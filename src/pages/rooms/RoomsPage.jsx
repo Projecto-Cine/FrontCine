@@ -10,7 +10,8 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { theatersService } from '../../services/roomsService';
 import styles from './RoomsPage.module.css';
 
-const EMPTY = { name: '', capacity: '' };
+const THEATER_TYPES = ['STANDARD', 'IMAX', '4DX', 'VIP', 'DOLBY', '3D'];
+const EMPTY = { name: '', capacity: '', numRows: '', numColumns: '', type: 'STANDARD' };
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState([]);
@@ -41,17 +42,27 @@ export default function RoomsPage() {
       toast('Nombre y capacidad son obligatorios.', 'error');
       return;
     }
-    const payload = { name: form.name.trim(), capacity: Number(form.capacity) };
-    if (editing) {
-      const saved = await theatersService.update(editing.id, payload);
-      setRooms(prev => prev.map(room => room.id === editing.id ? saved : room));
-      toast('Sala actualizada.', 'success');
-    } else {
-      const saved = await theatersService.create(payload);
-      setRooms(prev => [...prev, saved]);
-      toast('Sala creada.', 'success');
+    const payload = {
+      name:       form.name.trim(),
+      capacity:   Number(form.capacity),
+      type:       form.type || 'STANDARD',
+      ...(form.numRows    ? { numRows:    Number(form.numRows)    } : {}),
+      ...(form.numColumns ? { numColumns: Number(form.numColumns) } : {}),
+    };
+    try {
+      if (editing) {
+        const saved = await theatersService.update(editing.id, payload);
+        setRooms(prev => prev.map(room => room.id === editing.id ? (saved ?? { ...room, ...payload }) : room));
+        toast('Sala actualizada. Los asientos se han sincronizado con las sesiones futuras.', 'success');
+      } else {
+        const saved = await theatersService.create(payload);
+        setRooms(prev => [...prev, saved]);
+        toast('Sala creada.', 'success');
+      }
+      setModal(null);
+    } catch {
+      toast('Error al guardar la sala. Comprueba los datos e inténtalo de nuevo.', 'error');
     }
-    setModal(null);
   };
 
   const handleDelete = async () => {
@@ -64,12 +75,19 @@ export default function RoomsPage() {
   const totalCap = rooms.reduce((sum, room) => sum + Number(room.totalSeats ?? room.capacity ?? 0), 0);
 
   const columns = [
-    { key: 'name',       label: t('rooms.col.name'),     render: value => <span style={{ fontWeight: 500 }}>{value}</span> },
-    { key: 'totalSeats', label: t('rooms.col.capacity'), width: 140, render: (value, row) => (
+    { key: 'name', label: t('rooms.col.name'), render: (value, row) => (
+      <span style={{ fontWeight: 500 }}>
+        {value}
+        {row.type && row.type !== 'STANDARD' && (
+          <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-dim)', padding: '1px 6px', borderRadius: 4 }}>{row.type}</span>
+        )}
+      </span>
+    )},
+    { key: 'totalSeats', label: t('rooms.col.capacity'), width: 180, render: (value, row) => (
       <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>
-        {value ?? 0} but.
-        {row.capacity && row.capacity !== value && (
-          <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>/ {row.capacity} cap.</span>
+        {value ?? row.capacity ?? 0} but.
+        {row.numRows && row.numColumns && (
+          <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>({row.numRows}×{row.numColumns})</span>
         )}
       </span>
     )},
@@ -108,6 +126,12 @@ export default function RoomsPage() {
       >
         <div className={styles.formGrid}>
           <div className={styles.fieldFull}>
+            <label className={styles.label} htmlFor="room-type">Tipo de sala</label>
+            <select id="room-type" className={styles.input} value={form.type || 'STANDARD'} onChange={e => set('type', e.target.value)}>
+              {THEATER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className={styles.fieldFull}>
             <label className={styles.label} htmlFor="room-name">{t('rooms.form.name')}</label>
             <input id="room-name"
               className={`${styles.input} ${errors.name ? styles.inputError : ''}`}
@@ -122,11 +146,27 @@ export default function RoomsPage() {
             <label className={styles.label} htmlFor="room-cap">{t('rooms.form.capacity')}</label>
             <input id="room-cap"
               className={`${styles.input} ${errors.capacity ? styles.inputError : ''}`}
-              type="number" value={form.capacity} onChange={e => set('capacity', e.target.value)}
+              type="number" min="1" value={form.capacity} onChange={e => set('capacity', e.target.value)}
               onBlur={e => validateField('capacity', e.target.value)}
               aria-invalid={!!errors.capacity} aria-describedby={errors.capacity ? 'err-room-cap' : undefined}
             />
             {errors.capacity && <span id="err-room-cap" role="alert" className={styles.fieldError}>{errors.capacity}</span>}
+          </div>
+          <div>
+            <label className={styles.label} htmlFor="room-rows">Filas</label>
+            <input id="room-rows"
+              className={styles.input}
+              type="number" min="1" placeholder="Ej: 10"
+              value={form.numRows} onChange={e => set('numRows', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={styles.label} htmlFor="room-cols">Columnas</label>
+            <input id="room-cols"
+              className={styles.input}
+              type="number" min="1" placeholder="Ej: 15"
+              value={form.numColumns} onChange={e => set('numColumns', e.target.value)}
+            />
           </div>
         </div>
       </Modal>

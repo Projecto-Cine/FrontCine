@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Users, RefreshCw, ChevronLeft, ChevronRight, Download, Calendar, Loader } from 'lucide-react';
 import { shiftsService } from '../../services/shiftsService';
+import { employeesService } from '../../services/employeesService';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -16,10 +17,18 @@ const ROLE_SHIFTS = {
 };
 
 const SHIFT_TIMES = {
-  M: { start: '08:00', end: '16:00' },
-  T: { start: '14:00', end: '22:00' },
-  N: { start: '18:00', end: '02:00' },
+  M: { start: '08:00:00', end: '16:00:00' },
+  T: { start: '14:00:00', end: '22:00:00' },
+  N: { start: '18:00:00', end: '02:00:00' },
 };
+
+function startToLetter(startTime = '') {
+  const hh = startTime.substring(0, 5);
+  if (hh === '08:00') return 'M';
+  if (hh === '14:00') return 'T';
+  if (hh === '18:00') return 'N';
+  return 'L';
+}
 
 const VALID_ROLES = new Set(['CAJERO', 'GERENCIA', 'LIMPIEZA', 'MANTENIMIENTO']);
 
@@ -212,6 +221,48 @@ export default function CuadrantePage() {
   const [editCell, setEditCell] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const buildRowsFromShifts = (employees, shifts, ws) =>
+    employees.map(emp => ({
+      ...emp,
+      days: Array.from({ length: 7 }, (_, i) => {
+        const dateStr = addDays(ws, i).toISOString().split('T')[0];
+        const shift = shifts.find(s => s.employeeId === emp.id && s.shiftDate === dateStr);
+        return shift ? startToLetter(shift.startTime) : 'L';
+      }),
+    }));
+
+  const loadWeekIntoMap = async (ws, employees) => {
+    const from = ws.toISOString().split('T')[0];
+    const to   = addDays(ws, 6).toISOString().split('T')[0];
+    try {
+      const shifts = await shiftsService.getByRange(from, to) ?? [];
+      const rows = buildRowsFromShifts(employees, Array.isArray(shifts) ? shifts : [], ws);
+      setScheduleMap(prev => ({ ...prev, [weekKey(ws)]: rows }));
+    } catch {}
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    employeesService.getAll()
+      .then(data => {
+        const list = (Array.isArray(data) ? data : []).map(e => {
+          const role = String(e.role ?? e.position ?? e.workerRole ?? '').toUpperCase();
+          const fullName = [e.name, e.lastName].filter(Boolean).join(' ').trim();
+          return { ...e, id: e.id ?? e.workerId, name: fullName || e.username || e.email || '-', role };
+        });
+        setAllUsers(list);
+        const active = list.filter(e => VALID_ROLES.has(e.role));
+        return loadWeekIntoMap(weekStart, active);
+      })
+      .catch(() => setAllUsers([]))
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeEmployees.length === 0) return;
+    loadWeekIntoMap(weekStart, activeEmployees);
+  }, [weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const SHIFTS = {
     M: { label: t('shifts.shift.M'), hours: t('shifts.hours.M') },
     T: { label: t('shifts.shift.T'), hours: t('shifts.hours.T') },
@@ -241,12 +292,8 @@ export default function CuadrantePage() {
   const currentKey = weekKey(weekStart);
   const weekRows = useMemo(() => {
     const cached = scheduleMap[currentKey];
-    if (cached && cached.length > 0) {
-      const filtered = filterRows(cached);
-      const hasSchedule = filtered.some(emp => emp.days.some(d => d !== 'L'));
-      if (filtered.length > 0 && hasSchedule) return filtered;
-    }
-    return generateWeekSchedule(activeEmployees, weekStart, 0);
+    if (cached) return filterRows(cached);
+    return filterRows(generateWeekSchedule(activeEmployees, weekStart, 0));
   }, [currentKey, scheduleMap, activeEmployees, weekStart]);
 
   const monthWeeks = useMemo(() => {
@@ -277,11 +324,7 @@ export default function CuadrantePage() {
     let updates = {};
 
     if (mode === 'week') {
-      setScheduleMap(prev => {
-        const next = { ...prev, [currentKey]: generateWeekSchedule(activeEmployees, weekStart, genKey) };
-        try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch { /* storage unavailable */ }
-        return next;
-      });
+      setScheduleMap(prev => ({ ...prev, [currentKey]: generateWeekSchedule(activeEmployees, weekStart, genKey) }));
       toast(t('shifts.weekGenerated'), 'success');
     } else {
       let cursor = getWeekStart(monthStart);
@@ -290,15 +333,10 @@ export default function CuadrantePage() {
         const hasMonth = Array.from({ length: 7 }, (_, i) => addDays(cursor, i))
           .some(d => d.getMonth() === targetMonth);
         if (!hasMonth) break;
-        const rows = generateWeekSchedule(activeEmployees, cursor, genKey + w);
-        updates[weekKey(cursor)] = rows;
+        updates[weekKey(cursor)] = generateWeekSchedule(activeEmployees, cursor, genKey + w);
         cursor = addDays(cursor, 7);
       }
-      setScheduleMap(prev => {
-        const next = { ...prev, ...updates };
-        try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch { /* storage unavailable */ }
-        return next;
-      });
+      setScheduleMap(prev => ({ ...prev, ...updates }));
       toast(t('shifts.monthGenerated', { count: Object.keys(updates).length }), 'success');
     }
 
@@ -308,7 +346,7 @@ export default function CuadrantePage() {
   const handleShiftChange = async (empId, dayIdx, newShift) => {
     setScheduleMap(prev => {
       const rows = prev[currentKey] ?? generateWeekSchedule(activeEmployees, weekStart, 0);
-      const next = {
+      return {
         ...prev,
         [currentKey]: rows.map(emp =>
           emp.id === empId
@@ -316,8 +354,6 @@ export default function CuadrantePage() {
             : emp
         ),
       };
-      try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch { /* storage unavailable */ }
-      return next;
     });
     setEditCell(null);
 
@@ -430,6 +466,14 @@ export default function CuadrantePage() {
         <div className={styles.loadingState}>
           <Loader size={24} className={styles.spinner} />
           <span>{t('shifts.loading') || 'Cargando turnos...'}</span>
+        </div>
+      )}
+
+      {!loading && activeEmployees.length === 0 && (
+        <div className={styles.loadingState} style={{ color: 'var(--text-3)', flexDirection: 'column', gap: 8 }}>
+          <Users size={32} style={{ opacity: 0.3 }} />
+          <span>No hay empleados con rol válido en el sistema.</span>
+          <span style={{ fontSize: '0.78rem', opacity: 0.6 }}>Crea empleados en la sección <strong>Empleados</strong> con rol CAJERO, GERENCIA, LIMPIEZA o MANTENIMIENTO.</span>
         </div>
       )}
 

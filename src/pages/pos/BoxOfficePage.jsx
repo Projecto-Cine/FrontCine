@@ -471,7 +471,13 @@ export default function TaquillaPage() {
           });
         }
 
-        setRealSeats(normalized.length ? normalized : null);
+        // If backend returned far fewer seats than the theater's capacity,
+        // fall back to the generated map so the user sees the full layout.
+        const expectedCapacity = session.theater?.capacity ?? session.room?.capacity ?? null;
+        const enoughSeats =
+          normalized.length > 0 &&
+          (expectedCapacity === null || normalized.length >= expectedCapacity * 0.3);
+        setRealSeats(enoughSeats ? normalized : null);
       })
       .catch(() => {
         if (activeSessionRef.current === session.id) setRealSeats(null);
@@ -488,7 +494,12 @@ export default function TaquillaPage() {
     id:   selectedSession.id,
     sold: realSeats
       ? realSeats.filter(s => s.status === 'occupied' || s.status === 'reserved').length
-      : 0,
+      : (() => {
+          const cap = theater?.capacity ?? 100;
+          const avail = selectedSession.availableSeats;
+          if (avail != null) return Math.max(0, cap - avail);
+          return selectedSession.sold ?? 0;
+        })(),
   } : null;
   const seatMapRoom = theater ? {
     capacity: theater.capacity ?? 100,

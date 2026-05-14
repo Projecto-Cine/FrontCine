@@ -167,6 +167,87 @@ export const OCCUPANCY_BY_ROOM = [
   { room: 'Sala 6', pct: 100 },
 ];
 
+export const EMPLOYEES = [
+  { id: 1,  name: 'Ana García',      email: 'ana@lumen.es',       role: 'CASHIER',    createdAt: '2024-01-15T08:00:00' },
+  { id: 2,  name: 'Carlos López',    email: 'carlos@lumen.es',    role: 'CASHIER',    createdAt: '2024-01-20T08:00:00' },
+  { id: 3,  name: 'María Rodríguez', email: 'maria@lumen.es',     role: 'MANAGEMENT', createdAt: '2023-11-01T08:00:00' },
+  { id: 4,  name: 'David Martínez',  email: 'david@lumen.es',     role: 'MANAGEMENT', createdAt: '2023-12-10T08:00:00' },
+  { id: 5,  name: 'Laura Sánchez',   email: 'laura@lumen.es',     role: 'SECURITY',   createdAt: '2024-02-05T08:00:00' },
+  { id: 6,  name: 'Pedro Gómez',     email: 'pedro@lumen.es',     role: 'SECURITY',   createdAt: '2024-02-15T08:00:00' },
+  { id: 7,  name: 'Elena Díaz',      email: 'elena@lumen.es',     role: 'CLEANING',   createdAt: '2024-03-01T08:00:00' },
+  { id: 8,  name: 'Javier Ruiz',     email: 'javier@lumen.es',    role: 'CLEANING',   createdAt: '2024-03-10T08:00:00' },
+];
+
+function fmtDate(dateStr) {
+  const d = new Date(dateStr);
+  return d.toISOString().split('T')[0];
+}
+
+function getWeekStart(date) {
+  const d = new Date(date);
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() - day + 1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function addDays(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+const NOW = new Date();
+const WEEK_START = getWeekStart(NOW);
+let shiftId = 1;
+
+function generateShiftsForDate(empId, empName, empRole, date, shiftType) {
+  const times = {
+    M: { start: '08:00', end: '16:00' },
+    T: { start: '14:00', end: '22:00' },
+    N: { start: '18:00', end: '02:00' },
+  };
+  const t = times[shiftType];
+  if (!t || shiftType === 'L') return null;
+  return {
+    id: shiftId++,
+    employeeId: empId,
+    employeeName: empName,
+    employeeEmail: `${empName.toLowerCase().replace(/\s/g, '.')}@lumen.es`,
+    employeeRole: empRole,
+    shiftDate: fmtDate(date),
+    startTime: t.start,
+    endTime: t.end,
+    notes: null,
+    status: 'SCHEDULED',
+    createdAt: fmtDate(NOW) + 'T10:00:00',
+  };
+}
+
+const SCHEDULE_TEMPLATE = {
+  'Ana García':      ['M', 'M', 'T', 'T', 'L', 'M', 'L'],
+  'Carlos López':    ['T', 'T', 'L', 'M', 'M', 'L', 'T'],
+  'María Rodríguez': ['M', 'M', 'M', 'M', 'L', 'M', 'L'],
+  'David Martínez':  ['M', 'L', 'M', 'M', 'T', 'L', 'M'],
+  'Laura Sánchez':   ['N', 'N', 'L', 'M', 'T', 'L', 'N'],
+  'Pedro Gómez':     ['M', 'T', 'N', 'L', 'M', 'T', 'M'],
+  'Elena Díaz':      ['M', 'L', 'N', 'N', 'M', 'M', 'L'],
+  'Javier Ruiz':     ['N', 'M', 'M', 'L', 'N', 'N', 'L'],
+};
+
+export const SHIFTS = (() => {
+  const result = [];
+  EMPLOYEES.forEach(emp => {
+    const days = SCHEDULE_TEMPLATE[emp.name] || ['M', 'T', 'M', 'T', 'L', 'M', 'L'];
+    days.forEach((shiftType, i) => {
+      const date = addDays(WEEK_START, i);
+      const shift = generateShiftsForDate(emp.id, emp.name, emp.role, date, shiftType);
+      if (shift) result.push(shift);
+    });
+  });
+  return result;
+})();
+
 export const ROLES = {
   admin: { label: 'Administrador', color: 'red', permissions: ['*'] },
   supervisor: { label: 'Supervisor', color: 'purple', permissions: ['read', 'create', 'update', 'approve'] },

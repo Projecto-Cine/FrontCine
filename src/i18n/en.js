@@ -605,6 +605,8 @@ export default {
       daysOff:      'Days off',
     },
     weekPrefix: 'Wk',
+    loading:        'Loading shifts...',
+    loadError:      'Error loading shifts.',
     weekGenerated:  'Weekly roster generated',
     monthGenerated: 'Monthly roster generated: {count} weeks',
     col: {

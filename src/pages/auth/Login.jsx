@@ -28,7 +28,7 @@ export default function Login() {
 
   const fillDemo = (e) => {
     setEmail(e);
-    setPassword('lumen2026');
+    setPassword('lumen2024');
     setError('');
   };
 
@@ -105,15 +105,15 @@ export default function Login() {
 
         <div className={styles.hint}>
           <ShieldCheck size={12} aria-hidden="true" />
-          <span>{t('login.hint')} <strong>admin@lumen.es</strong> / <strong>lumen2026</strong></span>
+          <span>{t('login.hint')} <strong>admin@lumen.com</strong> / <strong>lumen2024</strong></span>
         </div>
 
         <div className={styles.demoAccounts}>
           <p className={styles.demoTitle} id="demo-accounts-label">{t('login.demoTitle')}</p>
           <div className={styles.demoGrid} role="group" aria-labelledby="demo-accounts-label">
             {[
-              { e: 'admin@lumen.es',   rKey: 'header.roles.admin' },
-              { e: 'loperador@lumen.es', rKey: 'header.roles.operator' },
+              { e: 'admin@lumen.com',   rKey: 'header.roles.admin' },
+              { e: 'operator@lumen.com', rKey: 'header.roles.operator' },
             ].map(({ e, rKey }) => (
               <button
                 key={e}

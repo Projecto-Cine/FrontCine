@@ -572,6 +572,39 @@
 }
 
 /* ── Client search ──────────────────────────────────── */
+@media print {
+  .shell, .stepIndicator, .leftPanel, .rightPanel,
+  [class*="proceedBtn"], [class*="payMethod"], [class*="clientSearch"],
+  [class*="fidelity"], [class*="kbd"] { display: none !important; }
+  .successShell {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding: 20px !important;
+    gap: 20px !important;
+  }
+  .successLeft { order: 2; text-align: center; }
+  .successLeft .actions { display: flex; gap: 12px; justify-content: center; }
+  .successIcon, .successTitle, .successSub { color: #000 !important; }
+  .ticketCard {
+    order: 1;
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    max-width: 380px !important;
+    width: 100% !important;
+    color: #000 !important;
+  }
+  .ticketCard * { color: #000 !important; }
+  .ticketCardHeader span { color: #000 !important; }
+  .ticketId,
+  .ticketIdSeat { color: #555 !important; }
+  .tcTotalVal { color: #000 !important; }
+  .ticketCardDivider { border-color: #ddd !important; }
+  .ticketQRWrap { break-inside: avoid; }
+}
+
 .clientSearchWrap { position: relative; display: flex; align-items: center; }
 .clientSearchInput { width: 100%; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px 7px 28px; color: var(--text-1); font-size: var(--fs-md); outline: none; }
 .clientSearchInput:focus { border-color: var(--accent); }

@@ -543,6 +543,34 @@ td.tdEmployee {
 
 .footerStats strong { color: var(--text-1); }
 
+/* ── Loading state ───────────────────────────────────── */
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: var(--text-3);
+  font-size: var(--fs-md);
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  color: var(--accent);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Generate button disabled ────────────────────────── */
+.generateBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 /* ── Estilos de impresion / PDF ──────────────────────── */
 @media print {
   .topRight, .coverageLegend, .footer { display: none; }

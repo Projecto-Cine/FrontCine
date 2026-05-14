@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Users, RefreshCw, ChevronLeft, ChevronRight, Download, Calendar, Loader } from 'lucide-react';
 import { shiftsService } from '../../services/shiftsService';
+import { employeesService } from '../../services/employeesService';
 import { useApp } from '../../contexts/AppContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -211,6 +212,14 @@ export default function CuadrantePage() {
   const [scheduleMap, setScheduleMap] = useState({});
   const [editCell, setEditCell] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    employeesService.getAll()
+      .then(data => setAllUsers(Array.isArray(data) ? data : []))
+      .catch(() => setAllUsers([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const SHIFTS = {
     M: { label: t('shifts.shift.M'), hours: t('shifts.hours.M') },

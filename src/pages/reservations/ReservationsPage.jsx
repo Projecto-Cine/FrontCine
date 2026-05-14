@@ -29,22 +29,42 @@ const STATUS_BADGE_COLOR = {
 const PAYMENT_COLOR = { CARD: 'accent', CASH: 'green', ONLINE: 'purple', QR: 'cyan' };
 
 /* ── Helpers ─────────────────────────────────────────── */
-const normalizeStatus = (s) => s === 'PAID' ? 'CONFIRMED' : (s ?? 'PENDING');
-const getStatus       = (p) => normalizeStatus(p.status ?? p.purchaseStatus);
-const getAmount       = (p) => Number(p.total ?? p.amount ?? p.totalAmount ?? 0);
-const getSeats        = (p) => {
-  const s = p.seats ?? p.seatCodes ?? p.tickets?.map(t => t.seat?.code ?? t.seatCode ?? t.seat) ?? [];
-  return Array.isArray(s) ? s.filter(Boolean) : [];
+const normalizeStatus = (s) => {
+  const up = (s ?? 'PENDING').toUpperCase();
+  return up === 'PAID' ? 'CONFIRMED' : up;
 };
-const getClientName  = (p) => p?.clientName ?? p?.client?.name ?? p?.user?.name ?? p?.user?.email ?? '-';
-const getClientEmail = (p) => p?.clientEmail ?? p?.client?.email ?? p?.user?.email ?? '';
-const getScreening   = (p, list) =>
-  p?.screening ?? list.find(s => s.id === (p?.screeningId ?? p?.screening_id));
+const getStatus        = (p) => normalizeStatus(p.status ?? p.purchaseStatus);
+const getAmount        = (p) => Number(p.totalAmount ?? p.total ?? p.amount ?? 0);
+const getSeats         = (p) => {
+  if (Array.isArray(p.seats))     return p.seats.filter(Boolean);
+  if (Array.isArray(p.seatCodes)) return p.seatCodes.filter(Boolean);
+  if (Array.isArray(p.tickets))   return p.tickets.map(t =>
+    t.seat?.code ?? t.seatCode ?? (t.row != null && t.number != null ? `${t.row}${t.number}` : null)
+  ).filter(Boolean);
+  return [];
+};
+const getClientName    = (p) =>
+  p?.userName ?? p?.clientName ?? p?.client?.name ?? (typeof p?.client === 'string' ? p.client : null) ?? p?.user?.name ?? '-';
+const getClientEmail   = (p) =>
+  p?.clientEmail ?? p?.client?.email ?? p?.email ?? p?.user?.email ?? '';
+const getPaymentMethod = (p) => (p?.paymentMethod ?? p?.payment ?? '').toUpperCase();
+const getScreening     = (p, list) => {
+  if (p?.screening) return p.screening;
+  const found = list.find(s => s.id === (p?.screeningId ?? p?.screening_id ?? p?.session_id));
+  if (found) return found;
+  if (p?.movieTitle) return {
+    movie:   { title: p.movieTitle },
+    theater: p.theaterName ? { name: p.theaterName } : null,
+    startTime: p.startTime,
+  };
+  return null;
+};
 const getScreeningLabel = (s, noScreeningText) => {
   if (!s) return noScreeningText;
   const title   = s.movie?.title ?? 'Película';
   const theater = s.theater?.name ? ` · ${s.theater.name}` : '';
-  const date    = s.dateTime ? ` · ${s.dateTime.slice(0, 16).replace('T', ' ')}` : '';
+  const dt      = s.startTime ?? s.dateTime;
+  const date    = dt ? ` · ${dt.slice(0, 16).replace('T', ' ')}` : '';
   return `${title}${theater}${date}`;
 };
 
@@ -100,6 +120,14 @@ export default function ReservationsPage() {
   ];
 
   const noScreeningText = t('reservations.detail.noScreening');
+
+  const resolveUser      = (p) => users.find(u => u.id === p?.userId);
+  const resolveFullName  = (p) => {
+    const u = resolveUser(p);
+    if (u) return [u.name, u.lastName].filter(Boolean).join(' ') || u.username || u.email || '-';
+    return getClientName(p);
+  };
+  const resolveEmail     = (p) => resolveUser(p)?.email ?? getClientEmail(p);
 
   useEffect(() => {
     Promise.all([purchasesService.getAll(), screeningsService.getAll(), usersService.getAll()])
@@ -227,8 +255,8 @@ export default function ReservationsPage() {
       <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)', color: 'var(--text-2)' }}>{v}</span> },
     { key: 'client', label: t('reservations.col.client'), render: (_, row) => (
       <div>
-        <div style={{ fontWeight: 500 }}>{getClientName(row)}</div>
-        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>{getClientEmail(row)}</div>
+        <div style={{ fontWeight: 500 }}>{resolveFullName(row)}</div>
+        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>{resolveEmail(row)}</div>
       </div>
     )},
     { key: 'screening', label: t('reservations.col.screening'), render: (_, row) =>
@@ -237,8 +265,17 @@ export default function ReservationsPage() {
       <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)' }}>{getSeats(row).join(', ') || '-'}</span> },
     { key: 'amount', label: t('reservations.col.amount'), width: 90, render: (_, row) =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>€{getAmount(row).toFixed(2)}</span> },
-    { key: 'paymentMethod', label: t('reservations.col.payment'), width: 90, render: v =>
-      <Badge variant={PAYMENT_COLOR[v] || 'default'}>{PAYMENT_LABEL[v] || v || '-'}</Badge> },
+    { key: 'paymentMethod', label: t('reservations.col.payment'), width: 90, render: (_, row) => {
+      const pay    = getPaymentMethod(row);
+      const status = getStatus(row);
+      const label  = PAYMENT_LABEL[pay] || (pay || null);
+      if (!label) {
+        if (status === 'CONFIRMED') return <Badge variant="green">Pagado</Badge>;
+        if (status === 'PENDING')   return <Badge variant="yellow">Pendiente</Badge>;
+        return <Badge variant="default">—</Badge>;
+      }
+      return <Badge variant={PAYMENT_COLOR[pay] || 'default'}>{label}</Badge>;
+    }},
     { key: 'status', label: t('reservations.col.status'), width: 130, render: (_, row) => {
       const raw = row.status ?? row.purchaseStatus ?? 'PENDING';
       const norm = raw === 'PAID' ? 'CONFIRMED' : raw;
@@ -387,7 +424,7 @@ export default function ReservationsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ padding: '10px 14px', background: 'var(--bg-3)', borderRadius: 'var(--r)', border: '1px solid var(--border)' }}>
               <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{t('reservations.detail.reservation')}</div>
-              <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-1)' }}>{getClientName(payTarget)}</div>
+              <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-1)' }}>{resolveFullName(payTarget)}</div>
               <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)', marginTop: 2 }}>{getScreeningLabel(getScreening(payTarget, screenings), noScreeningText)}</div>
               <div style={{ marginTop: 8, fontFamily: 'var(--mono)', fontSize: 20, fontWeight: 800, color: 'var(--green)' }}>
                 €{payTotal.toFixed(2)}
@@ -455,14 +492,14 @@ export default function ReservationsPage() {
             </div>
 
             <div style={{ width: '100%', padding: '10px 14px', background: 'var(--bg-3)', borderRadius: 'var(--r)', border: '1px solid var(--border)', fontSize: 'var(--fs-md)' }}>
-              <div style={{ fontWeight: 600, color: 'var(--text-1)' }}>{getClientName(paidTickets.purchase)}</div>
+              <div style={{ fontWeight: 600, color: 'var(--text-1)' }}>{resolveFullName(paidTickets.purchase)}</div>
               <div style={{ color: 'var(--text-3)', marginTop: 2 }}>{getScreeningLabel(paidTickets.scr, noScreeningText)}</div>
               <div style={{ marginTop: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 16, color: 'var(--green)' }}>
                   €{paidTickets.total.toFixed(2)}
                 </span>
-                <Badge variant={PAYMENT_COLOR[paidTickets.purchase.paymentMethod] || 'default'}>
-                  {PAYMENT_LABEL[paidTickets.purchase.paymentMethod] || '-'}
+                <Badge variant={PAYMENT_COLOR[getPaymentMethod(paidTickets.purchase)] || 'default'}>
+                  {PAYMENT_LABEL[getPaymentMethod(paidTickets.purchase)] || '-'}
                 </Badge>
               </div>
               {paidTickets.change && parseFloat(paidTickets.change) >= 0 && (
@@ -503,13 +540,13 @@ export default function ReservationsPage() {
         {detail && (() => {
           const scr    = getScreening(detail, screenings);
           const status = getStatus(detail);
-          const pay    = detail.paymentMethod ?? detail.payment;
+          const pay    = getPaymentMethod(detail);
           return (
             <div className={styles.detail}>
               <div className={styles.detailSection}>
                 <p className={styles.detailLbl}>{t('reservations.detail.client')}</p>
-                <p className={styles.detailVal}>{getClientName(detail)}</p>
-                <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>{getClientEmail(detail)}</p>
+                <p className={styles.detailVal}>{resolveFullName(detail)}</p>
+                <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>{resolveEmail(detail)}</p>
               </div>
               <div className={styles.detailSection}>
                 <p className={styles.detailLbl}>{t('reservations.detail.screening')}</p>
@@ -573,7 +610,7 @@ export default function ReservationsPage() {
         onConfirm={handleRefund}
         title={t('reservations.refund.title')}
         danger
-        message={t('reservations.refund.msg', { amount: getAmount(refundTarget ?? {}).toFixed(2), name: getClientName(refundTarget ?? {}) })}
+        message={t('reservations.refund.msg', { amount: getAmount(refundTarget ?? {}).toFixed(2), name: resolveFullName(refundTarget ?? {}) })}
         confirmLabel={refunding ? t('reservations.processing') : t('reservations.refund.confirm')}
       />
 
@@ -584,7 +621,7 @@ export default function ReservationsPage() {
         onConfirm={handleCancel}
         title={t('reservations.cancel.title')}
         danger
-        message={t('reservations.cancel.msg', { id: cancelTarget?.id, name: getClientName(cancelTarget ?? {}) })}
+        message={t('reservations.cancel.msg', { id: cancelTarget?.id, name: resolveFullName(cancelTarget ?? {}) })}
         confirmLabel={t('reservations.cancel.confirm')}
       />
     </div>

@@ -3,6 +3,15 @@ import { authService } from '../services/authService';
 
 const AuthContext = createContext(null);
 
+const EMPLOYEE_ROLES = new Set(['GERENCIA', 'CAJERO', 'LIMPIEZA', 'MANTENIMIENTO']);
+const ROLE_REDIRECT  = { CAJERO: '/box-office', LIMPIEZA: '/shifts', MANTENIMIENTO: '/shifts' };
+const EMPLOYEE_PERMISSIONS = {
+  GERENCIA:      '*',
+  CAJERO:        ['/', '/box-office', '/concession', '/reservations', '/shifts'],
+  LIMPIEZA:      ['/', '/shifts'],
+  MANTENIMIENTO: ['/', '/shifts'],
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null);
   const [error, setError]     = useState('');
@@ -32,18 +41,27 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('auth:expired', handle);
   }, []);
 
-  const login = useCallback(async (email, password) => {
+  const login = useCallback(async (email, password, { employeeOnly = false } = {}) => {
     setError('');
     try {
-      const res = await authService.login(email, password);
-      if (!res?.token || !res?.user) {
-        setError('Credenciales inválidas.');
-        return false;
+      let res;
+      if (employeeOnly) {
+        res = await authService.employeeLogin(email, password);
+      } else {
+        // Try employee endpoint first; fall back to regular login on 401
+        try {
+          res = await authService.employeeLogin(email, password);
+          if (!EMPLOYEE_ROLES.has(res?.user?.role)) throw Object.assign(new Error(), { status: 401 });
+        } catch (e) {
+          if (e?.status !== 401) throw e;
+          res = await authService.login(email, password);
+        }
       }
+      if (!res?.token || !res?.user) { setError('Credenciales inválidas.'); return null; }
       localStorage.setItem('lumen_token', res.token);
       localStorage.setItem('lumen_user', JSON.stringify(res.user));
       setUser(res.user);
-      return true;
+      return ROLE_REDIRECT[res.user.role] ?? '/';
     } catch (err) {
       if (err?.status === 401) {
         setError('Email o contraseña incorrectos.');
@@ -52,9 +70,9 @@ export function AuthProvider({ children }) {
       } else {
         setError('No se puede conectar con el servidor. ¿Está Spring Boot arrancado?');
       }
-      return false;
+      return null;
     }
-  }, []);
+  }, [setError, setUser]);
 
   const logout = useCallback(() => {
     localStorage.removeItem('lumen_token');
@@ -62,25 +80,23 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
-  const can = useCallback((action) => {
+  const hasRole = useCallback((...roles) => {
     if (!user) return false;
-    const role = (user.role ?? '').toLowerCase();
-    const perms = {
-      admin:       true,
-      supervisor:  ['read', 'create', 'update', 'approve'],
-      operator:    ['read', 'create', 'update'],
-      ticket:      ['read', 'create_reservation'],
-      maintenance: ['read', 'create_incident', 'update_incident'],
-      readonly:    ['read'],
-    };
-    const p = perms[role];
-    return p === true || (Array.isArray(p) && (p.includes('*') || p.includes(action)));
+    return roles.includes(user.role);
+  }, [user]);
+
+  const canAccess = useCallback((path) => {
+    if (!user) return false;
+    const perms = EMPLOYEE_PERMISSIONS[user.role];
+    if (!perms) return false;
+    if (perms === '*') return true;
+    return perms.includes(path);
   }, [user]);
 
   if (loading) return null;
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, error, setError, can }}>
+    <AuthContext.Provider value={{ user, login, logout, error, setError, hasRole, canAccess }}>
       {children}
     </AuthContext.Provider>
   );

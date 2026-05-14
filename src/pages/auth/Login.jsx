@@ -9,11 +9,23 @@ import logoSrc from '../../assets/logoLumen.png';
 import logoWebp from '../../assets/logoLumen.webp';
 import styles from './Login.module.css';
 
+const DEMO_EMPLOYEE = [
+  { e: 'gerencia@lumen.es',     label: 'Gerencia' },
+  { e: 'cajero@lumen.es',       label: 'Cajero/a' },
+  { e: 'limpieza@lumen.es',     label: 'Limpieza' },
+  { e: 'mantenimiento@lumen.es', label: 'Mantenimiento' },
+];
+const DEMO_ADMIN = [
+  { e: 'admin@lumen.es',       label: 'Administrador' },
+  { e: 'loperador@lumen.es',   label: 'Operador' },
+];
+
 export default function Login() {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
+  const [mode, setMode]         = useState('employee');
   const { login, error, setError } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -21,14 +33,21 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const ok = await login(email.trim(), password);
+    const redirect = await login(email.trim(), password, { employeeOnly: mode === 'employee' });
     setLoading(false);
-    if (ok) navigate('/', { replace: true });
+    if (redirect) navigate(redirect, { replace: true });
   };
 
-  const fillDemo = (e) => {
-    setEmail(e);
+  const fillDemo = (email) => {
+    setEmail(email);
     setPassword('lumen2026');
+    setError('');
+  };
+
+  const switchMode = (next) => {
+    setMode(next);
+    setEmail('');
+    setPassword('');
     setError('');
   };
 
@@ -48,6 +67,25 @@ export default function Login() {
             <span className={styles.brandName}>LUMEN</span>
             <span className={styles.brandSub}>{t('login.subtitle')}</span>
           </div>
+        </div>
+
+        <div className={styles.modeToggle} role="tablist" aria-label="Tipo de acceso">
+          <button
+            role="tab"
+            aria-selected={mode === 'employee'}
+            className={`${styles.modeTab} ${mode === 'employee' ? styles.modeTabActive : ''}`}
+            onClick={() => switchMode('employee')}
+          >
+            {t('login.modeEmployee')}
+          </button>
+          <button
+            role="tab"
+            aria-selected={mode === 'admin'}
+            className={`${styles.modeTab} ${mode === 'admin' ? styles.modeTabActive : ''}`}
+            onClick={() => switchMode('admin')}
+          >
+            {t('login.modeAdmin')}
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form} noValidate>
@@ -103,18 +141,17 @@ export default function Login() {
           </Button>
         </form>
 
-        <div className={styles.hint}>
-          <ShieldCheck size={12} aria-hidden="true" />
-          <span>{t('login.hint')} <strong>admin@lumen.es</strong> / <strong>lumen2026</strong></span>
-        </div>
+        {mode === 'admin' && (
+          <div className={styles.hint}>
+            <ShieldCheck size={12} aria-hidden="true" />
+            <span>{t('login.hint')} <strong>admin@lumen.es</strong> / <strong>lumen2026</strong></span>
+          </div>
+        )}
 
         <div className={styles.demoAccounts}>
           <p className={styles.demoTitle} id="demo-accounts-label">{t('login.demoTitle')}</p>
           <div className={styles.demoGrid} role="group" aria-labelledby="demo-accounts-label">
-            {[
-              { e: 'admin@lumen.es',   rKey: 'header.roles.admin' },
-              { e: 'loperador@lumen.es', rKey: 'header.roles.operator' },
-            ].map(({ e, rKey }) => (
+            {(mode === 'employee' ? DEMO_EMPLOYEE : DEMO_ADMIN).map(({ e, label }) => (
               <button
                 key={e}
                 className={styles.demoBtn}
@@ -122,7 +159,7 @@ export default function Login() {
                 onClick={() => fillDemo(e)}
               >
                 <span className={styles.demoUser}>{e}</span>
-                <span className={styles.demoRole}>{t(rKey)}</span>
+                <span className={styles.demoRole}>{label}</span>
               </button>
             ))}
           </div>

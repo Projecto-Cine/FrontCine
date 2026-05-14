@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Users, RefreshCw, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
 import { workersService } from '../../services/workersService';
 import { useApp } from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import styles from './ShiftsPage.module.css';
 
@@ -9,10 +10,10 @@ import styles from './ShiftsPage.module.css';
 const SHIFT_ORDER = ['M', 'T', 'N', 'L'];
 
 const ROLE_SHIFTS = {
-  CAJERO:    ['M', 'T'],
-  GERENCIA:  ['M', 'M', 'T'],
-  SEGURIDAD: ['M', 'T', 'N'],
-  LIMPIEZA:  ['M', 'N'],
+  CAJERO:        ['M', 'T'],
+  GERENCIA:      ['M', 'M', 'T'],
+  LIMPIEZA:      ['M', 'N'],
+  MANTENIMIENTO: ['M', 'T', 'N'],
 };
 
 // ── Date helpers ───────────────────────────────────────
@@ -47,11 +48,6 @@ function weekKey(date) {
 function generateWeekSchedule(employees, weekStartDate, genKey = 0) {
   const wn = weekNum(weekStartDate) + weekStartDate.getFullYear() * 100;
   let seed = ((wn * 31337 + 7 + genKey * 999983) >>> 0);
-
-  const rand = () => {
-    seed = ((seed * 1664525 + 1013904223) >>> 0);
-    return seed / 0xffffffff;
-  };
 
   const weights = [2, 1, 1, 1, 1, 3, 3];
   const totalW = weights.reduce((a, b) => a + b, 0);
@@ -131,7 +127,7 @@ function ShiftCell({ shift, isEditing, onEdit, onSelect, onClose, shifts }) {
 }
 
 // ── WeekTable sub-component ────────────────────────────
-function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onCloseEdit, dayNames, shifts, roleLabels, colLabels, lang }) {
+function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onCloseEdit, dayNames, shifts, roleLabels, colLabels, readOnly }) {
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
@@ -177,7 +173,7 @@ function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onClo
                       <ShiftCell
                         shift={shift}
                         isEditing={isEditing}
-                        onEdit={() => onEditCell(emp.id, d)}
+                        onEdit={readOnly ? undefined : () => onEditCell(emp.id, d)}
                         onSelect={(s) => onShiftChange(emp.id, d, s)}
                         onClose={onCloseEdit}
                         shifts={shifts}
@@ -201,7 +197,9 @@ function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onClo
 // ── Main page ──────────────────────────────────────────
 export default function CuadrantePage() {
   const { toast } = useApp();
+  const { user }  = useAuth();
   const { t, language } = useLanguage();
+  const readOnly = ['LIMPIEZA', 'MANTENIMIENTO'].includes(user?.role);
   const [mode, setMode] = useState('week');
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [monthStart, setMonthStart] = useState(() => {
@@ -224,10 +222,10 @@ export default function CuadrantePage() {
   };
   const DAY_NAMES  = t('shifts.day');
   const ROLE_LABELS = {
-    CAJERO:    t('shifts.role.CAJERO'),
-    GERENCIA:  t('shifts.role.GERENCIA'),
-    SEGURIDAD: t('shifts.role.SEGURIDAD'),
-    LIMPIEZA:  t('shifts.role.LIMPIEZA'),
+    CAJERO:        t('shifts.role.CAJERO'),
+    GERENCIA:      t('shifts.role.GERENCIA'),
+    LIMPIEZA:      t('shifts.role.LIMPIEZA'),
+    MANTENIMIENTO: t('shifts.role.MANTENIMIENTO'),
   };
   const COL_LABELS = {
     employee: t('shifts.col.employee'),
@@ -241,7 +239,7 @@ export default function CuadrantePage() {
     }).catch(() => {});
   }, []);
 
-  const VALID_ROLES = new Set(['CAJERO', 'GERENCIA', 'SEGURIDAD', 'LIMPIEZA']);
+  const VALID_ROLES = new Set(['CAJERO', 'GERENCIA', 'LIMPIEZA', 'MANTENIMIENTO']);
 
   const activeEmployees = useMemo(
     () => allUsers.filter(e => VALID_ROLES.has(String(e.role).toUpperCase())),
@@ -288,7 +286,7 @@ export default function CuadrantePage() {
     if (mode === 'week') {
       setScheduleMap(prev => {
         const next = { ...prev, [currentKey]: generateWeekSchedule(activeEmployees, weekStart, genKey) };
-        try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
+        try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch { /* storage unavailable */ }
         return next;
       });
       toast(t('shifts.weekGenerated'), 'success');
@@ -305,7 +303,7 @@ export default function CuadrantePage() {
       }
       setScheduleMap(prev => {
         const next = { ...prev, ...updates };
-        try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
+        try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch { /* storage unavailable */ }
         return next;
       });
       toast(t('shifts.monthGenerated', { count: Object.keys(updates).length }), 'success');
@@ -324,7 +322,7 @@ export default function CuadrantePage() {
             : emp
         ),
       };
-      try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
+      try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch { /* storage unavailable */ }
       return next;
     });
     setEditCell(null);
@@ -389,10 +387,12 @@ export default function CuadrantePage() {
             <button className={styles.navBtn} onClick={nextPeriod}><ChevronRight size={14} /></button>
           </div>
 
-          <button className={styles.generateBtn} onClick={handleGenerate}>
-            <RefreshCw size={13} />
-            {mode === 'week' ? t('shifts.generate.week') : t('shifts.generate.month')}
-          </button>
+          {!readOnly && (
+            <button className={styles.generateBtn} onClick={handleGenerate}>
+              <RefreshCw size={13} />
+              {mode === 'week' ? t('shifts.generate.week') : t('shifts.generate.month')}
+            </button>
+          )}
 
           <button className={styles.exportBtn} title="Imprimir / Exportar PDF" onClick={() => window.print()}>
             <Download size={13} />
@@ -438,6 +438,7 @@ export default function CuadrantePage() {
           roleLabels={ROLE_LABELS}
           colLabels={COL_LABELS}
           lang={lang}
+          readOnly={readOnly}
         />
       )}
 

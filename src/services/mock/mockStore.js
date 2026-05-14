@@ -1,6 +1,6 @@
 import {
   MOVIES, ROOMS, SESSIONS, RESERVATIONS, INCIDENTS,
-  USERS, AUDIT_LOGS, INVENTORY, SALES_WEEK, OCCUPANCY_BY_ROOM,
+  USERS, EMPLOYEE_USERS, AUDIT_LOGS, INVENTORY, SALES_WEEK, OCCUPANCY_BY_ROOM,
 } from './mockData';
 
 function clone(x) { return JSON.parse(JSON.stringify(x)); }
@@ -76,8 +76,13 @@ export async function mockRequest(path, options = {}) {
   // AUTH
   if (match('/auth/login', path) && method === 'POST') {
     const u = _users.find(x => x.email === body.email && x.status !== 'inactive');
-    if (!u || body.password !== 'lumen2026') throw new Error('Credenciales inválidas');
+    if (!u || body.password !== 'lumen2026') { const e = new Error('Credenciales inválidas'); e.status = 401; throw e; }
     return { user: u, token: 'mock-' + u.id };
+  }
+  if (match('/auth/employee-login', path) && method === 'POST') {
+    const u = EMPLOYEE_USERS.find(x => x.email === body.email && x.status !== 'inactive');
+    if (!u || body.password !== 'lumen2026') { const e = new Error('Credenciales inválidas'); e.status = 401; throw e; }
+    return { user: u, token: 'mock-emp-' + u.id };
   }
   if (match('/auth/me', path)) {
     const id = (options.headers?.Authorization ?? '').replace('Bearer mock-', '');

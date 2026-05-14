@@ -27,10 +27,9 @@ async function request(path, options = {}) {
   });
 
   if (res.status === 401) {
-    if (!path.includes('/auth/login')) {
+    if (!path.startsWith('/auth/')) {
       localStorage.removeItem('lumen_token');
       localStorage.removeItem('lumen_user');
-      // Notificar a AuthContext via evento para que actualice el estado React
       window.dispatchEvent(new CustomEvent('auth:expired'));
       const err = new Error('Sesión expirada. Vuelve a iniciar sesión.');
       err.status = 401;

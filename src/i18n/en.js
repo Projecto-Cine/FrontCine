@@ -32,6 +32,8 @@ export default {
     hidePassword:     'Hide password',
     roleAdmin:        'Administrator',
     roleClient:       'Client',
+    modeEmployee:     'Employee access',
+    modeAdmin:        'Administration',
   },
 
   header: {
@@ -44,12 +46,16 @@ export default {
     shortcutsTitle:   'Keyboard shortcuts (?)',
     notifications:    'Notifications',
     roles: {
-      admin:       'Administrator',
-      supervisor:  'Supervisor',
-      operator:    'Operator',
-      ticket:      'Box Office',
-      maintenance: 'Maintenance',
-      readonly:    'Read-only',
+      admin:         'Administrator',
+      supervisor:    'Supervisor',
+      operator:      'Operator',
+      ticket:        'Box Office',
+      maintenance:   'Maintenance',
+      readonly:      'Read-only',
+      GERENCIA:      'Management',
+      CAJERO:        'Cashier',
+      LIMPIEZA:      'Cleaning',
+      MANTENIMIENTO: 'Maintenance',
     },
     routes: {
       '/':             'Dashboard',
@@ -626,10 +632,10 @@ export default {
     },
     day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     role: {
-      CAJERO:    'Cashier',
-      GERENCIA:  'Management',
-      SEGURIDAD: 'Security',
-      LIMPIEZA:  'Cleaning',
+      CAJERO:        'Cashier',
+      GERENCIA:      'Management',
+      LIMPIEZA:      'Cleaning',
+      MANTENIMIENTO: 'Maintenance',
     },
   },
 

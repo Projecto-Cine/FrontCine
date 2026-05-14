@@ -14,6 +14,7 @@ export const sessionsService = {
   remove:        (id)            => api.delete(`/screenings/${id}`),
   reserveSeat:   (id, seatId)    => api.post(`/screenings/${id}/seats/${seatId}/reserve`, {}),
   releaseSeat:   (id, seatId)    => api.post(`/screenings/${id}/seats/${seatId}/release`, {}),
+  syncSeats:     (id)            => api.post(`/screenings/${id}/sync-seats`, {}),
 };
 
 export const screeningsService = sessionsService;

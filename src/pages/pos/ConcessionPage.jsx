@@ -149,19 +149,15 @@ export default function CajaPage() {
     }
     setPaying(true);
     try {
-      await salesService.createConcessionSale({
-        items: cart.map(({ product, qty }) => ({
-          product_id: product.id,
-          name:       product.name,
-          qty,
-          unit_price: getPrice(product),
-        })),
-        total,
-        payment_method: payMethod.toUpperCase(),
-        cash_given:     payMethod === 'cash' ? parseFloat(cashGiven) : null,
-        change:         change ? parseFloat(change) : null,
-        cashier_id:     user?.id ?? null,
-      });
+      await Promise.all(
+        cart.map(({ product, qty }) =>
+          salesService.createMerchandiseSale({
+            userId:        user?.id,
+            merchandiseId: product.id,
+            quantity:      qty,
+          })
+        )
+      );
     } catch {
       // Si el endpoint aún no existe, continuamos igualmente con el recibo local
     } finally {

@@ -14,21 +14,32 @@ const ReservationsPage= lazy(() => import('./pages/reservations/ReservationsPage
 const IncidentsPage   = lazy(() => import('./pages/incidents/IncidentsPage'));
 const ReportsPage     = lazy(() => import('./pages/reports/ReportsPage'));
 const InventoryPage   = lazy(() => import('./pages/inventory/InventoryPage'));
-const UsersPage       = lazy(() => import('./pages/users/UsersPage'));
+
 const BoxOfficePage   = lazy(() => import('./pages/pos/BoxOfficePage'));
 const ConcessionPage  = lazy(() => import('./pages/pos/ConcessionPage'));
 const ShiftsPage      = lazy(() => import('./pages/shifts/ShiftsPage'));
 const ClientsPage     = lazy(() => import('./pages/clients/ClientsPage'));
 const EmployeesPage   = lazy(() => import('./pages/employees/EmployeesPage'));
 
-function ProtectedRoute({ children }) {
+const ROLE_DEFAULTS = { CAJERO: '/box-office', LIMPIEZA: '/shifts', MANTENIMIENTO: '/shifts' };
+
+function CatchAll() {
   const { user } = useAuth();
-  return user ? children : <Navigate to="/login" replace />;
+  return <Navigate to={ROLE_DEFAULTS[user?.role] ?? '/'} replace />;
+}
+
+function RoleRoute({ children, allowedRoles }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to={ROLE_DEFAULTS[user.role] ?? '/shifts'} replace />;
+  }
+  return children;
 }
 
 function PublicRoute({ children }) {
   const { user } = useAuth();
-  return user ? <Navigate to="/" replace /> : children;
+  return user ? <Navigate to={ROLE_DEFAULTS[user?.role] ?? '/'} replace /> : children;
 }
 
 function PageLoader() {
@@ -50,21 +61,69 @@ export default function App() {
         <AppProvider>
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-            <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+            <Route path="/" element={<RoleRoute><MainLayout /></RoleRoute>}>
               <Route index element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
-              <Route path="box-office"   element={<Suspense fallback={<PageLoader />}><BoxOfficePage /></Suspense>} />
-              <Route path="concession"   element={<Suspense fallback={<PageLoader />}><ConcessionPage /></Suspense>} />
-              <Route path="movies"       element={<Suspense fallback={<PageLoader />}><MoviesPage /></Suspense>} />
-              <Route path="rooms"        element={<Suspense fallback={<PageLoader />}><RoomsPage /></Suspense>} />
-              <Route path="schedules"    element={<Suspense fallback={<PageLoader />}><SchedulesPage /></Suspense>} />
-              <Route path="reservations" element={<Suspense fallback={<PageLoader />}><ReservationsPage /></Suspense>} />
-              <Route path="incidents"    element={<Suspense fallback={<PageLoader />}><IncidentsPage /></Suspense>} />
-              <Route path="reports"      element={<Suspense fallback={<PageLoader />}><ReportsPage /></Suspense>} />
-              <Route path="inventory"    element={<Suspense fallback={<PageLoader />}><InventoryPage /></Suspense>} />
-              <Route path="shifts"       element={<Suspense fallback={<PageLoader />}><ShiftsPage /></Suspense>} />
-              <Route path="employees"    element={<Suspense fallback={<PageLoader />}><EmployeesPage /></Suspense>} />
-              <Route path="clients"      element={<Suspense fallback={<PageLoader />}><ClientsPage /></Suspense>} />
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="box-office" element={
+                <RoleRoute allowedRoles={['GERENCIA','CAJERO']}>
+                  <Suspense fallback={<PageLoader />}><BoxOfficePage /></Suspense>
+                </RoleRoute>
+              } />
+              <Route path="concession" element={
+                <RoleRoute allowedRoles={['GERENCIA','CAJERO']}>
+                  <Suspense fallback={<PageLoader />}><ConcessionPage /></Suspense>
+                </RoleRoute>
+              } />
+              <Route path="reservations" element={
+                <RoleRoute allowedRoles={['GERENCIA','CAJERO']}>
+                  <Suspense fallback={<PageLoader />}><ReservationsPage /></Suspense>
+                </RoleRoute>
+              } />
+              <Route path="shifts" element={
+                <RoleRoute allowedRoles={['GERENCIA','CAJERO','LIMPIEZA','MANTENIMIENTO']}>
+                  <Suspense fallback={<PageLoader />}><ShiftsPage /></Suspense>
+                </RoleRoute>
+              } />
+              <Route path="movies" element={
+                <RoleRoute allowedRoles={['GERENCIA']}>
+                  <Suspense fallback={<PageLoader />}><MoviesPage /></Suspense>
+                </RoleRoute>
+              } />
+              <Route path="rooms" element={
+                <RoleRoute allowedRoles={['GERENCIA']}>
+                  <Suspense fallback={<PageLoader />}><RoomsPage /></Suspense>
+                </RoleRoute>
+              } />
+              <Route path="schedules" element={
+                <RoleRoute allowedRoles={['GERENCIA']}>
+                  <Suspense fallback={<PageLoader />}><SchedulesPage /></Suspense>
+                </RoleRoute>
+              } />
+              <Route path="incidents" element={
+                <RoleRoute allowedRoles={['GERENCIA']}>
+                  <Suspense fallback={<PageLoader />}><IncidentsPage /></Suspense>
+                </RoleRoute>
+              } />
+              <Route path="reports" element={
+                <RoleRoute allowedRoles={['GERENCIA']}>
+                  <Suspense fallback={<PageLoader />}><ReportsPage /></Suspense>
+                </RoleRoute>
+              } />
+              <Route path="inventory" element={
+                <RoleRoute allowedRoles={['GERENCIA']}>
+                  <Suspense fallback={<PageLoader />}><InventoryPage /></Suspense>
+                </RoleRoute>
+              } />
+              <Route path="employees" element={
+                <RoleRoute allowedRoles={['GERENCIA']}>
+                  <Suspense fallback={<PageLoader />}><EmployeesPage /></Suspense>
+                </RoleRoute>
+              } />
+              <Route path="clients" element={
+                <RoleRoute allowedRoles={['GERENCIA']}>
+                  <Suspense fallback={<PageLoader />}><ClientsPage /></Suspense>
+                </RoleRoute>
+              } />
+              <Route path="*" element={<CatchAll />} />
             </Route>
           </Routes>
         </AppProvider>

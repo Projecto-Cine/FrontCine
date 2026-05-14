@@ -21,11 +21,11 @@ const getEmoji = (p) => p.emoji ?? CAT_EMOJI[p.category] ?? '🔲';
 const getPrice = (p) => p.price ?? p.price_unit ?? 0;
 
 const EMPTY_PRODUCT = { name: '', category: 'FOOD', price: '', description: '', emoji: '', imageUrl: '', stock: '' };
-const MANAGE_ROLES  = ['admin', 'supervisor', 'operator'];
+
 
 const IMG_KEY = 'lumen_product_images';
 const getStoredImgs = () => { try { return JSON.parse(localStorage.getItem(IMG_KEY) ?? '{}'); } catch { return {}; } };
-const saveStoredImg = (id, url) => { try { const s = getStoredImgs(); if (url) s[String(id)] = url; else delete s[String(id)]; localStorage.setItem(IMG_KEY, JSON.stringify(s)); } catch {} };
+const saveStoredImg = (id, url) => { try { const s = getStoredImgs(); if (url) s[String(id)] = url; else delete s[String(id)]; localStorage.setItem(IMG_KEY, JSON.stringify(s)); } catch { /* storage unavailable */ } };
 const mergeImgs = (prods) => { const s = getStoredImgs(); return prods.map(p => ({ ...p, imageUrl: s[String(p.id)] || p.imageUrl || '' })); };
 
 
@@ -50,8 +50,7 @@ export default function CajaPage() {
   const [paying, setPaying]           = useState(false);
   const searchRef = useRef(null);
 
-  // Gestión de productos (solo admin/supervisor/operator)
-  const canManage    = MANAGE_ROLES.includes((user?.role ?? '').toLowerCase());
+  const canManage = ['GERENCIA', 'CAJERO'].includes(user?.role);
   const [showManager,     setShowManager]     = useState(false);
   const [productForm,     setProductForm]     = useState(null); // null = lista, objeto = formulario
   const [editingProduct,  setEditingProduct]  = useState(null);

@@ -605,6 +605,8 @@ export default {
       daysOff:      'Libres semana',
     },
     weekPrefix: 'Sem',
+    loading:        'Cargando turnos...',
+    loadError:      'Error al cargar los turnos.',
     weekGenerated:  'Cuadrante semanal generado',
     monthGenerated: 'Cuadrante mensual generado: {count} semanas',
     col: {

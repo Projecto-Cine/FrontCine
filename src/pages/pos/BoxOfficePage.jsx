@@ -94,8 +94,7 @@ export default function TaquillaPage() {
   const ticketTypes = TICKET_TYPES.map(tt => ({ ...tt, label: t(`box_office.type.${tt.id}`) }));
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    sessionsService.getAll({ date: today })
+    sessionsService.getUpcoming()
       .then(data => {
         const arr = Array.isArray(data) ? data : [];
         console.log('Sessions from API:', arr.length, 'items, first item:', arr[0]);
@@ -230,18 +229,27 @@ export default function TaquillaPage() {
       const seatIds = selectedSeats
         .map(seatStr => realSeats?.find(s => s.id === seatStr)?.seatId)
         .filter(Boolean);
+      console.log('💳 seatIds:', seatIds, 'selectedSeats:', selectedSeats, 'realSeats:', realSeats?.slice(0, 3));
 
-      const res = await salesService.createPurchase({
+      const body = {
         userId:      selectedClient?.id ?? user?.id,
         screeningId: selectedSession.id,
         tickets:     seatIds.map(seatId => ({
           seatId,
           ticketType: baseType.backendType ?? 'ADULT',
         })),
-      });
+      };
+      console.log('💳 purchase body:', body);
+
+      const res = await salesService.createPurchase(body);
+      console.log('💳 createPurchase response:', res);
 
       if (res?.id) {
-        await salesService.confirmPurchase(res.id);
+        console.log('💳 confirming purchase:', res.id);
+        const confirmRes = await salesService.confirmPurchase(res.id);
+        console.log('💳 confirmPurchase response:', confirmRes);
+      } else {
+        console.warn('💳 no purchase id in response, skipping confirm');
       }
 
       const time = selectedSession.startTime?.split('T')[1]?.substring(0, 5) ?? selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
@@ -272,8 +280,11 @@ export default function TaquillaPage() {
 
       setTickets(generated);
       setStep('done');
-    } catch {
-      toast('Error al procesar el cobro. Inténtalo de nuevo.', 'error');
+    } catch (err) {
+      console.error('💥 handlePay error:', err);
+      console.error('   message:', err?.message);
+      console.error('   status:', err?.status);
+      toast(err?.message || 'Error al procesar el cobro. Inténtalo de nuevo.', 'error');
     } finally {
       setPaying(false);
     }

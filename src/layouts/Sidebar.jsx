@@ -71,7 +71,7 @@ function NavItem({ item, collapsed, t }) {
 
 export default function Sidebar() {
   const { sidebarCollapsed } = useApp();
-  const { user, logout }     = useAuth();
+  const { user, logout, canAccess } = useAuth();
   const { t }                = useLanguage();
   const [collapsed, setCollapsed] = useState({});
 
@@ -98,7 +98,13 @@ export default function Sidebar() {
 
       <nav aria-label="Menú principal">
         {NAV.map((item, i) => {
-          if (item.to) return <NavItem key={item.to} item={item} collapsed={sidebarCollapsed} t={t} />;
+          if (item.to) {
+            if (!canAccess(item.to === '/' ? '/' : item.to)) return null;
+            return <NavItem key={item.to} item={item} collapsed={sidebarCollapsed} t={t} />;
+          }
+
+          const visibleItems = item.items.filter(sub => canAccess(sub.to));
+          if (visibleItems.length === 0) return null;
 
           const isCollapsedSection = !!collapsed[item.sectionKey];
           const sectionId = `nav-section-${i}`;
@@ -126,7 +132,7 @@ export default function Sidebar() {
                 role="group"
                 aria-labelledby={!sidebarCollapsed ? sectionId : undefined}
               >
-                {!isCollapsedSection && item.items.map(sub => (
+                {!isCollapsedSection && visibleItems.map(sub => (
                   <NavItem key={sub.to} item={sub} collapsed={sidebarCollapsed} t={t} />
                 ))}
               </div>

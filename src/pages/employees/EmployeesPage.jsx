@@ -11,9 +11,9 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { employeesService } from '../../services/employeesService';
 import styles from './EmployeesPage.module.css';
 
-const ROLES = ['CAJERO', 'GERENCIA', 'SEGURIDAD', 'LIMPIEZA'];
-const ROLE_COLOR = { CAJERO: 'accent', GERENCIA: 'red', SEGURIDAD: 'cyan', LIMPIEZA: 'green' };
-const ROLE_LABEL = { CAJERO: 'Cajero/a', GERENCIA: 'Gerencia', SEGURIDAD: 'Seguridad', LIMPIEZA: 'Limpieza' };
+const ROLES = ['CAJERO', 'GERENCIA', 'LIMPIEZA', 'MANTENIMIENTO'];
+const ROLE_COLOR = { CAJERO: 'accent', GERENCIA: 'red', LIMPIEZA: 'green', MANTENIMIENTO: 'cyan' };
+const ROLE_LABEL = { CAJERO: 'Cajero/a', GERENCIA: 'Gerencia', LIMPIEZA: 'Limpieza', MANTENIMIENTO: 'Mantenimiento' };
 
 const EMPTY = { name: '', email: '', role: 'CAJERO', phone: '', active: true };
 

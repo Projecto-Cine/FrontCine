@@ -118,6 +118,13 @@ export const USERS = [
   { id: 10, name: 'Pedro Auditor', username: 'auditor1', email: 'pauditor@lumen.es', role: 'readonly', status: 'active', last_login: '2024-04-25 11:30', created_at: '2024-02-15' },
 ];
 
+export const EMPLOYEE_USERS = [
+  { id: 101, name: 'María Gerencia',       email: 'gerencia@lumen.es',      role: 'GERENCIA',      status: 'active' },
+  { id: 102, name: 'Javier Cajero',        email: 'cajero@lumen.es',        role: 'CAJERO',        status: 'active' },
+  { id: 103, name: 'Carmen Limpieza',      email: 'limpieza@lumen.es',      role: 'LIMPIEZA',      status: 'active' },
+  { id: 104, name: 'Roberto Mantenimiento', email: 'mantenimiento@lumen.es', role: 'MANTENIMIENTO', status: 'active' },
+];
+
 export const AUDIT_LOGS = [
   { id: 1, user: 'admin1', action: 'LOGIN', resource: 'Sistema', detail: 'Inicio de sesión exitoso', ip: '192.168.1.10', timestamp: '2024-04-30 08:00:12', severity: 'info' },
   { id: 2, user: 'supervisor1', action: 'LOGIN', resource: 'Sistema', detail: 'Inicio de sesión exitoso', ip: '192.168.1.15', timestamp: '2024-04-30 07:45:33', severity: 'info' },

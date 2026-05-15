@@ -78,6 +78,7 @@ export default function TaquillaPage() {
   const [loadingSeats, setLoadingSeats]   = useState(false);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [ticketType, setTicketType]       = useState('adult');
+  const [seatTypes, setSeatTypes]         = useState({}); // seatId → ticketType id
   const [payMethod, setPayMethod]         = useState('card');
   const [cashGiven, setCashGiven]         = useState('');
   const [tickets, setTickets]             = useState([]);
@@ -407,78 +408,78 @@ export default function TaquillaPage() {
     return Object.values(groups);
   }, [filteredSessions]);
 
-  const selectSession = (session) => {
+  const selectSession = async (session) => {
     if (!session) return;
     setSelectedSession(session);
     setSelectedSeats([]);
+    setSeatTypes({});
     setRealSeats(null);
     setStep('seats');
     setLoadingSeats(true);
 
     if (!session.theater && !session.room && session.room_id) {
       roomsService.getById(session.room_id).then(room => {
-        if (room) {
-          setSelectedSession(prev => prev ? { ...prev, theater: room, room } : prev);
-        }
+        if (room) setSelectedSession(prev => prev ? { ...prev, theater: room, room } : prev);
       }).catch(() => {});
     }
 
     const theaterId = session.theater?.id ?? session.room?.id ?? null;
     activeSessionRef.current = session.id;
 
-    Promise.all([
-      seatsService.getByScreening(session.id),
-      theaterId ? seatsService.getByTheater(theaterId) : Promise.resolve([]),
-    ])
-      .then(([screeningData, theaterData]) => {
-        if (activeSessionRef.current !== session.id) return;
+    try {
+      let [screeningData, theaterData] = await Promise.all([
+        seatsService.getByScreening(session.id),
+        theaterId ? seatsService.getByTheater(theaterId) : Promise.resolve([]),
+      ]);
 
-        const screeningSeats = Array.isArray(screeningData) ? screeningData : [];
-        const theaterSeats   = Array.isArray(theaterData)   ? theaterData   : [];
+      if (activeSessionRef.current !== session.id) return;
 
-        // Index screening seats by row+number to look up occupancy and screeningSeatId
-        const screeningByPos = new Map();
-        for (const ss of screeningSeats) {
-          const seat = ss.seat ?? ss;
-          if (seat?.row && seat.number != null) {
-            screeningByPos.set(`${seat.row}-${seat.number}`, ss);
-          }
+      let screeningSeats = Array.isArray(screeningData) ? screeningData : [];
+      const theaterSeats = Array.isArray(theaterData)   ? theaterData   : [];
+
+      // Auto-sync: if this screening has no ScreeningSeats yet, create them
+      if (screeningSeats.length === 0 && theaterSeats.length > 0) {
+        try {
+          const synced = await sessionsService.syncSeats(session.id);
+          if (Array.isArray(synced) && synced.length > 0) screeningSeats = synced;
+        } catch {}
+      }
+
+      const screeningByPos = new Map();
+      for (const ss of screeningSeats) {
+        const seat = ss.seat ?? ss;
+        if (seat?.row && seat.number != null) {
+          screeningByPos.set(`${seat.row}-${seat.number}`, ss);
         }
+      }
 
-        // Theater seats give the full layout; fall back to screening seats if unavailable
-        const layout = theaterSeats.length > 0
-          ? theaterSeats
-          : screeningSeats.map(ss => ss.seat ?? ss);
+      const layout = theaterSeats.length > 0
+        ? theaterSeats
+        : screeningSeats.map(ss => ss.seat ?? ss);
 
-        const seen       = new Set();
-        const normalized = [];
+      const seen       = new Set();
+      const normalized = [];
+      for (const seat of layout) {
+        if (!seat?.row || seat.number == null) continue;
+        const displayId = `${seat.row}${String(seat.number).padStart(2, '0')}`;
+        if (seen.has(displayId)) continue;
+        seen.add(displayId);
+        const ss = screeningByPos.get(`${seat.row}-${seat.number}`);
+        normalized.push({
+          id:              displayId,
+          row:             seat.row,
+          number:          seat.number,
+          status:          ss ? (ss.status === 'available' ? 'available' : 'occupied') : 'unavailable',
+          screeningSeatId: ss?.id ?? null,
+        });
+      }
 
-        for (const seat of layout) {
-          if (!seat?.row || seat.number == null) continue;
-
-          const displayId = `${seat.row}${String(seat.number).padStart(2, '0')}`;
-          if (seen.has(displayId)) continue;
-          seen.add(displayId);
-
-          const ss = screeningByPos.get(`${seat.row}-${seat.number}`);
-          normalized.push({
-            id:              displayId,
-            row:             seat.row,
-            number:          seat.number,
-            // No ScreeningSeat yet → unavailable (seat exists in theater but not synced to this screening)
-            status:          ss ? (ss.status === 'available' ? 'available' : 'occupied') : 'unavailable',
-            screeningSeatId: ss?.id ?? null,
-          });
-        }
-
-        setRealSeats(normalized.length ? normalized : null);
-      })
-      .catch(() => {
-        if (activeSessionRef.current === session.id) setRealSeats(null);
-      })
-      .finally(() => {
-        if (activeSessionRef.current === session.id) setLoadingSeats(false);
-      });
+      setRealSeats(normalized.length ? normalized : null);
+    } catch {
+      if (activeSessionRef.current === session.id) setRealSeats(null);
+    } finally {
+      if (activeSessionRef.current === session.id) setLoadingSeats(false);
+    }
   };
 
   const movie   = selectedSession?.movie ?? selectedSession?.film ?? null;
@@ -509,19 +510,49 @@ export default function TaquillaPage() {
   const fidelityEligible = !!(selectedClient?.fidelityDiscountEligible && ticketType === 'adult');
   const discountedBase   = fidelityEligible ? +(basePrice * 0.9).toFixed(2) : basePrice;
   const totalPerTicket   = discountedBase + (extra?.price ?? 0);
-  const total            = totalPerTicket * selectedSeats.length;
+  // Per-seat total: each seat can have its own type
+  const total = selectedSeats.reduce((sum, seatId) => {
+    const typeId = seatTypes[seatId] || ticketType;
+    const type   = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
+    const isFidelity = !!(selectedClient?.fidelityDiscountEligible && typeId === 'adult');
+    const price  = isFidelity ? +(type.price * 0.9).toFixed(2) : type.price;
+    return sum + price + (extra?.price ?? 0);
+  }, 0);
   const change           = cashGiven && payMethod === 'cash' ? (parseFloat(cashGiven) - total).toFixed(2) : null;
+
+  const handleSeatToggle = useCallback((newSeats) => {
+    setSeatTypes(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(s => { if (!newSeats.includes(s)) delete next[s]; });
+      newSeats.forEach(s => { if (!(s in next)) next[s] = ticketType; });
+      return next;
+    });
+    setSelectedSeats(newSeats);
+  }, [ticketType]);
 
   const handlePay = useCallback(async () => {
     if (!selectedSeats.length) { toast('Selecciona al menos una butaca.', 'error'); return; }
     setPaying(true);
     try {
-      const screeningSeatIds = selectedSeats
-        .map(seatStr => realSeats?.find(s => s.id === seatStr)?.screeningSeatId)
-        .filter(Boolean);
+      const seatData = selectedSeats
+        .map(seatStr => ({
+          seatStr,
+          screeningSeatId: realSeats?.find(s => s.id === seatStr)?.screeningSeatId,
+          typeId: seatTypes[seatStr] || ticketType,
+        }))
+        .filter(d => d.screeningSeatId);
 
-      if (!screeningSeatIds.length) {
+      if (!seatData.length) {
         toast('Error al identificar las butacas. Vuelve a seleccionarlas.', 'error');
+        setPaying(false);
+        return;
+      }
+
+      // Backend rule: CHILD requires at least 1 ADULT in same purchase
+      const hasChild = seatData.some(d => d.typeId === 'child');
+      const hasAdult = seatData.some(d => d.typeId === 'adult');
+      if (hasChild && !hasAdult) {
+        toast('Una entrada infantil requiere al menos una entrada adulto en la misma compra.', 'error');
         setPaying(false);
         return;
       }
@@ -530,10 +561,10 @@ export default function TaquillaPage() {
         userId:        selectedClient?.id ?? user?.id,
         screeningId:   selectedSession.id,
         paymentMethod: PAY_METHOD_MAP[payMethod],
-        tickets:       screeningSeatIds.map(screeningSeatId => ({
-          screeningSeatId,
-          ticketType: baseType.backendType ?? 'ADULT',
-        })),
+        tickets:       seatData.map(d => {
+          const type = ticketTypes.find(t => t.id === d.typeId) || ticketTypes[0];
+          return { screeningSeatId: d.screeningSeatId, ticketType: type.backendType ?? 'ADULT' };
+        }),
       });
 
       if (res?.id) {
@@ -580,13 +611,14 @@ export default function TaquillaPage() {
     } finally {
       setPaying(false);
     }
-  }, [selectedSeats, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, user, selectedClient, movie, theater, toast]);
+  }, [selectedSeats, seatTypes, ticketType, ticketTypes, realSeats, selectedSession, extra, total, payMethod, user, selectedClient, movie, theater, toast]);
 
   const reset = useCallback(() => {
     setStep('sessions');
     setSelectedSession(null);
     setRealSeats(null);
     setSelectedSeats([]);
+    setSeatTypes({});
     setPayMethod('card');
     setCashGiven('');
     setTickets([]);
@@ -774,7 +806,7 @@ export default function TaquillaPage() {
                   room={seatMapRoom}
                   seats={realSeats}
                   selectedSeats={selectedSeats}
-                  onToggle={setSelectedSeats}
+                  onToggle={handleSeatToggle}
                   maxSelect={20}
                 />
               )}
@@ -892,7 +924,7 @@ export default function TaquillaPage() {
           <Ticket size={14} />
           <span>{t('box_office.summary')}</span>
           {selectedSeats.length > 0 && (
-            <button className={styles.clearCart} aria-label={t('box_office.clearSelection')} onClick={() => setSelectedSeats([])}>
+            <button className={styles.clearCart} aria-label={t('box_office.clearSelection')} onClick={() => { setSelectedSeats([]); setSeatTypes({}); }}>
               <X size={12} aria-hidden="true" />
             </button>
           )}
@@ -936,17 +968,36 @@ export default function TaquillaPage() {
                 </div>
               )}
               <div className={styles.cartSeatsList}>
-                {selectedSeats.map(s => (
-                  <div key={s} className={styles.cartSeat}>
-                    <span className={styles.cartSeatId}>{s}</span>
-                    <span className={styles.cartSeatPrice}>€{totalPerTicket.toFixed(2)}</span>
-                    <button className={styles.cartSeatRemove}
-                      aria-label={`${t('box_office.removeSeat')} ${s}`}
-                      onClick={() => setSelectedSeats(prev => prev.filter(x => x !== s))}>
-                      <X size={10} aria-hidden="true" />
-                    </button>
-                  </div>
-                ))}
+                {selectedSeats.map(s => {
+                  const typeId   = seatTypes[s] || ticketType;
+                  const type     = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
+                  const isFid    = !!(selectedClient?.fidelityDiscountEligible && typeId === 'adult');
+                  const seatPrice = (isFid ? +(type.price * 0.9).toFixed(2) : type.price) + (extra?.price ?? 0);
+                  return (
+                    <div key={s} className={styles.cartSeat}>
+                      <span className={styles.cartSeatId}>{s}</span>
+                      <select
+                        className={styles.cartSeatTypeSelect}
+                        value={typeId}
+                        onChange={e => setSeatTypes(prev => ({ ...prev, [s]: e.target.value }))}
+                        aria-label={`Tipo de entrada butaca ${s}`}
+                      >
+                        {ticketTypes.filter(tt => !tt.extra).map(tt => (
+                          <option key={tt.id} value={tt.id}>{tt.label}</option>
+                        ))}
+                      </select>
+                      <span className={styles.cartSeatPrice}>€{seatPrice.toFixed(2)}</span>
+                      <button className={styles.cartSeatRemove}
+                        aria-label={`${t('box_office.removeSeat')} ${s}`}
+                        onClick={() => {
+                          setSelectedSeats(prev => prev.filter(x => x !== s));
+                          setSeatTypes(prev => { const n = { ...prev }; delete n[s]; return n; });
+                        }}>
+                        <X size={10} aria-hidden="true" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}

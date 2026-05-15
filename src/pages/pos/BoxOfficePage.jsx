@@ -601,13 +601,16 @@ export default function TaquillaPage() {
       setStep('done');
     } catch (err) {
       console.error('[purchase] full error:', err?.message);
-      const is409 = err?.status === 409 || err?.message?.includes('409');
-      toast(
-        is409
-          ? 'Una o más butacas ya han sido reservadas. Actualiza el mapa y vuelve a intentarlo.'
-          : 'Error al procesar el cobro. Inténtalo de nuevo.',
-        'error'
-      );
+      // Extract backend message from "API 4xx /purchases: {\"message\":\"...\"}"
+      let backendMsg = '';
+      try { backendMsg = JSON.parse(err?.message?.replace(/^API \d+ [^:]+: /, '') ?? '{}').message ?? ''; } catch {}
+      const status = err?.status ?? 0;
+      const msg =
+        status === 409 ? 'Una o más butacas ya han sido reservadas. Actualiza el mapa e inténtalo de nuevo.' :
+        status === 422 ? (backendMsg || 'Compra no válida. Revisa los tipos de entrada.') :
+        status === 400 ? (backendMsg || 'Solicitud incorrecta. Revisa los datos.') :
+        backendMsg || 'Error al procesar el cobro. Inténtalo de nuevo.';
+      toast(msg, 'error');
     } finally {
       setPaying(false);
     }

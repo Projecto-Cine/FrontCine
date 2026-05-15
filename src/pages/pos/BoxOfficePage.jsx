@@ -424,8 +424,9 @@ export default function TaquillaPage() {
 
     activeSessionRef.current = session.id;
 
-    // GET /api/screenings/{id}/seats returns flat ScreeningSeat objects:
-    // { id (screeningSeatId), seatId, row, number, seatType, occupied, reservedUntil }
+    // GET /api/screenings/{id}/seats — supports both response formats:
+    // New flat:   { id, seatId, row, number, seatType, occupied, reservedUntil }
+    // Old nested: { id, seat: { id, row, number }, status }
     seatsService.getByScreening(session.id)
       .then(data => {
         if (activeSessionRef.current !== session.id) return;
@@ -434,15 +435,22 @@ export default function TaquillaPage() {
         const normalized = [];
         const now = Date.now();
         for (const ss of list) {
-          if (!ss?.row || ss.number == null || ss.id == null) continue;
-          const displayId = `${ss.row}${String(ss.number).padStart(2, '0')}`;
+          if (ss?.id == null) continue;
+          const row    = ss.row    ?? ss.seat?.row;
+          const number = ss.number ?? ss.seat?.number;
+          if (!row || number == null) continue;
+          const displayId = `${row}${String(number).padStart(2, '0')}`;
           if (seen.has(displayId)) continue;
           seen.add(displayId);
-          const isOccupied = ss.occupied || (ss.reservedUntil && new Date(ss.reservedUntil).getTime() > now);
+          // New format uses occupied boolean; old format uses status string
+          const isOccupied =
+            ss.occupied === true ||
+            (ss.reservedUntil && new Date(ss.reservedUntil).getTime() > now) ||
+            (ss.status != null && ss.status !== 'available');
           normalized.push({
             id:              displayId,
-            row:             ss.row,
-            number:          ss.number,
+            row,
+            number,
             status:          isOccupied ? 'occupied' : 'available',
             screeningSeatId: ss.id,
           });
@@ -566,13 +574,14 @@ export default function TaquillaPage() {
       setStep('done');
     } catch (err) {
       const status = err?.status ?? (err?.message?.match(/API (\d+)/) ? Number(err.message.match(/API (\d+)/)[1]) : null);
+      const body = err?.message ?? '';
       const msg =
         status === 400 ? 'Introduce un email para recibir tu entrada.' :
-        status === 404 && err?.message?.includes('ScreeningSeat') ? 'Butaca no encontrada, recarga el mapa.' :
-        status === 404 ? 'Socio no encontrado.' :
-        status === 409 && err?.message?.includes('SeatAlreadyTaken') ? 'Esa butaca ya no está disponible.' :
-        status === 409 ? 'Una o más butacas ya han sido reservadas. Actualiza el mapa.' :
-        status === 422 && err?.message?.includes('MinorWithoutAdult') ? 'Un menor debe ir acompañado de un adulto.' :
+        status === 404 && (body.toLowerCase().includes('seat') || body.toLowerCase().includes('butaca'))
+          ? 'Butaca no encontrada, recarga el mapa.' :
+        status === 404 ? 'Recurso no encontrado. Recarga la página e inténtalo de nuevo.' :
+        status === 409 ? 'Esa butaca ya no está disponible.' :
+        status === 422 && body.toLowerCase().includes('minor') ? 'Un menor debe ir acompañado de un adulto.' :
         status === 422 ? 'Esta compra ya fue procesada.' :
         'Error al procesar el cobro. Inténtalo de nuevo.';
       toast(msg, 'error');

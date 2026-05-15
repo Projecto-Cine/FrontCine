@@ -118,7 +118,29 @@ export default function TaquillaPage() {
     if (!data?.purchaseId) { toast('Introduce un número de ticket válido (ej: 30-56).', 'error'); return; }
     setRefundProcessing(true);
     try {
+      // Fetch purchase details first to get the amount
+      let amount = null;
+      let purchaseTickets = [];
+      try {
+        const purchase = await salesService.getById(data.purchaseId);
+        purchaseTickets = purchase?.tickets ?? [];
+        if (typeof purchase?.totalAmount === 'number') {
+          amount = purchase.totalAmount;
+        } else if (purchaseTickets.length > 0) {
+          const TYPE_PRICE = { ADULT: 13.50, SENIOR: 9.00, STUDENT: 6.00, CHILD: 6.00 };
+          amount = purchaseTickets.reduce((s, tk) => s + (TYPE_PRICE[tk.ticketType] ?? 13.50), 0);
+        }
+      } catch {}
+
       await salesService.cancelPurchase(data.purchaseId);
+
+      const seats = purchaseTickets.length > 0
+        ? purchaseTickets.map(tk => `${tk.row}${String(tk.number).padStart(2,'0')}`).join(', ')
+        : (data.seat || '—');
+      const types = purchaseTickets.length > 0
+        ? [...new Set(purchaseTickets.map(tk => tk.ticketType))].join(', ')
+        : (data.ticketType || '—');
+
       setRefundReceipt({
         refundId:   `RF-${data.purchaseId}-${Date.now().toString(36).toUpperCase()}`,
         refundedAt: new Date().toISOString(),
@@ -126,9 +148,11 @@ export default function TaquillaPage() {
         theater:    data.theater  || '—',
         date:       data.date     || '—',
         time:       data.time     || '—',
-        seat:       data.seat     || '—',
-        ticketType: data.ticketType || '—',
+        seat:       seats,
+        ticketType: types,
         purchaseId: data.purchaseId,
+        amount,
+        numTickets: purchaseTickets.length || 1,
       });
       setShowRefund(false);
       setRefundInput('');
@@ -657,6 +681,10 @@ export default function TaquillaPage() {
     return <TicketSuccess tickets={tickets} total={total} payMethod={payMethod} onReset={reset} t={t} />;
   }
 
+  if (refundReceipt) {
+    return <RefundReceipt receipt={refundReceipt} onClose={() => setRefundReceipt(null)} t={t} />;
+  }
+
   return (
     <div className={styles.shell}>
       {/* ── LEFT ─────────────────────────────────── */}
@@ -1067,10 +1095,6 @@ export default function TaquillaPage() {
         </div>
       )}
 
-      {/* ── Recibo de devolución ─────────────────── */}
-      {refundReceipt && (
-        <RefundReceipt receipt={refundReceipt} onClose={() => setRefundReceipt(null)} t={t} />
-      )}
 
       {/* ── Modal nueva sesión ────────────────────── */}
       {showNewSession && (
@@ -1276,38 +1300,45 @@ export default function TaquillaPage() {
 }
 
 /* ── Refund receipt ──────────────────────────────── */
+const TYPE_LABEL = { ADULT: 'Adulto', SENIOR: 'Reducida', STUDENT: 'Estudiante', CHILD: 'Infantil' };
+
 function RefundReceipt({ receipt, onClose, t }) {
   useEffect(() => {
     const id = setTimeout(() => window.print(), 200);
     return () => clearTimeout(id);
   }, []);
 
+  const typeLabel = receipt.ticketType
+    ? receipt.ticketType.split(', ').map(tp => TYPE_LABEL[tp] || tp).join(', ')
+    : '—';
+  const amountStr = receipt.amount != null ? `€${Number(receipt.amount).toFixed(2)}` : '—';
+
   return (
     <div className={styles.successShell}>
       <div className={styles.ticketCard} style={{ borderColor: 'rgba(220,40,74,.3)' }}>
-        <div className={styles.ticketCardHeader} style={{ background: 'rgba(220,40,74,.12)', color: 'var(--red,#e0294a)' }}>
+        <div className={styles.ticketCardHeader} style={{ background: 'rgba(220,40,74,.15)', color: '#c0293a' }}>
           <RotateCcw size={15} className={styles.ticketCardLogo} />
           <span>LUMEN CINEMA — REEMBOLSO</span>
         </div>
         <div className={styles.ticketCardDivider} />
         <h3 className={styles.ticketCardMovie}>{receipt.movie}</h3>
-        <p className={styles.ticketCardFormat}>{receipt.ticketType}</p>
+        <p className={styles.ticketCardFormat}>{typeLabel} · {receipt.numTickets ?? 1} entrada{(receipt.numTickets ?? 1) !== 1 ? 's' : ''}</p>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketCardInfo}>
           <div><span className={styles.tcLabel}>FECHA</span><span className={styles.tcVal}>{receipt.date}</span></div>
-          <div><span className={styles.tcLabel}>HORA</span><span className={styles.tcVal}>{receipt.time} h</span></div>
+          <div><span className={styles.tcLabel}>HORA</span><span className={styles.tcVal}>{receipt.time}</span></div>
           <div><span className={styles.tcLabel}>SALA</span><span className={styles.tcVal}>{receipt.theater}</span></div>
-          <div><span className={styles.tcLabel}>BUTACA</span><span className={styles.tcVal}>{receipt.seat}</span></div>
+          <div><span className={styles.tcLabel}>BUTACA(S)</span><span className={styles.tcVal}>{receipt.seat}</span></div>
         </div>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketCardTotal}>
-          <span className={styles.tcLabel}>IMPORTE DEVUELTO</span>
-          <span className={styles.tcTotalVal} style={{ color: 'var(--red,#e0294a)' }}>REEMBOLSO</span>
+          <span className={styles.tcLabel}>IMPORTE REEMBOLSADO</span>
+          <span className={styles.tcTotalVal} style={{ color: '#c0293a' }}>{amountStr}</span>
         </div>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketQRWrap}>
           <div role="img" aria-label="QR de comprobante de reembolso">
-            <QRCodeSVG value={`REFUND:${receipt.refundId}`} size={110} bgColor="transparent" fgColor="var(--text-1)" level="M" />
+            <QRCodeSVG value={`REFUND:${receipt.refundId}`} size={110} bgColor="transparent" fgColor="#111111" level="M" />
           </div>
           <div className={styles.ticketQRInfo}>
             <span className={styles.ticketQRLabel}>Comprobante reembolso</span>
@@ -1317,7 +1348,7 @@ function RefundReceipt({ receipt, onClose, t }) {
           </div>
         </div>
         <div className={styles.ticketCardDivider} />
-        <p className={styles.ticketFooter}>Conserve este comprobante. El importe se abonará en 1-3 días hábiles si fue con tarjeta.</p>
+        <p className={styles.ticketFooter}>Conserve este comprobante. El importe se abonará en 1-3 días hábiles si el pago fue con tarjeta.</p>
       </div>
 
       <div className={styles.ticketActions}>

@@ -13,7 +13,6 @@ import { clientsService }     from '../../services/clientsService';
 import { roomsService }       from '../../services/roomsService';
 import { moviesService }      from '../../services/moviesService';
 import { useApp }  from '../../contexts/AppContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import Badge      from '../../components/ui/Badge';
 import SeatMap    from '../../components/shared/SeatMap';
@@ -67,7 +66,6 @@ function generateTicketId() {
 
 export default function TaquillaPage() {
   const { toast } = useApp();
-  const { user }  = useAuth();
   const { t } = useLanguage();
 
   const [step, setStep]                   = useState('sessions');
@@ -89,6 +87,7 @@ export default function TaquillaPage() {
   const [clientResults, setClientResults] = useState([]);
   const [clientSearching, setClientSearching] = useState(false);
   const [selectedClient, setSelectedClient]   = useState(null);
+  const [guestEmail, setGuestEmail]           = useState('');
   const clientDebounce   = useRef(null);
   const searchRef        = useRef(null);
   const activeSessionRef = useRef(null); // race-condition guard
@@ -423,61 +422,32 @@ export default function TaquillaPage() {
       }).catch(() => {});
     }
 
-    const theaterId = session.theater?.id ?? session.room?.id ?? null;
     activeSessionRef.current = session.id;
 
-    Promise.all([
-      seatsService.getByScreening(session.id),
-      theaterId ? seatsService.getByTheater(theaterId) : Promise.resolve([]),
-    ])
-      .then(([screeningData, theaterData]) => {
+    // GET /api/screenings/{id}/seats returns flat ScreeningSeat objects:
+    // { id (screeningSeatId), seatId, row, number, seatType, occupied, reservedUntil }
+    seatsService.getByScreening(session.id)
+      .then(data => {
         if (activeSessionRef.current !== session.id) return;
-
-        const screeningSeats = Array.isArray(screeningData) ? screeningData : [];
-        const theaterSeats   = Array.isArray(theaterData)   ? theaterData   : [];
-
-        // Index screening seats by row+number to look up occupancy and screeningSeatId
-        const screeningByPos = new Map();
-        for (const ss of screeningSeats) {
-          const seat = ss.seat ?? ss;
-          if (seat?.row && seat.number != null) {
-            screeningByPos.set(`${seat.row}-${seat.number}`, ss);
-          }
-        }
-
-        // Theater seats give the full layout; fall back to screening seats if unavailable
-        const layout = theaterSeats.length > 0
-          ? theaterSeats
-          : screeningSeats.map(ss => ss.seat ?? ss);
-
-        const seen       = new Set();
+        const list = Array.isArray(data) ? data : [];
+        const seen = new Set();
         const normalized = [];
-
-        for (const seat of layout) {
-          if (!seat?.row || seat.number == null) continue;
-
-          const displayId = `${seat.row}${String(seat.number).padStart(2, '0')}`;
+        const now = Date.now();
+        for (const ss of list) {
+          if (!ss?.row || ss.number == null || ss.id == null) continue;
+          const displayId = `${ss.row}${String(ss.number).padStart(2, '0')}`;
           if (seen.has(displayId)) continue;
           seen.add(displayId);
-
-          const ss = screeningByPos.get(`${seat.row}-${seat.number}`);
+          const isOccupied = ss.occupied || (ss.reservedUntil && new Date(ss.reservedUntil).getTime() > now);
           normalized.push({
             id:              displayId,
-            row:             seat.row,
-            number:          seat.number,
-            // No ScreeningSeat yet → unavailable (seat exists in theater but not synced to this screening)
-            status:          ss ? (ss.status === 'available' ? 'available' : 'occupied') : 'unavailable',
-            screeningSeatId: ss?.id ?? null,
+            row:             ss.row,
+            number:          ss.number,
+            status:          isOccupied ? 'occupied' : 'available',
+            screeningSeatId: ss.id,
           });
         }
-
-        // If backend returned far fewer seats than the theater's capacity,
-        // fall back to the generated map so the user sees the full layout.
-        const expectedCapacity = session.theater?.capacity ?? session.room?.capacity ?? null;
-        const enoughSeats =
-          normalized.length > 0 &&
-          (expectedCapacity === null || normalized.length >= expectedCapacity * 0.3);
-        setRealSeats(enoughSeats ? normalized : null);
+        setRealSeats(normalized.length ? normalized : null);
       })
       .catch(() => {
         if (activeSessionRef.current === session.id) setRealSeats(null);
@@ -525,6 +495,15 @@ export default function TaquillaPage() {
 
   const handlePay = useCallback(async () => {
     if (!selectedSeats.length) { toast('Selecciona al menos una butaca.', 'error'); return; }
+
+    // Para compradores anónimos el email es obligatorio
+    if (!selectedClient) {
+      const emailTrimmed = guestEmail.trim();
+      if (!emailTrimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
+        toast('Introduce un email válido para recibir la entrada.', 'error'); return;
+      }
+    }
+
     setPaying(true);
     try {
       const screeningSeatIds = selectedSeats
@@ -532,13 +511,14 @@ export default function TaquillaPage() {
         .filter(Boolean);
 
       if (!screeningSeatIds.length) {
-        toast('Error al identificar las butacas. Vuelve a seleccionarlas.', 'error');
+        toast('Butaca no encontrada, recarga el mapa.', 'error');
         setPaying(false);
         return;
       }
 
       const res = await salesService.createPurchase({
-        userId:        selectedClient?.id ?? user?.id,
+        userId:        selectedClient?.id ?? null,
+        guestEmail:    selectedClient ? null : guestEmail.trim(),
         screeningId:   selectedSession.id,
         paymentMethod: PAY_METHOD_MAP[payMethod],
         tickets:       screeningSeatIds.map(screeningSeatId => ({
@@ -548,7 +528,12 @@ export default function TaquillaPage() {
       });
 
       if (res?.id) {
-        await salesService.confirmPurchase(res.id);
+        try {
+          await salesService.confirmPurchase(res.id);
+        } catch (confirmErr) {
+          // Non-fatal: purchase exists; backend may auto-confirm or email still goes out
+          console.warn('[purchase] confirmPurchase non-fatal:', confirmErr?.message);
+        }
       }
 
       const time = selectedSession.startTime?.split('T')[1]?.substring(0, 5) ?? selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
@@ -580,18 +565,21 @@ export default function TaquillaPage() {
       setTickets(generated);
       setStep('done');
     } catch (err) {
-      console.error('[purchase] full error:', err?.message);
-      const is409 = err?.status === 409 || err?.message?.includes('409');
-      toast(
-        is409
-          ? 'Una o más butacas ya han sido reservadas. Actualiza el mapa y vuelve a intentarlo.'
-          : 'Error al procesar el cobro. Inténtalo de nuevo.',
-        'error'
-      );
+      const status = err?.status ?? (err?.message?.match(/API (\d+)/) ? Number(err.message.match(/API (\d+)/)[1]) : null);
+      const msg =
+        status === 400 ? 'Introduce un email para recibir tu entrada.' :
+        status === 404 && err?.message?.includes('ScreeningSeat') ? 'Butaca no encontrada, recarga el mapa.' :
+        status === 404 ? 'Socio no encontrado.' :
+        status === 409 && err?.message?.includes('SeatAlreadyTaken') ? 'Esa butaca ya no está disponible.' :
+        status === 409 ? 'Una o más butacas ya han sido reservadas. Actualiza el mapa.' :
+        status === 422 && err?.message?.includes('MinorWithoutAdult') ? 'Un menor debe ir acompañado de un adulto.' :
+        status === 422 ? 'Esta compra ya fue procesada.' :
+        'Error al procesar el cobro. Inténtalo de nuevo.';
+      toast(msg, 'error');
     } finally {
       setPaying(false);
     }
-  }, [selectedSeats, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, user, selectedClient, movie, theater, toast]);
+  }, [selectedSeats, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, selectedClient, guestEmail, movie, theater, toast]);
 
   const reset = useCallback(() => {
     setStep('sessions');
@@ -605,6 +593,7 @@ export default function TaquillaPage() {
     setClientQuery('');
     setClientResults([]);
     setSelectedClient(null);
+    setGuestEmail('');
   }, []);
 
   // Atajos POS: F2=buscar sesión, F4=cobrar, F5=nueva venta, Esc=paso anterior
@@ -662,7 +651,7 @@ export default function TaquillaPage() {
                 <Plus size={14} />
                 <span>Nueva sesión</span>
               </button>
-              <button className={styles.refundHeaderBtn} onClick={() => { setShowRefund(true); setRefundQR(''); setRefundParsed(null); setRefundMode('qr'); }} title="Devolución de entrada">
+              <button className={styles.refundHeaderBtn} onClick={() => { setShowRefund(true); setRefundInput(''); }} title="Devolución de entrada">
                 <RotateCcw size={14} />
                 <span>Devolución</span>
               </button>
@@ -851,6 +840,16 @@ export default function TaquillaPage() {
                       ))}
                     </div>
                   )}
+                  <input
+                    type="email"
+                    className={styles.guestEmailInput}
+                    placeholder="Email del comprador (obligatorio) *"
+                    value={guestEmail}
+                    onChange={e => setGuestEmail(e.target.value)}
+                    aria-label="Email del comprador anónimo"
+                    aria-required="true"
+                  />
+                  <p className={styles.guestEmailHint}>El ticket-factura se enviará a este email al confirmar el cobro.</p>
                 </>
               )}
             </div>

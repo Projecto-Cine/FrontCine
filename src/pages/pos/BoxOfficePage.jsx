@@ -424,37 +424,39 @@ export default function TaquillaPage() {
 
     activeSessionRef.current = session.id;
 
-    // GET /api/screenings/{id}/seats — supports both response formats:
-    // New flat:   { id, seatId, row, number, seatType, occupied, reservedUntil }
-    // Old nested: { id, seat: { id, row, number }, status }
-    seatsService.getByScreening(session.id)
+    const normalizeSeats = (list) => {
+      const now  = Date.now();
+      const seen = new Set();
+      const out  = [];
+      for (const ss of (Array.isArray(list) ? list : [])) {
+        if (ss?.id == null) continue;
+        // Both flat { row, number } and nested { seat: { row, number } }
+        const row    = ss.row    ?? ss.seat?.row;
+        const number = ss.number ?? ss.seat?.number;
+        if (!row || number == null) continue;
+        const displayId = `${row}${String(number).padStart(2, '0')}`;
+        if (seen.has(displayId)) continue;
+        seen.add(displayId);
+        const isOccupied =
+          ss.occupied === true ||
+          (ss.reservedUntil && new Date(ss.reservedUntil).getTime() > now) ||
+          (ss.status != null && ss.status !== 'available');
+        out.push({
+          id: displayId, row, number,
+          status:          isOccupied ? 'occupied' : 'available',
+          screeningSeatId: ss.id,
+        });
+      }
+      return out;
+    };
+
+    // syncSeats creates ScreeningSeat records if missing and returns the full list.
+    // Fall back to getByScreening if sync fails (e.g. endpoint not available).
+    sessionsService.syncSeats(session.id)
+      .catch(() => seatsService.getByScreening(session.id))
       .then(data => {
         if (activeSessionRef.current !== session.id) return;
-        const list = Array.isArray(data) ? data : [];
-        const seen = new Set();
-        const normalized = [];
-        const now = Date.now();
-        for (const ss of list) {
-          if (ss?.id == null) continue;
-          const row    = ss.row    ?? ss.seat?.row;
-          const number = ss.number ?? ss.seat?.number;
-          if (!row || number == null) continue;
-          const displayId = `${row}${String(number).padStart(2, '0')}`;
-          if (seen.has(displayId)) continue;
-          seen.add(displayId);
-          // New format uses occupied boolean; old format uses status string
-          const isOccupied =
-            ss.occupied === true ||
-            (ss.reservedUntil && new Date(ss.reservedUntil).getTime() > now) ||
-            (ss.status != null && ss.status !== 'available');
-          normalized.push({
-            id:              displayId,
-            row,
-            number,
-            status:          isOccupied ? 'occupied' : 'available',
-            screeningSeatId: ss.id,
-          });
-        }
+        const normalized = normalizeSeats(data);
         setRealSeats(normalized.length ? normalized : null);
       })
       .catch(() => {

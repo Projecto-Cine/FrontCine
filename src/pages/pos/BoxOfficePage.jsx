@@ -4,7 +4,7 @@ import {
   Film, ChevronRight,
   CreditCard, Banknote, Printer,
   CheckCircle, X, Ticket, ArrowLeft, Search,
-  Loader, Star, UserX, Plus, Edit2, Trash2, RotateCcw
+  Loader, Star, UserX, Plus, Edit2, Trash2, RotateCcw, User
 } from 'lucide-react';
 import { sessionsService }    from '../../services/sessionsService';
 import { seatsService }       from '../../services/seatsService';
@@ -21,7 +21,7 @@ import styles     from './BoxOfficePage.module.css';
 
 const TICKET_TYPES = [
   { id: 'adult',    price: 13.50, backendType: 'ADULT'   },
-  { id: 'senior',   price: 9.00,  backendType: 'SENIOR'  },
+  { id: 'senior',   price: 2.00,  backendType: 'SENIOR'  },
   { id: 'student',  price: 6.00,  backendType: 'STUDENT' },
   { id: 'child',    price: 6.00,  backendType: 'CHILD'   },
   { id: 'imax',     price: 5.00,  extra: true },
@@ -91,6 +91,12 @@ export default function TaquillaPage() {
   const clientDebounce   = useRef(null);
   const searchRef        = useRef(null);
   const activeSessionRef = useRef(null); // race-condition guard
+
+  // ── Modal datos cliente ─────────────────────────
+  const [showClientModal, setShowClientModal]   = useState(false);
+  const [pendingSession,  setPendingSession]    = useState(null);
+  const [clientForm,      setClientForm]        = useState({ nombre: '', apellidos: '', email: '', telefono: '' });
+  const [clientFormErrors,setClientFormErrors]  = useState({});
 
   // ── Devolución modal ────────────────────────────
   const [showRefund, setShowRefund]             = useState(false);
@@ -592,6 +598,29 @@ export default function TaquillaPage() {
     }
   }, [selectedSeats, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, selectedClient, guestEmail, movie, theater, toast]);
 
+  const handleTimeClick = (session) => {
+    setPendingSession(session);
+    setClientForm({ nombre: '', apellidos: '', email: '', telefono: '' });
+    setClientFormErrors({});
+    setShowClientModal(true);
+  };
+
+  const handleClientSubmit = () => {
+    const errors = {};
+    if (!clientForm.nombre.trim())    errors.nombre    = true;
+    if (!clientForm.apellidos.trim()) errors.apellidos = true;
+    if (!/\S+@\S+\.\S+/.test(clientForm.email.trim())) errors.email = true;
+    if (!clientForm.telefono.trim())  errors.telefono  = true;
+    if (Object.keys(errors).length) { setClientFormErrors(errors); return; }
+    setShowClientModal(false);
+    selectSession(pendingSession);
+  };
+
+  const handleClientDiscard = () => {
+    setShowClientModal(false);
+    selectSession(pendingSession);
+  };
+
   const reset = useCallback(() => {
     setStep('sessions');
     setSelectedSession(null);
@@ -712,7 +741,7 @@ export default function TaquillaPage() {
                               <div key={s.id} className={styles.timeBtnWrap}>
                                 <button
                                   className={`${styles.timeBtn} ${isFull ? styles.timeBtnFull : ''}`}
-                                  onClick={() => selectSession(s)}
+                                  onClick={() => handleTimeClick(s)}
                                   disabled={isFull}
                                 >
                                   <span className={styles.timeBtnHour}>{time}</span>
@@ -997,6 +1026,95 @@ export default function TaquillaPage() {
           )}
         </div>
       </div>
+
+      {/* ── Modal datos cliente ──────────────────── */}
+      {showClientModal && pendingSession && (
+        <div
+          className={styles.modalBackdrop}
+          onClick={e => e.target === e.currentTarget && handleClientDiscard()}
+          onKeyDown={e => e.key === 'Escape' && handleClientDiscard()}
+        >
+          <div
+            className={styles.modalBox}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="client-modal-title"
+            onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') handleClientSubmit(); }}
+          >
+            <div className={styles.modalHeader}>
+              <div className={styles.modalTitle}>
+                <User size={15} aria-hidden="true" />
+                <span id="client-modal-title">Datos del cliente</span>
+              </div>
+              <button className={styles.modalClose} onClick={handleClientDiscard} aria-label="Cerrar">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              {(pendingSession.movie?.title || pendingSession.startTime || pendingSession.dateTime) && (
+                <p className={styles.modalSubtitle}>
+                  {[
+                    pendingSession.movie?.title,
+                    pendingSession.startTime?.split('T')[1]?.substring(0, 5) || pendingSession.dateTime?.split('T')[1]?.substring(0, 5),
+                  ].filter(Boolean).join(' · ')}
+                </p>
+              )}
+              <div className={styles.modalRow}>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Nombre *</label>
+                  <input
+                    autoFocus
+                    className={`${styles.modalInput}${clientFormErrors.nombre ? ' ' + styles.inputError : ''}`}
+                    value={clientForm.nombre}
+                    placeholder="Nombre"
+                    onChange={e => setClientForm(p => ({ ...p, nombre: e.target.value }))}
+                  />
+                </div>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Apellidos *</label>
+                  <input
+                    className={`${styles.modalInput}${clientFormErrors.apellidos ? ' ' + styles.inputError : ''}`}
+                    value={clientForm.apellidos}
+                    placeholder="Apellidos"
+                    onChange={e => setClientForm(p => ({ ...p, apellidos: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className={styles.modalField}>
+                <label className={styles.modalLabel}>Email *</label>
+                <input
+                  type="email"
+                  className={`${styles.modalInput}${clientFormErrors.email ? ' ' + styles.inputError : ''}`}
+                  value={clientForm.email}
+                  placeholder="correo@ejemplo.com"
+                  onChange={e => setClientForm(p => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+              <div className={styles.modalField}>
+                <label className={styles.modalLabel}>Teléfono *</label>
+                <input
+                  type="tel"
+                  className={`${styles.modalInput}${clientFormErrors.telefono ? ' ' + styles.inputError : ''}`}
+                  value={clientForm.telefono}
+                  placeholder="+34 600 000 000"
+                  onChange={e => setClientForm(p => ({ ...p, telefono: e.target.value }))}
+                />
+              </div>
+              {Object.keys(clientFormErrors).length > 0 && (
+                <span className={styles.modalError}>Completa todos los campos correctamente.</span>
+              )}
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.modalCancel} onClick={handleClientDiscard}>Descartar</button>
+              <button className={styles.modalSave} onClick={handleClientSubmit}>
+                <ChevronRight size={14} aria-hidden="true" /> Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal devolución ─────────────────────── */}
       {showRefund && (
@@ -1321,6 +1439,44 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
 
   return (
     <div className={styles.successShell}>
+      <div className={styles.successLeft}>
+        <div className={styles.successIconWrap}>
+          <div className={styles.successIcon}><CheckCircle size={30} /></div>
+          {[
+            { tx: '-60px', ty: '-50px', bg: '#C49A6C', delay: '0ms' },
+            { tx: '60px',  ty: '-50px', bg: '#EDD8A5', delay: '60ms' },
+            { tx: '-80px', ty: '-20px', bg: '#C49A6C', delay: '120ms' },
+            { tx: '80px',  ty: '-20px', bg: '#EDD8A5', delay: '40ms' },
+            { tx: '-50px', ty: '50px',  bg: '#C49A6C', delay: '80ms' },
+            { tx: '50px',  ty: '50px',  bg: '#EDD8A5', delay: '100ms' },
+            { tx: '0px',   ty: '-70px', bg: '#B8966A', delay: '20ms' },
+            { tx: '0px',   ty: '70px',  bg: '#D4B890', delay: '140ms' },
+          ].map((p, i) => (
+            <span key={i} className={styles.confetti}
+              style={{ '--tx': p.tx, '--ty': p.ty, background: p.bg, animationDelay: p.delay }} />
+          ))}
+        </div>
+        <h2 className={styles.successTitle}>{t('box_office.success.title')}</h2>
+        <p className={styles.successSub}>{tickets.length} entrada{tickets.length !== 1 ? 's' : ''} · €{total.toFixed(2)} · {PAY_LABEL[payMethod]}</p>
+        {tickets.length > 1 && (
+          <div className={styles.ticketNav} role="group" aria-label={t('box_office.ticketNavLabel')}>
+            {tickets.map((_, i) => (
+              <button key={i} className={`${styles.ticketNavBtn} ${i === current ? styles.ticketNavActive : ''}`}
+                aria-pressed={i === current}
+                onClick={() => setCurrent(i)}>{i + 1}</button>
+            ))}
+          </div>
+        )}
+        <div className={styles.actions}>
+          <button className={styles.printBtn} onClick={() => window.print()}>
+            <Printer size={14} /> {t('box_office.success.print')}
+          </button>
+          <button className={styles.newSaleBtn} onClick={onReset}>
+            <Ticket size={14} /> {t('box_office.success.newSale')}
+          </button>
+        </div>
+      </div>
+
       <div className={styles.ticketCard}>
         <div className={styles.ticketCardHeader}>
           <Film size={15} className={styles.ticketCardLogo} />
@@ -1356,23 +1512,6 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
         <p className={styles.ticketFooter}>{t('box_office.ticket.footer')}</p>
       </div>
 
-      <div className={styles.ticketActions}>
-        {tickets.length > 1 && (
-          <div className={styles.ticketNav} role="group" aria-label={t('box_office.ticketNavLabel')}>
-            {tickets.map((_, i) => (
-              <button key={i} className={`${styles.ticketNavBtn} ${i === current ? styles.ticketNavActive : ''}`}
-                aria-pressed={i === current}
-                onClick={() => setCurrent(i)}>{i + 1}</button>
-            ))}
-          </div>
-        )}
-        <button className={styles.printBtn} onClick={() => window.print()}>
-          <Printer size={14} /> {t('box_office.success.print')}
-        </button>
-        <button className={styles.newSaleBtn} onClick={onReset}>
-          <Ticket size={14} /> {t('box_office.success.newSale')}
-        </button>
-      </div>
     </div>
   );
 }

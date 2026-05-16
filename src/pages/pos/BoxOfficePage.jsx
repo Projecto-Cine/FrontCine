@@ -22,7 +22,7 @@ import styles     from './BoxOfficePage.module.css';
 
 const TICKET_TYPES = [
   { id: 'adult',    price: 13.50, backendType: 'ADULT'   },
-  { id: 'senior',   price: 9.00,  backendType: 'SENIOR'  },
+  { id: 'senior',   price: 2.00,  backendType: 'SENIOR'  },
   { id: 'student',  price: 6.00,  backendType: 'STUDENT' },
   { id: 'child',    price: 6.00,  backendType: 'CHILD'   },
   { id: 'imax',     price: 5.00,  extra: true },
@@ -619,7 +619,7 @@ export default function TaquillaPage() {
 
   const handleClientDiscard = () => {
     setShowClientModal(false);
-    setPendingSession(null);
+    selectSession(pendingSession);
   };
 
   const reset = useCallback(() => {
@@ -1042,9 +1042,14 @@ export default function TaquillaPage() {
             </div>
 
             <div className={styles.modalBody}>
-              <p className={styles.modalSubtitle}>
-                {pendingSession.movie?.title} · {pendingSession.startTime?.split('T')[1]?.substring(0, 5) || pendingSession.dateTime?.split('T')[1]?.substring(0, 5) || '--:--'}
-              </p>
+              {(pendingSession.movie?.title || pendingSession.startTime || pendingSession.dateTime) && (
+                <p className={styles.modalSubtitle}>
+                  {[
+                    pendingSession.movie?.title,
+                    pendingSession.startTime?.split('T')[1]?.substring(0, 5) || pendingSession.dateTime?.split('T')[1]?.substring(0, 5),
+                  ].filter(Boolean).join(' · ')}
+                </p>
+              )}
               <div className={styles.modalRow}>
                 <div className={styles.modalField}>
                   <label className={styles.modalLabel}>Nombre *</label>

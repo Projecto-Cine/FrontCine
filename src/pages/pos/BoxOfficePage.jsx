@@ -1311,6 +1311,44 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
 
   return (
     <div className={styles.successShell}>
+      <div className={styles.successLeft}>
+        <div className={styles.successIconWrap}>
+          <div className={styles.successIcon}><CheckCircle size={30} /></div>
+          {[
+            { tx: '-60px', ty: '-50px', bg: '#C49A6C', delay: '0ms' },
+            { tx: '60px',  ty: '-50px', bg: '#EDD8A5', delay: '60ms' },
+            { tx: '-80px', ty: '-20px', bg: '#C49A6C', delay: '120ms' },
+            { tx: '80px',  ty: '-20px', bg: '#EDD8A5', delay: '40ms' },
+            { tx: '-50px', ty: '50px',  bg: '#C49A6C', delay: '80ms' },
+            { tx: '50px',  ty: '50px',  bg: '#EDD8A5', delay: '100ms' },
+            { tx: '0px',   ty: '-70px', bg: '#B8966A', delay: '20ms' },
+            { tx: '0px',   ty: '70px',  bg: '#D4B890', delay: '140ms' },
+          ].map((p, i) => (
+            <span key={i} className={styles.confetti}
+              style={{ '--tx': p.tx, '--ty': p.ty, background: p.bg, animationDelay: p.delay }} />
+          ))}
+        </div>
+        <h2 className={styles.successTitle}>{t('box_office.success.title')}</h2>
+        <p className={styles.successSub}>{tickets.length} entrada{tickets.length !== 1 ? 's' : ''} · €{total.toFixed(2)} · {PAY_LABEL[payMethod]}</p>
+        {tickets.length > 1 && (
+          <div className={styles.ticketNav} role="group" aria-label={t('box_office.ticketNavLabel')}>
+            {tickets.map((_, i) => (
+              <button key={i} className={`${styles.ticketNavBtn} ${i === current ? styles.ticketNavActive : ''}`}
+                aria-pressed={i === current}
+                onClick={() => setCurrent(i)}>{i + 1}</button>
+            ))}
+          </div>
+        )}
+        <div className={styles.actions}>
+          <button className={styles.printBtn} onClick={() => window.print()}>
+            <Printer size={14} /> {t('box_office.success.print')}
+          </button>
+          <button className={styles.newSaleBtn} onClick={onReset}>
+            <Ticket size={14} /> {t('box_office.success.newSale')}
+          </button>
+        </div>
+      </div>
+
       <div className={styles.ticketCard}>
         <div className={styles.ticketCardHeader}>
           <Film size={15} className={styles.ticketCardLogo} />
@@ -1346,23 +1384,6 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
         <p className={styles.ticketFooter}>{t('box_office.ticket.footer')}</p>
       </div>
 
-      <div className={styles.ticketActions}>
-        {tickets.length > 1 && (
-          <div className={styles.ticketNav} role="group" aria-label={t('box_office.ticketNavLabel')}>
-            {tickets.map((_, i) => (
-              <button key={i} className={`${styles.ticketNavBtn} ${i === current ? styles.ticketNavActive : ''}`}
-                aria-pressed={i === current}
-                onClick={() => setCurrent(i)}>{i + 1}</button>
-            ))}
-          </div>
-        )}
-        <button className={styles.printBtn} onClick={() => window.print()}>
-          <Printer size={14} /> {t('box_office.success.print')}
-        </button>
-        <button className={styles.newSaleBtn} onClick={onReset}>
-          <Ticket size={14} /> {t('box_office.success.newSale')}
-        </button>
-      </div>
     </div>
   );
 }

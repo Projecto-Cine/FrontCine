@@ -10,6 +10,10 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
     css: true,
+    // Under coverage instrumentation jsdom + React render becomes ~3-4× slower;
+    // 5 s default is not always enough for our deep-flow tests.
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

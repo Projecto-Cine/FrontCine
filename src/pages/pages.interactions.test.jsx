@@ -1,9 +1,9 @@
 /**
- * INTERACTION TESTS — más profundos que los smoke tests:
- * abren modales, escriben en formularios y disparan acciones para
- * ejercitar más ramas de cada página.
+ * INTERACTION TESTS — deeper than the smoke tests:
+ * open modals, fill forms and fire actions to exercise more branches
+ * of every page.
  *
- * No verifican comportamiento exhaustivo — solo "no estalla y aumenta cobertura".
+ * Not exhaustive behavior checks — only "does not blow up and bumps coverage".
  */
 import { describe, it, vi, beforeEach } from 'vitest';
 import { waitFor, fireEvent, screen, render } from '@testing-library/react';
@@ -11,7 +11,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '../i18n/LanguageContext';
 import { AppProvider } from '../contexts/AppContext';
 
-// ───── Servicios mockeados (mismo patrón que pages.smoke.test) ─────
+// ───── Mocked services (same pattern as pages.smoke.test) ─────
 const mkSvc = (extra = {}) => ({
   getAll:   vi.fn().mockResolvedValue([{ id: 1, name: 'X', title: 'X' }, { id: 2, name: 'Y', title: 'Y' }]),
   getById:  vi.fn().mockResolvedValue({ id: 1 }),
@@ -76,8 +76,8 @@ function renderPage(ui) {
   );
 }
 
-// "Pulsa todos los botones que pueda" — ejecuta mucho código defensivamente.
-// Capturamos errores por botón individual: si uno explota, seguimos con el siguiente.
+// "Click every button I can" — defensively executes lots of code.
+// Per-button errors are swallowed so a single failure doesn't stop the rest.
 async function clickAllSafe(maxButtons = 8) {
   const buttons = screen.queryAllByRole('button');
   for (const btn of buttons.slice(0, maxButtons)) {
@@ -86,7 +86,7 @@ async function clickAllSafe(maxButtons = 8) {
   await waitFor(() => { /* tick */ });
 }
 
-// "Escribe en todos los inputs visibles" — ejecuta validadores y onChange handlers.
+// "Type into every visible input" — fires validators and onChange handlers.
 function typeInAllInputs(value = 'test') {
   const inputs = document.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([disabled]), textarea:not([disabled])');
   inputs.forEach(input => {
@@ -97,9 +97,9 @@ function typeInAllInputs(value = 'test') {
   });
 }
 
-// ───── Tests por página ─────
-describe('Interaction tests — abren modales y disparan handlers', () => {
-  it('MoviesPage: abre el modal de crear y rellena el formulario', async () => {
+// ───── Tests by page ─────
+describe('Interaction tests — open modals and fire handlers', () => {
+  it('MoviesPage: opens the create modal and fills the form', async () => {
     const { default: MoviesPage } = await import('./movies/MoviesPage');
     renderPage(<MoviesPage />);
     await waitFor(() => { /* tick */ });
@@ -108,7 +108,7 @@ describe('Interaction tests — abren modales y disparan handlers', () => {
     await clickAllSafe(15);
   });
 
-  it('RoomsPage: ciclo crear/editar/borrar', async () => {
+  it('RoomsPage: create / edit / delete cycle', async () => {
     const { default: RoomsPage } = await import('./rooms/RoomsPage');
     renderPage(<RoomsPage />);
     await waitFor(() => { /* tick */ });
@@ -117,7 +117,7 @@ describe('Interaction tests — abren modales y disparan handlers', () => {
     await clickAllSafe(15);
   });
 
-  it('UsersPage: abre modal y formulario', async () => {
+  it('UsersPage: opens modal and form', async () => {
     const { default: UsersPage } = await import('./users/UsersPage');
     renderPage(<UsersPage />);
     await waitFor(() => { /* tick */ });
@@ -126,7 +126,7 @@ describe('Interaction tests — abren modales y disparan handlers', () => {
     await clickAllSafe(15);
   });
 
-  it('EmployeesPage: abre modal y formulario', async () => {
+  it('EmployeesPage: opens modal and form', async () => {
     const { default: EmployeesPage } = await import('./employees/EmployeesPage');
     renderPage(<EmployeesPage />);
     await waitFor(() => { /* tick */ });
@@ -135,7 +135,7 @@ describe('Interaction tests — abren modales y disparan handlers', () => {
     await clickAllSafe(15);
   });
 
-  it('ClientsPage: abre modal y formulario', async () => {
+  it('ClientsPage: opens modal and form', async () => {
     const { default: ClientsPage } = await import('./clients/ClientsPage');
     renderPage(<ClientsPage />);
     await waitFor(() => { /* tick */ });
@@ -144,7 +144,7 @@ describe('Interaction tests — abren modales y disparan handlers', () => {
     await clickAllSafe(15);
   });
 
-  it('IncidentsPage: abre modal y formulario', async () => {
+  it('IncidentsPage: opens modal and form', async () => {
     const { default: IncidentsPage } = await import('./incidents/IncidentsPage');
     renderPage(<IncidentsPage />);
     await waitFor(() => { /* tick */ });
@@ -153,7 +153,7 @@ describe('Interaction tests — abren modales y disparan handlers', () => {
     await clickAllSafe(15);
   });
 
-  it('InventoryPage: abre modal y formulario', async () => {
+  it('InventoryPage: opens modal and form', async () => {
     const { default: InventoryPage } = await import('./inventory/InventoryPage');
     renderPage(<InventoryPage />);
     await waitFor(() => { /* tick */ });
@@ -162,7 +162,7 @@ describe('Interaction tests — abren modales y disparan handlers', () => {
     await clickAllSafe(15);
   });
 
-  it('SchedulesPage: abre modal y formulario', async () => {
+  it('SchedulesPage: opens modal and form', async () => {
     const { default: SchedulesPage } = await import('./schedules/SchedulesPage');
     renderPage(<SchedulesPage />);
     await waitFor(() => { /* tick */ });
@@ -171,7 +171,7 @@ describe('Interaction tests — abren modales y disparan handlers', () => {
     await clickAllSafe(15);
   });
 
-  it('ShiftsPage: abre modal y formulario', async () => {
+  it('ShiftsPage: opens modal and form', async () => {
     const { default: ShiftsPage } = await import('./shifts/ShiftsPage');
     renderPage(<ShiftsPage />);
     await waitFor(() => { /* tick */ });
@@ -180,7 +180,7 @@ describe('Interaction tests — abren modales y disparan handlers', () => {
     await clickAllSafe(15);
   });
 
-  it('AuditPage: cambia filtros', async () => {
+  it('AuditPage: cycles through filters', async () => {
     const { default: AuditPage } = await import('./audit/AuditPage');
     renderPage(<AuditPage />);
     await waitFor(() => { /* tick */ });
@@ -188,21 +188,21 @@ describe('Interaction tests — abren modales y disparan handlers', () => {
     typeInAllInputs('filtro');
   });
 
-  it('ReportsPage: monta y renderiza datos mockeados', async () => {
+  it('ReportsPage: mounts and renders mocked data', async () => {
     const { default: ReportsPage } = await import('./reports/ReportsPage');
     renderPage(<ReportsPage />);
     await waitFor(() => { /* tick */ });
     await clickAllSafe();
   });
 
-  it('Dashboard: monta con datos mockeados y dispara navegación a KPIs', async () => {
+  it('Dashboard: mounts with mocked data and exercises KPI navigation', async () => {
     const { default: Dashboard } = await import('./dashboard/Dashboard');
     renderPage(<Dashboard />);
     await waitFor(() => { /* tick */ });
     await clickAllSafe(20);
   });
 
-  it('BoxOfficePage: smoke profundo', async () => {
+  it('BoxOfficePage: deep smoke', async () => {
     const { default: Page } = await import('./pos/BoxOfficePage');
     renderPage(<Page />);
     await waitFor(() => { /* tick */ });
@@ -211,7 +211,7 @@ describe('Interaction tests — abren modales y disparan handlers', () => {
     await clickAllSafe(20);
   });
 
-  it('ConcessionPage: smoke profundo', async () => {
+  it('ConcessionPage: deep smoke', async () => {
     const { default: Page } = await import('./pos/ConcessionPage');
     renderPage(<Page />);
     await waitFor(() => { /* tick */ });
@@ -220,7 +220,7 @@ describe('Interaction tests — abren modales y disparan handlers', () => {
     await clickAllSafe(20);
   });
 
-  it('ReservationsPage: smoke profundo', async () => {
+  it('ReservationsPage: deep smoke', async () => {
     const { default: Page } = await import('./reservations/ReservationsPage');
     renderPage(<Page />);
     await waitFor(() => { /* tick */ });

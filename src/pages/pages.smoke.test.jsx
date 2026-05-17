@@ -1,20 +1,20 @@
 /**
- * SMOKE TESTS — verifican que cada página se monta sin lanzar errores.
+ * SMOKE TESTS — verify that every page mounts without throwing.
  *
- * Filosofía: estos tests son "happy path mínimo". No verifican comportamiento,
- * solo que el árbol de componentes se renderiza con datos vacíos. Sirven para:
- *   - detectar errores de imports rotos / refactors
- *   - subir cobertura sin escribir 100 tests específicos por página
- *   - dar confianza de que toda la app arranca
+ * Philosophy: these tests are "minimal happy path". They do not assert
+ * behavior, only that the component tree renders with empty data. They:
+ *   - catch broken imports / refactors
+ *   - bump coverage without writing 100 specific tests per page
+ *   - give confidence that the whole app boots
  *
- * Para cada página se mockean TODOS los servicios para que devuelvan [] o {}.
+ * For each page we mock EVERY service to return [] or {}.
  */
 import { describe, it, vi, beforeEach } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { renderPage } from '../test/helpers';
 
-// ───── Mocks de servicios (globales para todo el archivo) ─────
-// Devolvemos [] por defecto; algún servicio espera objeto, también probamos eso.
+// ───── Service mocks (global for the whole file) ─────
+// Default to []; some services return objects — we cover both.
 const mkSvc = (extra = {}) => ({
   getAll:         vi.fn().mockResolvedValue([]),
   getById:        vi.fn().mockResolvedValue({}),
@@ -46,7 +46,7 @@ vi.mock('../services/usersService',            () => ({ usersService:           
 vi.mock('../services/workersService',          () => ({ workersService:         mkSvc({ getByRole: vi.fn().mockResolvedValue([]), getActive: vi.fn().mockResolvedValue([]) }) }));
 vi.mock('../services/cloudinaryService',       () => ({ uploadImage: vi.fn().mockResolvedValue('https://cdn/x.jpg') }));
 
-// AuthContext: mockeamos para tener un usuario autenticado.
+// AuthContext: mock so we always have an authenticated user.
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({
     user: { name: 'Test User', role: 'admin' },
@@ -59,7 +59,7 @@ vi.mock('../contexts/AuthContext', () => ({
   AuthProvider: ({ children }) => children,
 }));
 
-// Stripe: nos cargamos su lazy load para que no se cuelgue.
+// Stripe: short-circuit its lazy load so it does not hang.
 vi.mock('@stripe/stripe-js', () => ({ loadStripe: vi.fn().mockResolvedValue({}) }));
 vi.mock('@stripe/react-stripe-js', () => ({
   Elements: ({ children }) => <div>{children}</div>,
@@ -68,21 +68,21 @@ vi.mock('@stripe/react-stripe-js', () => ({
   useElements: () => ({ getElement: () => ({}) }),
 }));
 
-// QR no es relevante en tests.
+// QR is not relevant in tests.
 vi.mock('qrcode.react', () => ({ QRCodeSVG: () => <div data-testid="qr" /> }));
 
 beforeEach(() => vi.clearAllMocks());
 
-// ───── Helper: renderiza una página y espera a que su useEffect termine ─────
+// ───── Helper: renders a page and waits for its useEffect to finish ─────
 async function smokeRender(Component, { route } = {}) {
   const result = renderPage(<Component />, { route });
-  // Damos un microtick para que las promesas de servicios se resuelvan
-  // y los setStates correspondientes se procesen.
-  await waitFor(() => { /* resolver tick */ });
+  // Give a microtick so service promises resolve and the matching
+  // setStates are flushed.
+  await waitFor(() => { /* settle tick */ });
   return result;
 }
 
-describe('Smoke tests — todas las páginas se montan sin error', () => {
+describe('Smoke tests — every page mounts without error', () => {
   it('Dashboard', async () => {
     const { default: Dashboard } = await import('./dashboard/Dashboard');
     await smokeRender(Dashboard);

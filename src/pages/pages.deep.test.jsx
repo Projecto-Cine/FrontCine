@@ -1,7 +1,7 @@
 /**
- * DEEP TESTS — escenarios "happy path" con datos realistas para las
- * páginas más grandes. Aumentan cobertura sobre ramas que los smoke
- * tests no alcanzan: modales, formularios, listas con datos.
+ * DEEP TESTS — "happy path" scenarios with realistic data for the
+ * largest pages. They bump coverage on branches that smoke tests do
+ * not reach: modals, forms, populated lists.
  */
 import { describe, it, vi, beforeEach } from 'vitest';
 import { render, waitFor, screen, fireEvent } from '@testing-library/react';
@@ -9,7 +9,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '../i18n/LanguageContext';
 import { AppProvider } from '../contexts/AppContext';
 
-// ───── Mocks comunes (servicios, auth, Stripe, QR) ─────
+// ───── Shared mocks (services, auth, Stripe, QR) ─────
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({
     user: { id: 1, name: 'Test User', role: 'admin' },
@@ -30,7 +30,7 @@ vi.mock('@stripe/react-stripe-js', () => ({
 }));
 vi.mock('qrcode.react', () => ({ QRCodeSVG: () => <div data-testid="qr" /> }));
 
-// Helper genérico de servicio CRUD
+// Generic CRUD-service helper.
 const mkSvc = (extra = {}) => ({
   getAll:   vi.fn().mockResolvedValue([]),
   getById:  vi.fn().mockResolvedValue({}),
@@ -42,7 +42,7 @@ const mkSvc = (extra = {}) => ({
   ...extra,
 });
 
-// Datos realistas para que se rendericen tarjetas/filas reales.
+// Realistic data so cards / rows actually render.
 const PRODUCTS = [
   { id: 1, name: 'Palomitas grandes', category: 'FOOD', price: 6.5, price_unit: 6.5, quantity: 50, description: 'Palomitas saladas', imageUrl: '' },
   { id: 2, name: 'Coca-Cola',         category: 'DRINK', price: 3.5, price_unit: 3.5, quantity: 100, description: 'Refresco 500ml', imageUrl: '' },
@@ -75,7 +75,7 @@ const MOVIES = [
   { id: 2, title: 'Avatar', durationMin: 162, genre: 'Sci-fi', ageRating: 'PG-13', format: '3D', active: true },
 ];
 
-// ───── Mocks de servicios con datos realistas ─────
+// ───── Service mocks with realistic data ─────
 vi.mock('../services/inventoryService', () => ({
   inventoryService: mkSvc({ getAll: vi.fn().mockResolvedValue(PRODUCTS) }),
   merchandiseService: mkSvc(),
@@ -132,28 +132,28 @@ const renderPage = (ui) => render(
 );
 
 // ───────────────────────────────────────────────────────
-// ConcessionPage (POS de comida/bebida)
+// ConcessionPage (food/drink POS)
 // ───────────────────────────────────────────────────────
-describe('ConcessionPage — flujo carrito + cobro', () => {
-  it('carga productos y muestra al menos uno', async () => {
+describe('ConcessionPage — cart + checkout flow', () => {
+  it('loads products and shows at least one', async () => {
     const { default: ConcessionPage } = await import('./pos/ConcessionPage');
     renderPage(<ConcessionPage />);
     await waitFor(() => screen.getByText(/Palomitas grandes/i));
   });
 
-  it('añade producto al carrito al hacer click', async () => {
+  it('adds a product to the cart on click', async () => {
     const { default: ConcessionPage } = await import('./pos/ConcessionPage');
     renderPage(<ConcessionPage />);
     await waitFor(() => screen.getByText(/Palomitas grandes/i));
 
-    // Click sobre la card del producto (cualquier botón asociado).
+    // Click on the product card (any associated button).
     const buttons = screen.getAllByRole('button');
     for (const b of buttons.slice(0, 6)) {
       try { fireEvent.click(b); } catch {}
     }
   });
 
-  it('filtra por categoría y por búsqueda', async () => {
+  it('filters by category and by search', async () => {
     const { default: ConcessionPage } = await import('./pos/ConcessionPage');
     renderPage(<ConcessionPage />);
     await waitFor(() => screen.getByText(/Palomitas grandes/i));
@@ -164,12 +164,12 @@ describe('ConcessionPage — flujo carrito + cobro', () => {
     }
   });
 
-  it('atajos POS: F2 enfoca búsqueda, F5 vacía carrito, Esc también', async () => {
+  it('POS shortcuts: F2 focuses search, F5 clears cart, Esc also', async () => {
     const { default: ConcessionPage } = await import('./pos/ConcessionPage');
     renderPage(<ConcessionPage />);
     await waitFor(() => screen.getByText(/Palomitas grandes/i));
 
-    // Disparamos los atajos para ejercitar el listener de teclado.
+    // Fire the shortcuts to exercise the keyboard listener.
     fireEvent.keyDown(window, { key: 'F2' });
     fireEvent.keyDown(window, { key: 'F5' });
     fireEvent.keyDown(window, { key: 'Escape' });
@@ -180,14 +180,14 @@ describe('ConcessionPage — flujo carrito + cobro', () => {
 // ───────────────────────────────────────────────────────
 // ReservationsPage
 // ───────────────────────────────────────────────────────
-describe('ReservationsPage — lista + acciones', () => {
-  it('carga compras con datos realistas y muestra al cliente', async () => {
+describe('ReservationsPage — list + actions', () => {
+  it('loads purchases with realistic data and shows the client', async () => {
     const { default: ReservationsPage } = await import('./reservations/ReservationsPage');
     renderPage(<ReservationsPage />);
     await waitFor(() => screen.getByText(/Ana López/i));
   });
 
-  it('al pulsar varios botones de la tabla abre modales/handlers', async () => {
+  it('clicking various table buttons opens modals / handlers', async () => {
     const { default: ReservationsPage } = await import('./reservations/ReservationsPage');
     renderPage(<ReservationsPage />);
     await waitFor(() => screen.getByText(/Ana López/i));
@@ -198,7 +198,7 @@ describe('ReservationsPage — lista + acciones', () => {
     }
   });
 
-  it('cambiar filtros de status/screening dispara los handlers', async () => {
+  it('changing status/screening filters fires the handlers', async () => {
     const { default: ReservationsPage } = await import('./reservations/ReservationsPage');
     renderPage(<ReservationsPage />);
     await waitFor(() => screen.getByText(/Ana López/i));
@@ -214,27 +214,27 @@ describe('ReservationsPage — lista + acciones', () => {
 });
 
 // ───────────────────────────────────────────────────────
-// MoviesPage — CRUD completo
+// MoviesPage — full CRUD
 // ───────────────────────────────────────────────────────
-describe('MoviesPage — CRUD profundo', () => {
-  it('carga películas y muestra Dune', async () => {
+describe('MoviesPage — deep CRUD', () => {
+  it('loads movies and shows Dune', async () => {
     const { default: MoviesPage } = await import('./movies/MoviesPage');
     renderPage(<MoviesPage />);
     await waitFor(() => screen.getByText('Dune'));
   });
 
-  it('abre el modal de crear y rellena todos los inputs', async () => {
+  it('opens the create modal and fills every input', async () => {
     const { default: MoviesPage } = await import('./movies/MoviesPage');
     renderPage(<MoviesPage />);
     await waitFor(() => screen.getByText('Dune'));
 
-    // Click en todos los botones — el de "Crear" abrirá el modal.
+    // Click every button — the "Create" one will open the modal.
     const buttons = screen.getAllByRole('button');
     for (const b of buttons.slice(0, 5)) {
       try { fireEvent.click(b); } catch {}
     }
 
-    // Rellena todos los inputs ahora visibles (modal abierto).
+    // Fill every visible input (modal is open).
     const inputs = document.querySelectorAll('input:not([type="file"]):not([disabled]), textarea, select');
     inputs.forEach(el => {
       try {
@@ -243,22 +243,22 @@ describe('MoviesPage — CRUD profundo', () => {
       } catch {}
     });
 
-    // Otro round de clicks para llegar a "Guardar" del modal.
+    // Another round of clicks to reach the modal's "Save".
     const moreButtons = screen.getAllByRole('button');
     for (const b of moreButtons.slice(0, 20)) {
       try { fireEvent.click(b); } catch {}
     }
   });
 
-  it('click en eliminar abre el ConfirmModal', async () => {
+  it('clicking delete opens the ConfirmModal', async () => {
     const { default: MoviesPage } = await import('./movies/MoviesPage');
     renderPage(<MoviesPage />);
     await waitFor(() => screen.getByText('Dune'));
 
-    // Buscamos los botones con icono Trash2 (acción eliminar de cada fila).
+    // Look for the Trash2 buttons (per-row delete actions).
     const buttons = screen.getAllByRole('button');
     for (const b of buttons) {
-      // Heurística: los botones de acción de fila están al final.
+      // Heuristic: row-action buttons are at the end.
       try { fireEvent.click(b); } catch {}
     }
   });

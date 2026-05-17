@@ -1,6 +1,7 @@
 /**
- * Tests más profundos de BoxOfficePage: cubre el flujo de paso 'sessions' →
- * 'seats' al hacer click en una sesión, lo que ejercita >100 líneas más.
+ * Deeper tests for BoxOfficePage: covers the flow from the 'sessions'
+ * step to 'seats' when a session card is clicked, which exercises
+ * 100+ extra lines.
  */
 import { describe, it, vi, beforeEach } from 'vitest';
 import { render, waitFor, screen, fireEvent } from '@testing-library/react';
@@ -8,7 +9,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '../../i18n/LanguageContext';
 import { AppProvider } from '../../contexts/AppContext';
 
-// Mock servicios con datos realistas para que se renderice una sesión clickable.
+// Mock services with realistic data so a clickable session is rendered.
 vi.mock('../../services/sessionsService', () => ({
   sessionsService: {
     getAll: vi.fn().mockResolvedValue([
@@ -65,22 +66,22 @@ const wrap = (ui) => (
 
 beforeEach(() => vi.clearAllMocks());
 
-describe('BoxOfficePage — flujo profundo', () => {
-  it('al cargar muestra al menos una sesión y al hacer click avanza al paso de butacas', async () => {
+describe('BoxOfficePage — deep flow', () => {
+  it('on load shows at least one session and clicking it advances to the seats step', async () => {
     const { default: BoxOfficePage } = await import('./BoxOfficePage');
     render(wrap(<BoxOfficePage />));
 
-    // Esperamos a que aparezca la sesión cargada.
+    // Wait for the loaded session to appear.
     await waitFor(() => screen.getByText('Dune'));
 
-    // Click en la sesión para avanzar el wizard.
+    // Click the session to advance the wizard.
     fireEvent.click(screen.getByText('Dune').closest('div, article, button') ?? screen.getByText('Dune'));
 
-    // Damos un tick para que se completen las llamadas de seatsService.
+    // Give it a tick so the seatsService calls complete.
     await waitFor(() => { /* tick */ });
   });
 
-  it('búsqueda filtra sesiones', async () => {
+  it('search filters the sessions', async () => {
     const { default: BoxOfficePage } = await import('./BoxOfficePage');
     render(wrap(<BoxOfficePage />));
     await waitFor(() => screen.getByText('Dune'));
@@ -88,7 +89,7 @@ describe('BoxOfficePage — flujo profundo', () => {
     const search = document.querySelector('input[type="text"], input[type="search"]');
     if (search) {
       fireEvent.change(search, { target: { value: 'Avatar' } });
-      // Sin resultados — pero el componente sigue funcionando.
+      // No results — but the component keeps working.
     }
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
-// Mockeamos moviesService entero antes de importar el hook.
+// Mock the entire moviesService before importing the hook.
 vi.mock('../services/moviesService', () => ({
   moviesService: {
     getAll: vi.fn(),
@@ -17,22 +17,22 @@ import { moviesService } from '../services/moviesService';
 beforeEach(() => vi.clearAllMocks());
 
 describe('useMovies', () => {
-  it('al montar carga las películas (loading → false, data poblada)', async () => {
+  it('on mount it loads movies (loading → false, data populated)', async () => {
     moviesService.getAll.mockResolvedValue([{ id: 1, title: 'Dune' }]);
 
     const { result } = renderHook(() => useMovies());
 
-    // Inicialmente loading=true (estado por defecto del hook).
+    // Initially loading=true (hook's default state).
     expect(result.current.loading).toBe(true);
 
-    // Esperamos a que el efecto termine.
+    // Wait for the effect to settle.
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.data).toEqual([{ id: 1, title: 'Dune' }]);
     expect(result.current.error).toBeNull();
   });
 
-  it('si getAll falla, expone error y data=[]', async () => {
+  it('when getAll fails, exposes error and data=[]', async () => {
     moviesService.getAll.mockRejectedValue(new Error('Boom'));
 
     const { result } = renderHook(() => useMovies());
@@ -42,7 +42,7 @@ describe('useMovies', () => {
     expect(result.current.data).toEqual([]);
   });
 
-  it('create añade la película al estado', async () => {
+  it('create appends the movie to the state', async () => {
     moviesService.getAll.mockResolvedValue([{ id: 1, title: 'A' }]);
     moviesService.create.mockResolvedValue({ id: 2, title: 'B' });
 
@@ -55,7 +55,7 @@ describe('useMovies', () => {
     expect(result.current.data[1]).toEqual({ id: 2, title: 'B' });
   });
 
-  it('update reemplaza la película por id', async () => {
+  it('update replaces the movie by id', async () => {
     moviesService.getAll.mockResolvedValue([{ id: 1, title: 'A' }]);
     moviesService.update.mockResolvedValue({ id: 1, title: 'A2' });
 
@@ -67,7 +67,7 @@ describe('useMovies', () => {
     expect(result.current.data[0].title).toBe('A2');
   });
 
-  it('remove la quita del estado', async () => {
+  it('remove drops it from the state', async () => {
     moviesService.getAll.mockResolvedValue([{ id: 1 }, { id: 2 }]);
     moviesService.remove.mockResolvedValue(null);
 
@@ -79,14 +79,14 @@ describe('useMovies', () => {
     expect(result.current.data).toEqual([{ id: 2 }]);
   });
 
-  it('reload vuelve a llamar al servicio', async () => {
+  it('reload re-invokes the service', async () => {
     moviesService.getAll.mockResolvedValue([]);
     const { result } = renderHook(() => useMovies());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => { await result.current.reload(); });
 
-    // 1 carga inicial + 1 reload = 2 llamadas al menos.
+    // 1 initial load + 1 reload = at least 2 calls.
     expect(moviesService.getAll).toHaveBeenCalledTimes(2);
   });
 });

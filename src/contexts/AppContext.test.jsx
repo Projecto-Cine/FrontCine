@@ -6,8 +6,8 @@ const wrapper = ({ children }) => <AppProvider>{children}</AppProvider>;
 
 beforeEach(() => {
   localStorage.clear();
-  // setTimeout real es lento — usamos timers falsos para controlar el tiempo
-  // del auto-dismiss de los toasts.
+  // Real setTimeout is slow — use fake timers to control the toast
+  // auto-dismiss timing.
   vi.useFakeTimers();
 });
 
@@ -16,12 +16,12 @@ afterEach(() => {
 });
 
 describe('AppContext', () => {
-  it('sidebarCollapsed empieza en false por defecto', () => {
+  it('sidebarCollapsed defaults to false', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
     expect(result.current.sidebarCollapsed).toBe(false);
   });
 
-  it('toggleSidebar invierte el estado y lo persiste', () => {
+  it('toggleSidebar flips the state and persists it', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     act(() => result.current.toggleSidebar());
@@ -32,13 +32,13 @@ describe('AppContext', () => {
     expect(result.current.sidebarCollapsed).toBe(false);
   });
 
-  it('lee el estado inicial desde localStorage', () => {
+  it('reads the initial state from localStorage', () => {
     localStorage.setItem('lumen_sidebar_collapsed', 'true');
     const { result } = renderHook(() => useApp(), { wrapper });
     expect(result.current.sidebarCollapsed).toBe(true);
   });
 
-  it('toast() añade un toast con id incremental', () => {
+  it('toast() adds a toast with an incremental id', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     act(() => result.current.toast('Hola', 'success'));
@@ -47,18 +47,18 @@ describe('AppContext', () => {
     expect(result.current.toasts[0].type).toBe('success');
   });
 
-  it('el toast se elimina solo tras la duración indicada', () => {
+  it('the toast auto-dismisses after the given duration', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     act(() => result.current.toast('Bye', 'info', 1000));
     expect(result.current.toasts).toHaveLength(1);
 
-    // Avanzamos el "reloj" 1 segundo → el setTimeout interno se dispara.
+    // Fast-forward the clock by 1 second → the internal setTimeout fires.
     act(() => vi.advanceTimersByTime(1000));
     expect(result.current.toasts).toHaveLength(0);
   });
 
-  it('removeToast quita el toast por id', () => {
+  it('removeToast removes the toast by id', () => {
     const { result } = renderHook(() => useApp(), { wrapper });
 
     act(() => result.current.toast('A'));

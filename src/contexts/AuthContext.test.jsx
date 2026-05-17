@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
-// Mockeamos authService antes de importar AuthProvider.
+// Mock authService before importing AuthProvider.
 vi.mock('../services/authService', () => ({
   authService: { login: vi.fn() },
 }));
@@ -17,14 +17,14 @@ beforeEach(() => {
 });
 
 describe('AuthContext', () => {
-  it('arranca sin usuario si no hay token', async () => {
+  it('starts with no user when there is no token', async () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
-    // El provider devuelve null mientras loading=true. Esperamos a que termine.
+    // The provider returns null while loading=true. Wait until it finishes.
     await waitFor(() => expect(result.current).not.toBeNull());
     expect(result.current.user).toBeNull();
   });
 
-  it('restaura el usuario desde localStorage si hay token y user guardados', async () => {
+  it('restores the user from localStorage when both token and user are stored', async () => {
     localStorage.setItem('lumen_token', 'abc');
     localStorage.setItem('lumen_user', JSON.stringify({ name: 'Ana', role: 'admin' }));
 
@@ -33,7 +33,7 @@ describe('AuthContext', () => {
     await waitFor(() => expect(result.current?.user).toEqual({ name: 'Ana', role: 'admin' }));
   });
 
-  it('login OK guarda token y usuario', async () => {
+  it('login OK saves token and user', async () => {
     authService.login.mockResolvedValue({
       token: 't1',
       user: { name: 'Ana', role: 'admin' },
@@ -50,8 +50,8 @@ describe('AuthContext', () => {
     expect(localStorage.getItem('lumen_token')).toBe('t1');
   });
 
-  it('login sin token en respuesta → setea error y devuelve false', async () => {
-    authService.login.mockResolvedValue({}); // sin token ni user
+  it('login without token in response → sets error and returns false', async () => {
+    authService.login.mockResolvedValue({}); // no token, no user
 
     const { result } = renderHook(() => useAuth(), { wrapper });
     await waitFor(() => expect(result.current).not.toBeNull());
@@ -63,7 +63,7 @@ describe('AuthContext', () => {
     expect(result.current.error).toMatch(/inválidas/i);
   });
 
-  it('login con error 401 setea mensaje de credenciales incorrectas', async () => {
+  it('login with 401 error sets the "wrong credentials" message', async () => {
     const err = new Error('401'); err.status = 401;
     authService.login.mockRejectedValue(err);
 
@@ -75,7 +75,7 @@ describe('AuthContext', () => {
     expect(result.current.error).toMatch(/Email o contraseña/i);
   });
 
-  it('login con error 500 setea mensaje de servidor', async () => {
+  it('login with 500 error sets the server-error message', async () => {
     const err = new Error('500'); err.status = 500;
     authService.login.mockRejectedValue(err);
 
@@ -87,7 +87,7 @@ describe('AuthContext', () => {
     expect(result.current.error).toMatch(/servidor/i);
   });
 
-  it('login con error de red setea mensaje genérico', async () => {
+  it('login with a network error sets a generic message', async () => {
     authService.login.mockRejectedValue(new Error('network'));
 
     const { result } = renderHook(() => useAuth(), { wrapper });
@@ -98,7 +98,7 @@ describe('AuthContext', () => {
     expect(result.current.error).toMatch(/conectar/i);
   });
 
-  it('logout limpia user y localStorage', async () => {
+  it('logout clears user and localStorage', async () => {
     localStorage.setItem('lumen_token', 'abc');
     localStorage.setItem('lumen_user', JSON.stringify({ name: 'Ana' }));
 
@@ -111,7 +111,7 @@ describe('AuthContext', () => {
     expect(localStorage.getItem('lumen_token')).toBeNull();
   });
 
-  it('can() — admin puede todo, readonly solo "read"', async () => {
+  it('can() — admin can do everything, readonly only "read"', async () => {
     localStorage.setItem('lumen_token', 'x');
     localStorage.setItem('lumen_user', JSON.stringify({ role: 'admin' }));
 
@@ -120,21 +120,21 @@ describe('AuthContext', () => {
 
     expect(result.current.can('cualquier-cosa')).toBe(true);
 
-    // Rerender con readonly
+    // Re-render with readonly.
     act(() => result.current.logout());
     localStorage.setItem('lumen_token', 'x');
     localStorage.setItem('lumen_user', JSON.stringify({ role: 'readonly' }));
-    // Forzamos un nuevo provider para releer del storage:
+    // Force a fresh provider so it re-reads from storage:
     rerender();
   });
 
-  it('can() devuelve false si no hay user', async () => {
+  it('can() returns false when there is no user', async () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     await waitFor(() => expect(result.current).not.toBeNull());
     expect(result.current.can('read')).toBe(false);
   });
 
-  it('responde al evento global "auth:expired" reseteando user', async () => {
+  it('responds to the global "auth:expired" event by clearing user', async () => {
     localStorage.setItem('lumen_token', 'abc');
     localStorage.setItem('lumen_user', JSON.stringify({ name: 'Ana' }));
 

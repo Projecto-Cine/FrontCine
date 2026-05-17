@@ -622,24 +622,33 @@ export default function TaquillaPage() {
           console.error('[pos] POST /users (auth):', e.message);
           if (e?.status === 409) return searchFirst(payload.email);
         }
-        // Attempt 2: unauthenticated POST /api/users (public registration)
-        for (const url of ['/api/users', '/api/auth/register']) {
+        // Attempt 2: unauthenticated POST — try /api/users and /api/auth/register
+        const attempts = [
+          { url: '/api/users',         body: payload },
+          { url: '/api/auth/register', body: payload },
+          // some backends only accept name/email/password at register
+          { url: '/api/auth/register', body: { name: payload.name, lastName: payload.lastName, email: payload.email, password: payload.password } },
+        ];
+        for (const { url, body } of attempts) {
           try {
             const res = await fetch(url, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload),
+              body: JSON.stringify(body),
             });
             if (res.status === 409) return searchFirst(payload.email);
             if (res.ok) {
               const data = await res.json().catch(() => null);
               if (data?.id) return data;
+              // register endpoint might return token+user wrapper
+              const userId = data?.user?.id ?? data?.userId ?? data?.id;
+              if (userId) return { id: userId, ...data?.user };
             } else {
               const text = await res.text().catch(() => '');
-              console.error(`[pos] POST ${url} (no-auth) ${res.status}:`, text);
+              console.error(`[pos] POST ${url} ${res.status}:`, text);
             }
           } catch (e) {
-            console.error(`[pos] POST ${url} (no-auth) network:`, e.message);
+            console.error(`[pos] POST ${url} network:`, e.message);
           }
         }
         return null;

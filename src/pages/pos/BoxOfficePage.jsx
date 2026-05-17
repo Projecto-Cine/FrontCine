@@ -602,17 +602,67 @@ export default function TaquillaPage() {
         return;
       }
 
-      // Resolve a valid client userId: selected client > search by email > error
+      // Resolve a valid client userId for the purchase.
+      // Priority: selected client → find by email → create guest with email → reuse/create anonymous walk-in client
       let resolvedUserId = selectedClient?.id ?? null;
-      if (!resolvedUserId && guestEmail.trim()) {
-        try {
-          const searchRes = await clientsService.search(guestEmail.trim());
-          const found = (Array.isArray(searchRes) ? searchRes : searchRes?.content ?? [])[0];
-          if (found?.id) resolvedUserId = found.id;
-        } catch {}
-      }
+      const emailQuery = guestEmail.trim();
+
       if (!resolvedUserId) {
-        toast('Selecciona un cliente de la lista o introduce su email registrado para completar la venta.', 'error');
+        if (emailQuery) {
+          // 1. Search for existing client by email
+          try {
+            const searchRes = await clientsService.search(emailQuery);
+            const found = (Array.isArray(searchRes) ? searchRes : searchRes?.content ?? [])[0];
+            if (found?.id) {
+              resolvedUserId = found.id;
+            } else {
+              // 2. Not found → create a guest client with just the email
+              try {
+                const created = await clientsService.create({
+                  email:    emailQuery,
+                  username: emailQuery.split('@')[0],
+                  name:     emailQuery.split('@')[0],
+                  role:     'CLIENT',
+                });
+                if (created?.id) resolvedUserId = created.id;
+              } catch {}
+            }
+          } catch {}
+        }
+
+        // 3. No email or creation failed → use/create reusable anonymous walk-in client
+        if (!resolvedUserId) {
+          const ANON_KEY   = 'lumen_walkin_uid';
+          const ANON_EMAIL = 'walkincustomer@lumencinema.es';
+          const cached     = Number(localStorage.getItem(ANON_KEY) || '0');
+          if (cached > 0) {
+            resolvedUserId = cached;
+          } else {
+            try {
+              const anonSearch = await clientsService.search(ANON_EMAIL);
+              const anonFound  = (Array.isArray(anonSearch) ? anonSearch : anonSearch?.content ?? [])[0];
+              if (anonFound?.id) {
+                localStorage.setItem(ANON_KEY, String(anonFound.id));
+                resolvedUserId = anonFound.id;
+              } else {
+                const anonCreated = await clientsService.create({
+                  email:    ANON_EMAIL,
+                  username: 'walkincustomer',
+                  name:     'Cliente Taquilla',
+                  role:     'CLIENT',
+                });
+                if (anonCreated?.id) {
+                  localStorage.setItem(ANON_KEY, String(anonCreated.id));
+                  resolvedUserId = anonCreated.id;
+                }
+              }
+            } catch {}
+          }
+        }
+      }
+
+      if (!resolvedUserId) {
+        toast('No se pudo procesar la venta sin un cliente. Selecciónalo de la lista.', 'error');
         setPaying(false);
         return;
       }

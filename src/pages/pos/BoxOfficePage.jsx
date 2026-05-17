@@ -604,19 +604,30 @@ export default function TaquillaPage() {
       const ANON_EMAIL = 'walkincustomer@lumencinema.es';
       const emailQuery = guestEmail.trim();
 
+      // Backend may return { id } or { userId } or { clientId } — normalise to id
+      const uid = (u) => u?.id ?? u?.userId ?? u?.clientId ?? null;
+
       const searchFirst = async (q) => {
         try {
           const r = await clientsService.search(q);
-          return (Array.isArray(r) ? r : r?.content ?? [])[0] ?? null;
+          const first = (Array.isArray(r) ? r : r?.content ?? [])[0] ?? null;
+          return first ? { ...first, id: uid(first) } : null;
         } catch { return null; }
       };
 
       const createUser = async (payload) => {
-        try { return await clientsService.create(payload); }
-        catch (e) { return e?.status === 409 ? searchFirst(payload.email) : null; }
+        try {
+          const res = await clientsService.create(payload);
+          const id = uid(res);
+          if (!id) { console.error('[pos] createUser — no id in response:', res); return null; }
+          return { ...res, id };
+        } catch (e) {
+          console.error('[pos] createUser error:', e.message);
+          return e?.status === 409 ? searchFirst(payload.email) : null;
+        }
       };
 
-      let resolvedUserId = selectedClient?.id ?? null;
+      let resolvedUserId = selectedClient?.id ?? selectedClient?.userId ?? null;
 
       if (!resolvedUserId && emailQuery) {
         const found = await searchFirst(emailQuery);

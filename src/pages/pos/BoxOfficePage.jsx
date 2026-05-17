@@ -616,13 +616,16 @@ export default function TaquillaPage() {
             if (found?.id) {
               resolvedUserId = found.id;
             } else {
-              // 2. Not found → create a guest client with just the email
+              // 2. Not found → create a guest client with the email
               try {
                 const created = await clientsService.create({
-                  email:    emailQuery,
-                  username: emailQuery.split('@')[0],
-                  name:     emailQuery.split('@')[0],
-                  role:     'CLIENT',
+                  name:      emailQuery.split('@')[0],
+                  lastName:  '',
+                  email:     emailQuery,
+                  password:  `Guest${Date.now()}!L`,
+                  birthDate: null,
+                  student:   false,
+                  role:      'CLIENTE',
                 });
                 if (created?.id) resolvedUserId = created.id;
               } catch {}
@@ -646,10 +649,13 @@ export default function TaquillaPage() {
                 resolvedUserId = anonFound.id;
               } else {
                 const anonCreated = await clientsService.create({
-                  email:    ANON_EMAIL,
-                  username: 'walkincustomer',
-                  name:     'Cliente Taquilla',
-                  role:     'CLIENT',
+                  name:      'Cliente',
+                  lastName:  'Taquilla',
+                  email:     ANON_EMAIL,
+                  password:  `WalkIn${Date.now()}!L`,
+                  birthDate: null,
+                  student:   false,
+                  role:      'CLIENTE',
                 });
                 if (anonCreated?.id) {
                   localStorage.setItem(ANON_KEY, String(anonCreated.id));

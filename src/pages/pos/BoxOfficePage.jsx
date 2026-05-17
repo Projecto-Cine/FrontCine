@@ -610,13 +610,37 @@ export default function TaquillaPage() {
           return (Array.isArray(r) ? r : r?.content ?? [])[0] ?? null;
         } catch { return null; }
       };
-      const createWalkIn = async () => {
-        try { return await clientsService.create({ name: 'Cliente', lastName: 'Taquilla', email: ANON_EMAIL, password: 'WalkIn2024!Lumen', birthDate: null, student: false, role: 'CLIENTE' }); }
-        catch (e) { return e?.status === 409 ? searchFirst(ANON_EMAIL) : null; }
-      };
-      const createGuest = async (email) => {
-        try { return await clientsService.create({ name: email.split('@')[0], lastName: '', email, password: `Guest${Date.now()}!L`, birthDate: null, student: false, role: 'CLIENTE' }); }
-        catch (e) { return e?.status === 409 ? searchFirst(email) : null; }
+
+      // Try to create a user; if the authenticated call fails, retry without token
+      // (Spring Boot backends often allow public POST /api/users for registration)
+      const tryCreateUser = async (payload) => {
+        // Attempt 1: authenticated (standard clientsService path)
+        try {
+          const res = await clientsService.create(payload);
+          if (res?.id) return res;
+        } catch (e) {
+          console.error('[pos] POST /users (auth):', e.message);
+          if (e?.status === 409) return searchFirst(payload.email);
+        }
+        // Attempt 2: unauthenticated (public registration, no Bearer token)
+        try {
+          const res = await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (res.status === 409) return searchFirst(payload.email);
+          if (res.ok) {
+            const data = await res.json().catch(() => null);
+            if (data?.id) return data;
+          } else {
+            const text = await res.text().catch(() => '');
+            console.error('[pos] POST /users (no-auth) ' + res.status + ':', text);
+          }
+        } catch (e) {
+          console.error('[pos] POST /users (no-auth) network:', e.message);
+        }
+        return null;
       };
 
       let resolvedUserId = selectedClient?.id ?? null;
@@ -625,7 +649,11 @@ export default function TaquillaPage() {
         const found = await searchFirst(emailQuery);
         resolvedUserId = found?.id ?? null;
         if (!resolvedUserId) {
-          const created = await createGuest(emailQuery);
+          const safeName = emailQuery.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') || 'Cliente';
+          const created = await tryCreateUser({
+            name: safeName, lastName: '', email: emailQuery,
+            password: 'Guest2024Lumen', student: false, role: 'CLIENTE',
+          });
           resolvedUserId = created?.id ?? null;
         }
       }
@@ -633,26 +661,24 @@ export default function TaquillaPage() {
       if (!resolvedUserId) {
         const cached = Number(localStorage.getItem(ANON_KEY) || '0');
         if (cached > 0) {
-          // Validate cached ID — recreate if DB was reset
           const stillValid = await searchFirst(ANON_EMAIL);
           if (stillValid?.id) {
             if (stillValid.id !== cached) localStorage.setItem(ANON_KEY, String(stillValid.id));
             resolvedUserId = stillValid.id;
           } else {
             localStorage.removeItem(ANON_KEY);
-            const created = await createWalkIn();
-            if (created?.id) {
-              localStorage.setItem(ANON_KEY, String(created.id));
-              resolvedUserId = created.id;
-            }
           }
-        } else {
+        }
+        if (!resolvedUserId) {
           const found = await searchFirst(ANON_EMAIL);
           if (found?.id) {
             localStorage.setItem(ANON_KEY, String(found.id));
             resolvedUserId = found.id;
           } else {
-            const created = await createWalkIn();
+            const created = await tryCreateUser({
+              name: 'Cliente', lastName: 'Taquilla', email: ANON_EMAIL,
+              password: 'WalkIn2024Lumen', student: false, role: 'CLIENTE',
+            });
             if (created?.id) {
               localStorage.setItem(ANON_KEY, String(created.id));
               resolvedUserId = created.id;
@@ -662,7 +688,7 @@ export default function TaquillaPage() {
       }
 
       if (!resolvedUserId) {
-        toast('No se pudo asociar un cliente a esta venta. Selecciónalo de la lista.', 'error');
+        toast('No se puede procesar la venta: el servidor rechaza crear el cliente anónimo. Comprueba la consola del navegador (F12) para ver el error exacto.', 'error');
         setPaying(false);
         return;
       }

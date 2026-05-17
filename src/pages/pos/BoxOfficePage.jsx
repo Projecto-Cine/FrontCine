@@ -714,7 +714,7 @@ export default function TaquillaPage() {
                 <Plus size={14} />
                 <span>Nueva sesión</span>
               </button>
-              <button className={styles.refundHeaderBtn} onClick={() => { setShowRefund(true); setRefundQR(''); setRefundParsed(null); setRefundMode('qr'); }} title="Devolución de entrada">
+              <button className={styles.refundHeaderBtn} onClick={() => { setShowRefund(true); setRefundInput(''); }} title="Devolución de entrada">
                 <RotateCcw size={14} />
                 <span>Devolución</span>
               </button>

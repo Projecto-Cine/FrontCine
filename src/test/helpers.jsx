@@ -1,13 +1,13 @@
-// Helpers reutilizables para los smoke tests de páginas.
+// Reusable helpers for the page smoke tests.
 import { MemoryRouter } from 'react-router-dom';
 import { render } from '@testing-library/react';
 import { LanguageProvider } from '../i18n/LanguageContext';
 import { AppProvider } from '../contexts/AppContext';
 
 /**
- * Renderiza una página dentro de los providers que necesita.
- * No incluimos AuthProvider para evitar bucles con localStorage —
- * los tests que necesiten useAuth lo mockean directamente.
+ * Renders a page inside the providers it needs.
+ * AuthProvider is intentionally not included to avoid loops with
+ * localStorage — tests that need useAuth mock it directly.
  */
 export function renderPage(ui, { route = '/' } = {}) {
   return render(

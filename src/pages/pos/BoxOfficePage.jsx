@@ -602,7 +602,21 @@ export default function TaquillaPage() {
         return;
       }
 
-      const resolvedUserId = selectedClient?.id ?? authUser?.id ?? null;
+      // Resolve a valid client userId: selected client > search by email > error
+      let resolvedUserId = selectedClient?.id ?? null;
+      if (!resolvedUserId && guestEmail.trim()) {
+        try {
+          const searchRes = await clientsService.search(guestEmail.trim());
+          const found = (Array.isArray(searchRes) ? searchRes : searchRes?.content ?? [])[0];
+          if (found?.id) resolvedUserId = found.id;
+        } catch {}
+      }
+      if (!resolvedUserId) {
+        toast('Selecciona un cliente de la lista o introduce su email registrado para completar la venta.', 'error');
+        setPaying(false);
+        return;
+      }
+
       const purchaseBody = {
         userId:        resolvedUserId,
         screeningId:   selectedSession.id,
@@ -703,7 +717,7 @@ export default function TaquillaPage() {
     } finally {
       setPaying(false);
     }
-  }, [selectedSeats, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, selectedClient, guestEmail, authUser, movie, theater, toast]);
+  }, [selectedSeats, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, selectedClient, guestEmail, movie, theater, toast]);
 
   const handleTimeClick = (session) => {
     setPendingSession(session);
@@ -987,12 +1001,12 @@ export default function TaquillaPage() {
                   <input
                     type="email"
                     className={styles.guestEmailInput}
-                    placeholder="Email del comprador (opcional)"
+                    placeholder="Email del cliente (necesario si no está en la lista)"
                     value={guestEmail}
                     onChange={e => setGuestEmail(e.target.value)}
                     aria-label="Email del comprador"
                   />
-                  <p className={styles.guestEmailHint}>Si introduces un email, el ticket se enviará por correo al confirmar el cobro.</p>
+                  <p className={styles.guestEmailHint}>El sistema buscará al cliente por email. Si tiene cuenta, el ticket se enviará a ese correo.</p>
                 </>
               )}
             </div>

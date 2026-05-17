@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// El servicio lee `import.meta.env.VITE_CLOUDINARY_*` AL CARGAR el módulo
-// (constantes a nivel de archivo), así que tenemos que:
-//   1) Stubear las env antes de importar.
-//   2) Resetear módulos para que la siguiente import re-evalúe el archivo
-//      con las env nuevas.
+// The service reads `import.meta.env.VITE_CLOUDINARY_*` AT MODULE LOAD
+// (file-level constants), so we must:
+//   1) Stub the env vars BEFORE importing.
+//   2) Reset modules so the next import re-evaluates the file with the
+//      new env values.
 beforeEach(() => {
   vi.resetModules();
 });
@@ -15,15 +15,15 @@ afterEach(() => {
 });
 
 describe('cloudinaryService.uploadImage', () => {
-  it('lanza error claro si Cloudinary NO está configurado', async () => {
-    vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'tu_cloud_name'); // valor placeholder
+  it('throws a clear error if Cloudinary is NOT configured', async () => {
+    vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'tu_cloud_name'); // placeholder value
     vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', 'mi-preset');
     const { uploadImage } = await import('./cloudinaryService');
 
     await expect(uploadImage(new Blob(['x']))).rejects.toThrow(/Cloudinary no configurado/);
   });
 
-  it('sube el archivo y devuelve secure_url cuando todo va bien', async () => {
+  it('uploads the file and returns secure_url on success', async () => {
     vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'mi-cloud');
     vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', 'mi-preset');
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
@@ -41,7 +41,7 @@ describe('cloudinaryService.uploadImage', () => {
     );
   });
 
-  it('lanza error si el upload falla (response.ok=false)', async () => {
+  it('throws if the upload fails (response.ok=false)', async () => {
     vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'mi-cloud');
     vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', 'mi-preset');
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({

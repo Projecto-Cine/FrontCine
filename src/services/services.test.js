@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mockeamos el módulo `api` ANTES de importar los servicios.
-// Cada función (get, post, etc.) es una vi.fn() y devuelve una promesa resuelta.
+// Mock the `api` module BEFORE importing the services.
+// Each function (get, post, etc.) is a vi.fn() returning a resolved promise.
 vi.mock('./api', () => ({
   api: {
     get:           vi.fn().mockResolvedValue([]),
@@ -34,7 +34,7 @@ import { usersService } from './usersService';
 import { workersService } from './workersService';
 
 beforeEach(() => {
-  // Reseteamos los contadores entre tests para no contaminar.
+  // Reset the call counts between tests to avoid contamination.
   vi.clearAllMocks();
 });
 
@@ -48,11 +48,11 @@ describe('moviesService', () => {
     moviesService.getActive();
     expect(api.get).toHaveBeenCalledWith('/movies/active');
   });
-  it('getById interpola el id', () => {
+  it('getById interpolates the id', () => {
     moviesService.getById(7);
     expect(api.get).toHaveBeenCalledWith('/movies/7');
   });
-  it('create → POST con body', () => {
+  it('create → POST with body', () => {
     moviesService.create({ title: 'Dune' });
     expect(api.post).toHaveBeenCalledWith('/movies', { title: 'Dune' });
   });
@@ -61,11 +61,11 @@ describe('moviesService', () => {
     moviesService.createFormData(fd);
     expect(api.postFormData).toHaveBeenCalledWith('/movies', fd);
   });
-  it('update → PUT con id y body', () => {
+  it('update → PUT with id and body', () => {
     moviesService.update(3, { title: 'X' });
     expect(api.put).toHaveBeenCalledWith('/movies/3', { title: 'X' });
   });
-  it('remove → DELETE con id', () => {
+  it('remove → DELETE with id', () => {
     moviesService.remove(3);
     expect(api.delete).toHaveBeenCalledWith('/movies/3');
   });
@@ -73,7 +73,7 @@ describe('moviesService', () => {
 
 // ───── authService ─────
 describe('authService', () => {
-  it('login → POST /auth/login con email y password', () => {
+  it('login → POST /auth/login with email and password', () => {
     authService.login('a@b.com', 'pw');
     expect(api.post).toHaveBeenCalledWith('/auth/login', { email: 'a@b.com', password: 'pw' });
   });
@@ -81,11 +81,11 @@ describe('authService', () => {
 
 // ───── auditService ─────
 describe('auditService', () => {
-  it('getAll sin params', () => {
+  it('getAll without params', () => {
     auditService.getAll();
     expect(api.get).toHaveBeenCalledWith('/audit-logs');
   });
-  it('getAll con params construye query string', () => {
+  it('getAll with params builds the query string', () => {
     auditService.getAll({ page: 1, size: 10 });
     expect(api.get).toHaveBeenCalledWith('/audit-logs?page=1&size=10');
   });
@@ -109,7 +109,7 @@ describe('clientsService', () => {
     clientsService.remove(2);
     expect(api.delete).toHaveBeenCalledWith('/clients/2');
   });
-  it('search codifica caracteres especiales (encodeURIComponent)', () => {
+  it('search encodes special characters (encodeURIComponent)', () => {
     clientsService.search('a b&c');
     expect(api.get).toHaveBeenCalledWith('/clients/search?q=a%20b%26c');
   });
@@ -129,7 +129,7 @@ describe('dashboardService', () => {
 
 // ───── employeesService ─────
 describe('employeesService', () => {
-  it('CRUD completo apunta a /employees', () => {
+  it('full CRUD points at /employees', () => {
     employeesService.getAll();
     employeesService.getById(1);
     employeesService.create({ name: 'A' });
@@ -146,7 +146,7 @@ describe('employeesService', () => {
 
 // ───── inventoryService / merchandiseService ─────
 describe('inventoryService', () => {
-  it('apunta a /merchandise', () => {
+  it('points at /merchandise', () => {
     inventoryService.getAll();
     expect(api.get).toHaveBeenCalledWith('/merchandise');
   });
@@ -167,7 +167,7 @@ describe('inventoryService', () => {
 
 // ───── merchandiseSalesService ─────
 describe('merchandiseSalesService', () => {
-  it('CRUD apunta a /merchandisesales', () => {
+  it('CRUD points at /merchandisesales', () => {
     merchandiseSalesService.getAll();
     merchandiseSalesService.getById(1);
     merchandiseSalesService.create({ q: 1 });
@@ -198,7 +198,7 @@ describe('reservationsService', () => {
   it('reservationsService === purchasesService (alias)', () => {
     expect(reservationsService).toBe(purchasesService);
   });
-  it('CRUD + acciones (pay, confirm, cancel)', () => {
+  it('CRUD + actions (pay, confirm, cancel)', () => {
     reservationsService.getAll();
     reservationsService.getById(1);
     reservationsService.getByUser(5);
@@ -206,7 +206,7 @@ describe('reservationsService', () => {
     reservationsService.create({ x: 1 });
     reservationsService.update(1, { x: 2 });
     reservationsService.pay(1, { paymentMethod: 'CARD' });
-    reservationsService.pay(1); // sin body → debe enviar {}
+    reservationsService.pay(1); // no body → must send {}
     reservationsService.confirm(1);
     reservationsService.cancel(1);
     reservationsService.remove(1);
@@ -229,7 +229,7 @@ describe('roomsService', () => {
   it('roomsService === theatersService (alias)', () => {
     expect(roomsService).toBe(theatersService);
   });
-  it('apunta a /theaters', () => {
+  it('points at /theaters', () => {
     roomsService.getAll();
     roomsService.getById(1);
     roomsService.getSeats(1);
@@ -267,13 +267,13 @@ describe('salesService', () => {
 
 // ───── seatsService ─────
 describe('seatsService', () => {
-  it('getAll sin/con params', () => {
+  it('getAll with and without params', () => {
     seatsService.getAll();
     expect(api.get).toHaveBeenCalledWith('/seats');
     seatsService.getAll({ theater: 1 });
     expect(api.get).toHaveBeenCalledWith('/seats?theater=1');
   });
-  it('resto del CRUD y queries', () => {
+  it('remaining CRUD and queries', () => {
     seatsService.getById(1);
     seatsService.getByTheater(2);
     seatsService.getByScreening(3);
@@ -294,7 +294,7 @@ describe('sessionsService', () => {
   it('sessionsService === screeningsService (alias)', () => {
     expect(sessionsService).toBe(screeningsService);
   });
-  it('todas las queries y acciones', () => {
+  it('all queries and actions', () => {
     sessionsService.getAll();
     sessionsService.getAll({ from: '2026-01-01' });
     sessionsService.getUpcoming();
@@ -323,7 +323,7 @@ describe('sessionsService', () => {
 
 // ───── shiftsService ─────
 describe('shiftsService', () => {
-  it('CRUD y filtros por fecha/rango', () => {
+  it('CRUD and filters by date / range', () => {
     shiftsService.getAll();
     shiftsService.getById(1);
     shiftsService.getByDate('2026-05-15');
@@ -343,7 +343,7 @@ describe('shiftsService', () => {
 
 // ───── ticketsService ─────
 describe('ticketsService', () => {
-  it('queries con/sin params', () => {
+  it('queries with and without params', () => {
     ticketsService.getAll();
     ticketsService.getAll({ status: 'PAID' });
     ticketsService.getByPurchase(1);
@@ -359,7 +359,7 @@ describe('ticketsService', () => {
 
 // ───── usersService ─────
 describe('usersService', () => {
-  it('CRUD + uploadImage usa postFormData', () => {
+  it('CRUD + uploadImage uses postFormData', () => {
     usersService.getAll();
     usersService.getById(1);
     usersService.create({ x: 1 });

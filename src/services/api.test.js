@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { api } from './api';
 
-// Helper para fabricar una respuesta fake del navegador (fetch).
-// Vitest no trae fetch real, así que lo "espiamos" entero con vi.spyOn.
+// Helper to fabricate a fake browser fetch response.
+// Vitest does not ship a real fetch, so we spy on it via vi.spyOn.
 function mockFetchResponse({ status = 200, body = {}, ok = true } = {}) {
   return {
     ok,
@@ -12,13 +12,13 @@ function mockFetchResponse({ status = 200, body = {}, ok = true } = {}) {
   };
 }
 
-describe('api (capa de transporte HTTP)', () => {
+describe('api (HTTP transport layer)', () => {
   let fetchSpy;
 
   beforeEach(() => {
-    // Cada test parte de un fetch limpio
+    // Each test starts with a clean fetch.
     fetchSpy = vi.spyOn(globalThis, 'fetch');
-    // Y de un localStorage limpio (jsdom lo trae)
+    // And clean localStorage (jsdom provides it).
     localStorage.clear();
   });
 
@@ -26,17 +26,17 @@ describe('api (capa de transporte HTTP)', () => {
     vi.restoreAllMocks();
   });
 
-  it('GET añade el prefijo /api por defecto', async () => {
+  it('GET adds the /api prefix by default', async () => {
     fetchSpy.mockResolvedValue(mockFetchResponse({ body: { ok: true } }));
 
     await api.get('/movies');
 
-    // El primer argumento del fetch debe contener la URL con el prefijo.
+    // The first argument of fetch must include the URL with the prefix.
     expect(fetchSpy).toHaveBeenCalledOnce();
     expect(fetchSpy.mock.calls[0][0]).toBe('/api/movies');
   });
 
-  it('POST envía el body como JSON con header Content-Type', async () => {
+  it('POST sends the body as JSON with a Content-Type header', async () => {
     fetchSpy.mockResolvedValue(mockFetchResponse({ body: { id: 1 } }));
 
     await api.post('/movies', { title: 'Dune' });
@@ -47,7 +47,7 @@ describe('api (capa de transporte HTTP)', () => {
     expect(opts.headers['Content-Type']).toBe('application/json');
   });
 
-  it('añade Authorization si hay token en localStorage', async () => {
+  it('adds Authorization when a token is in localStorage', async () => {
     localStorage.setItem('lumen_token', 'abc123');
     fetchSpy.mockResolvedValue(mockFetchResponse());
 
@@ -57,25 +57,25 @@ describe('api (capa de transporte HTTP)', () => {
     expect(opts.headers.Authorization).toBe('Bearer abc123');
   });
 
-  it('PUT envía método PUT y body JSON', async () => {
+  it('PUT uses the PUT method and JSON body', async () => {
     fetchSpy.mockResolvedValue(mockFetchResponse());
     await api.put('/movies/1', { title: 'X' });
     expect(fetchSpy.mock.calls[0][1].method).toBe('PUT');
   });
 
-  it('PATCH envía método PATCH', async () => {
+  it('PATCH uses the PATCH method', async () => {
     fetchSpy.mockResolvedValue(mockFetchResponse());
     await api.patch('/movies/1', { title: 'X' });
     expect(fetchSpy.mock.calls[0][1].method).toBe('PATCH');
   });
 
-  it('DELETE envía método DELETE', async () => {
+  it('DELETE uses the DELETE method', async () => {
     fetchSpy.mockResolvedValue(mockFetchResponse());
     await api.delete('/movies/1');
     expect(fetchSpy.mock.calls[0][1].method).toBe('DELETE');
   });
 
-  it('postFormData NO añade Content-Type (lo pone el navegador con boundary)', async () => {
+  it('postFormData does NOT add Content-Type (the browser sets it with the boundary)', async () => {
     fetchSpy.mockResolvedValue(mockFetchResponse());
     const fd = new FormData();
     fd.append('file', new Blob(['x']));
@@ -87,7 +87,7 @@ describe('api (capa de transporte HTTP)', () => {
     expect(opts.body).toBe(fd);
   });
 
-  it('"desenvuelve" data.content si el backend lo devuelve paginado', async () => {
+  it('"unwraps" data.content when the backend returns a paginated payload', async () => {
     fetchSpy.mockResolvedValue(mockFetchResponse({
       body: { content: [{ id: 1 }, { id: 2 }] },
     }));
@@ -96,7 +96,7 @@ describe('api (capa de transporte HTTP)', () => {
     expect(result).toEqual([{ id: 1 }, { id: 2 }]);
   });
 
-  it('"desenvuelve" data.data', async () => {
+  it('"unwraps" data.data', async () => {
     fetchSpy.mockResolvedValue(mockFetchResponse({
       body: { data: [{ id: 1 }] },
     }));
@@ -105,20 +105,20 @@ describe('api (capa de transporte HTTP)', () => {
     expect(result).toEqual([{ id: 1 }]);
   });
 
-  it('devuelve null cuando la respuesta es 204 No Content', async () => {
+  it('returns null when the response is 204 No Content', async () => {
     fetchSpy.mockResolvedValue(mockFetchResponse({ status: 204 }));
     const result = await api.delete('/movies/1');
     expect(result).toBeNull();
   });
 
-  it('lanza un Error con .status si la respuesta no es ok', async () => {
+  it('throws an Error with .status when the response is not ok', async () => {
     fetchSpy.mockResolvedValue(mockFetchResponse({ status: 500, ok: false }));
 
-    // Comprobamos que la promesa REchaza (.rejects) y que el error trae el status.
+    // Verify the promise REJECTS (.rejects) and the error carries the status.
     await expect(api.get('/movies')).rejects.toMatchObject({ status: 500 });
   });
 
-  it('en 401 limpia el localStorage y dispara el evento auth:expired', async () => {
+  it('on 401 clears localStorage and dispatches the auth:expired event', async () => {
     localStorage.setItem('lumen_token', 'abc');
     localStorage.setItem('lumen_user', '{}');
     fetchSpy.mockResolvedValue(mockFetchResponse({ status: 401, ok: false }));
@@ -134,14 +134,14 @@ describe('api (capa de transporte HTTP)', () => {
     window.removeEventListener('auth:expired', listener);
   });
 
-  it('en 401 sobre /auth/login NO limpia ni dispara evento (es un login fallido)', async () => {
+  it('on 401 against /auth/login it does NOT clear or emit the event (it is a failed login)', async () => {
     localStorage.setItem('lumen_token', 'abc');
     fetchSpy.mockResolvedValue(mockFetchResponse({ status: 401, ok: false }));
 
     const listener = vi.fn();
     window.addEventListener('auth:expired', listener);
 
-    // Login fallido: rechaza, pero NO debe limpiar localStorage ni emitir evento.
+    // Failed login: it rejects, but must NOT clear localStorage or emit the event.
     await expect(api.post('/auth/login', {})).rejects.toBeTruthy();
     expect(localStorage.getItem('lumen_token')).toBe('abc');
     expect(listener).not.toHaveBeenCalled();

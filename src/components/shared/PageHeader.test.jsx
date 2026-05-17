@@ -3,28 +3,28 @@ import { render, screen } from '@testing-library/react';
 import PageHeader from './PageHeader';
 
 describe('PageHeader', () => {
-  it('renderiza el title como un h1 (jerarquía correcta)', () => {
+  it('renders the title as an h1 (correct hierarchy)', () => {
     render(<PageHeader title="Películas" />);
-    // getByRole('heading', { level: 1 }) verifica que sea <h1>.
+    // getByRole('heading', { level: 1 }) verifies it is an <h1>.
     expect(screen.getByRole('heading', { level: 1, name: 'Películas' })).toBeInTheDocument();
   });
 
-  it('NO renderiza subtitle si no se pasa', () => {
+  it('does NOT render the subtitle when omitted', () => {
     render(<PageHeader title="X" />);
     expect(screen.queryByText('Subtítulo')).toBeNull();
   });
 
-  it('renderiza subtitle cuando se pasa', () => {
+  it('renders the subtitle when provided', () => {
     render(<PageHeader title="X" subtitle="Subtítulo" />);
     expect(screen.getByText('Subtítulo')).toBeInTheDocument();
   });
 
-  it('renderiza el slot de actions (children arbitrarios)', () => {
+  it('renders the actions slot (arbitrary children)', () => {
     render(<PageHeader title="X" actions={<button>Crear</button>} />);
     expect(screen.getByRole('button', { name: 'Crear' })).toBeInTheDocument();
   });
 
-  it('renderiza el slot de breadcrumb', () => {
+  it('renders the breadcrumb slot', () => {
     render(<PageHeader title="X" breadcrumb={<span>Inicio › X</span>} />);
     expect(screen.getByText('Inicio › X')).toBeInTheDocument();
   });

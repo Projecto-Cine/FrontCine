@@ -6,6 +6,8 @@ import { LanguageProvider } from '../../i18n/LanguageContext';
 
 const renderWith = (ui) => render(<LanguageProvider>{ui}</LanguageProvider>);
 
+// Column labels are user-facing strings rendered by the table, so they
+// stay in Spanish (this is the locale the app ships in).
 const COLUMNS = [
   { key: 'name', label: 'Nombre' },
   { key: 'age',  label: 'Edad', sortable: true },
@@ -18,7 +20,7 @@ const DATA = [
 ];
 
 describe('DataTable', () => {
-  it('renderiza las columnas y todas las filas', () => {
+  it('renders the columns and every row', () => {
     renderWith(<DataTable columns={COLUMNS} data={DATA} />);
 
     expect(screen.getByRole('columnheader', { name: /Nombre/ })).toBeInTheDocument();
@@ -28,13 +30,13 @@ describe('DataTable', () => {
     expect(screen.getByText('Carla')).toBeInTheDocument();
   });
 
-  it('muestra empty state cuando no hay datos', () => {
+  it('shows the empty state when data is empty', () => {
     renderWith(<DataTable columns={COLUMNS} data={[]} />);
-    // Debe haber una sola fila (la del empty), no las 3 normales.
+    // Only the empty row should be present, not the 3 normal rows.
     expect(screen.queryByText('Ana')).toBeNull();
   });
 
-  it('filtra al escribir en el buscador (searchKeys)', async () => {
+  it('filters when typing in the search box (searchKeys)', async () => {
     const user = userEvent.setup();
     renderWith(<DataTable columns={COLUMNS} data={DATA} searchKeys={['name']} />);
 
@@ -45,7 +47,7 @@ describe('DataTable', () => {
     expect(screen.queryByText('Bruno')).toBeNull();
   });
 
-  it('ordena al hacer click en una cabecera (asc → desc → asc)', async () => {
+  it('sorts when clicking a header (asc → desc → asc)', async () => {
     const user = userEvent.setup();
     renderWith(<DataTable columns={COLUMNS} data={DATA} />);
 
@@ -57,7 +59,7 @@ describe('DataTable', () => {
     expect(header).toHaveAttribute('aria-sort', 'descending');
   });
 
-  it('llama a onRowClick al hacer click en una fila', async () => {
+  it('invokes onRowClick when clicking a row', async () => {
     const onRowClick = vi.fn();
     const user = userEvent.setup();
     renderWith(<DataTable columns={COLUMNS} data={DATA} onRowClick={onRowClick} />);
@@ -66,25 +68,25 @@ describe('DataTable', () => {
     expect(onRowClick).toHaveBeenCalledWith(DATA[0]);
   });
 
-  it('paginación: pageSize=2 muestra solo 2 filas', () => {
+  it('pagination: pageSize=2 only shows 2 rows', () => {
     renderWith(<DataTable columns={COLUMNS} data={DATA} pageSize={2} />);
     expect(screen.getByText('Ana')).toBeInTheDocument();
     expect(screen.getByText('Bruno')).toBeInTheDocument();
     expect(screen.queryByText('Carla')).toBeNull();
   });
 
-  it('paginación: avanzar de página muestra el resto', async () => {
+  it('pagination: advancing to the next page reveals the remaining rows', async () => {
     const user = userEvent.setup();
     renderWith(<DataTable columns={COLUMNS} data={DATA} pageSize={2} />);
 
-    // El botón "siguiente página" tiene aria-label de i18n; el último botón es "next".
+    // The "next page" button has an i18n aria-label; it's the last button.
     const buttons = screen.getAllByRole('button');
     await user.click(buttons[buttons.length - 1]);
 
     expect(screen.getByText('Carla')).toBeInTheDocument();
   });
 
-  it('rowActions renderiza el contenido devuelto por la función', () => {
+  it('rowActions renders the markup returned by the callback', () => {
     renderWith(
       <DataTable
         columns={COLUMNS}
@@ -95,19 +97,19 @@ describe('DataTable', () => {
     expect(screen.getByRole('button', { name: 'Eliminar Ana' })).toBeInTheDocument();
   });
 
-  it('bulkActions: marcar la cabecera selecciona todas las filas y muestra contador', async () => {
+  it('bulkActions: ticking the header selects every row and shows the counter', async () => {
     const bulkActions = vi.fn(() => <button>Borrar selección</button>);
     const user = userEvent.setup();
     renderWith(<DataTable columns={COLUMNS} data={DATA} bulkActions={bulkActions} />);
 
-    // Inicialmente bulkActions NO se renderiza (no hay nada seleccionado).
+    // bulkActions is NOT rendered initially (nothing selected yet).
     expect(screen.queryByRole('button', { name: 'Borrar selección' })).toBeNull();
 
-    // Marcamos "seleccionar todo" (primer checkbox de la cabecera).
+    // Tick "select all" (first header checkbox).
     const checkboxes = screen.getAllByRole('checkbox');
     await user.click(checkboxes[0]);
 
-    // Ahora sí debe aparecer el slot de acciones masivas.
+    // Now the bulk-actions slot must appear.
     expect(screen.getByRole('button', { name: 'Borrar selección' })).toBeInTheDocument();
     expect(bulkActions).toHaveBeenCalled();
   });

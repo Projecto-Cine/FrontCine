@@ -6,7 +6,7 @@ import Toasts from './Toasts';
 beforeEach(() => { vi.useFakeTimers(); });
 afterEach(() => { vi.useRealTimers(); });
 
-// Componente de ayuda para disparar un toast desde dentro del Provider.
+// Helper component to fire a toast from inside the Provider.
 function Trigger({ message, type = 'info' }) {
   const { toast } = useApp();
   return <button onClick={() => toast(message, type, 5000)}>Lanzar</button>;
@@ -15,13 +15,13 @@ function Trigger({ message, type = 'info' }) {
 const setup = (ui) => render(<AppProvider><Toasts />{ui}</AppProvider>);
 
 describe('Toasts', () => {
-  it('NO renderiza nada cuando no hay toasts', () => {
+  it('does NOT render anything when there are no toasts', () => {
     setup(null);
     expect(screen.queryByRole('region')).toBeNull();
   });
 
-  it('renderiza un toast cuando se dispara', () => {
-    // Con fake timers usamos fireEvent (síncrono) en lugar de userEvent (async).
+  it('renders a toast when one is fired', () => {
+    // With fake timers we use fireEvent (sync) instead of userEvent (async).
     setup(<Trigger message="Guardado" type="success" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Lanzar' }));
@@ -30,7 +30,7 @@ describe('Toasts', () => {
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
-  it('un toast type="error" usa role="alert" (más insistente)', () => {
+  it('a toast with type="error" uses role="alert" (more insistent)', () => {
     setup(<Trigger message="Falló" type="error" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Lanzar' }));
@@ -38,7 +38,7 @@ describe('Toasts', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
-  it('el botón cerrar elimina el toast', () => {
+  it('the close button removes the toast', () => {
     setup(<Trigger message="X" type="info" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Lanzar' }));
@@ -49,13 +49,13 @@ describe('Toasts', () => {
     expect(screen.queryByText('X')).toBeNull();
   });
 
-  it('el toast se elimina solo tras la duración', () => {
+  it('the toast auto-dismisses after the duration', () => {
     setup(<Trigger message="Adios" type="info" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Lanzar' }));
     expect(screen.getByText('Adios')).toBeInTheDocument();
 
-    // Avanzamos los 5 segundos del setTimeout.
+    // Advance the 5-second timer.
     act(() => { vi.advanceTimersByTime(5000); });
     expect(screen.queryByText('Adios')).toBeNull();
   });

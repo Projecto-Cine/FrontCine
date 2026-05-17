@@ -2,23 +2,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import StatusBar from './StatusBar';
 
-// AuthContext es un dep duro → lo mockeamos para que devuelva un user fake.
+// AuthContext is a hard dependency → mock it to return a fake user.
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ user: { name: 'Ana López', role: 'admin' } }),
 }));
 
 describe('StatusBar', () => {
   beforeEach(() => {
-    // jsdom no expone setter para navigator.onLine sin trampas; usamos defineProperty.
+    // jsdom does not expose a setter for navigator.onLine without tricks; use defineProperty.
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
   });
 
-  it('muestra "Conectado" cuando navigator.onLine=true', () => {
+  it('shows "Conectado" when navigator.onLine=true', () => {
     render(<StatusBar />);
     expect(screen.getByText('Conectado')).toBeInTheDocument();
   });
 
-  it('cambia a "Sin conexión" al disparar el evento offline', () => {
+  it('switches to "Sin conexión" when the offline event fires', () => {
     render(<StatusBar />);
 
     act(() => {
@@ -29,17 +29,17 @@ describe('StatusBar', () => {
     expect(screen.getByText('Sin conexión')).toBeInTheDocument();
   });
 
-  it('muestra el primer nombre del usuario y su role', () => {
+  it("shows the user's first name and role", () => {
     render(<StatusBar />);
     expect(screen.getByText(/Ana · admin/)).toBeInTheDocument();
   });
 
-  it('muestra la versión de la app', () => {
+  it('shows the app version', () => {
     render(<StatusBar />);
     expect(screen.getByText(/v1\.0\.0-dev/)).toBeInTheDocument();
   });
 
-  it('tiene role="contentinfo" (footer accesible)', () => {
+  it('has role="contentinfo" (accessible footer)', () => {
     render(<StatusBar />);
     expect(screen.getByRole('contentinfo')).toBeInTheDocument();
   });

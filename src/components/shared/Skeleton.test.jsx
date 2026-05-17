@@ -5,45 +5,45 @@ import SkeletonPage, {
 } from './Skeleton';
 
 describe('Skeleton', () => {
-  it('SkeletonLine aplica width y height por defecto', () => {
+  it('SkeletonLine applies default width and height', () => {
     const { container } = render(<SkeletonLine />);
     const span = container.querySelector('span');
     expect(span).not.toBeNull();
     expect(span.style.width).toBe('100%');
   });
 
-  it('SkeletonLine acepta props personalizadas', () => {
+  it('SkeletonLine accepts custom props', () => {
     const { container } = render(<SkeletonLine width="50%" height={20} />);
     const span = container.querySelector('span');
     expect(span.style.width).toBe('50%');
     expect(span.style.height).toBe('20px');
   });
 
-  it('SkeletonCard se renderiza sin lanzar error', () => {
+  it('SkeletonCard renders without throwing', () => {
     const { container } = render(<SkeletonCard />);
     expect(container.firstChild).not.toBeNull();
   });
 
-  it('SkeletonTable genera el número correcto de filas y columnas', () => {
+  it('SkeletonTable produces the right number of rows and columns', () => {
     const { container } = render(<SkeletonTable rows={3} cols={2} />);
-    // Las filas son divs hijos directos del contenedor (excluyendo el header).
+    // Rows are direct child divs of the container (excluding the header).
     const allDivs = container.querySelectorAll('div > div');
-    // 1 header + 3 rows = 4 divs hijos.
+    // 1 header + 3 rows = 4 direct children.
     expect(allDivs.length).toBeGreaterThanOrEqual(4);
   });
 
-  it('SkeletonChart aplica height en estilo inline', () => {
+  it('SkeletonChart applies height via inline style', () => {
     const { container } = render(<SkeletonChart height={300} />);
     expect(container.firstChild.style.height).toBe('300px');
   });
 
-  it('SkeletonKpiGrid renderiza el número de cards pedido', () => {
+  it('SkeletonKpiGrid renders the requested number of cards', () => {
     const { container } = render(<SkeletonKpiGrid count={3} />);
-    // SkeletonCard tiene una estructura distintiva — contamos los hijos directos.
+    // SkeletonCard has a distinctive structure — count its direct children.
     expect(container.firstChild.children.length).toBe(3);
   });
 
-  it('SkeletonPage tiene role="status" y aria-label de carga', () => {
+  it('SkeletonPage has role="status" and a loading aria-label', () => {
     const { container } = render(<SkeletonPage />);
     const root = container.querySelector('[role="status"]');
     expect(root).not.toBeNull();

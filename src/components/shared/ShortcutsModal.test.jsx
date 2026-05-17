@@ -4,17 +4,17 @@ import userEvent from '@testing-library/user-event';
 import ShortcutsModal from './ShortcutsModal';
 
 describe('ShortcutsModal', () => {
-  it('NO renderiza nada si open=false', () => {
+  it('does NOT render anything when open=false', () => {
     const { container } = render(<ShortcutsModal open={false} onClose={() => {}} />);
     expect(container.firstChild).toBeNull();
   });
 
-  it('renderiza el panel con role=dialog cuando open=true', () => {
+  it('renders the panel with role=dialog when open=true', () => {
     render(<ShortcutsModal open onClose={() => {}} />);
     expect(screen.getByRole('dialog', { name: /Atajos/i })).toBeInTheDocument();
   });
 
-  it('llama a onClose al hacer click en el botón X', async () => {
+  it('calls onClose when the X button is clicked', async () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(<ShortcutsModal open onClose={onClose} />);
@@ -23,7 +23,7 @@ describe('ShortcutsModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('llama a onClose al pulsar Escape', () => {
+  it('calls onClose on Escape key', () => {
     const onClose = vi.fn();
     render(<ShortcutsModal open onClose={onClose} />);
 
@@ -31,7 +31,7 @@ describe('ShortcutsModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('muestra varios atajos conocidos (sanity check)', () => {
+  it('shows several known shortcuts (sanity check)', () => {
     render(<ShortcutsModal open onClose={() => {}} />);
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText(/Abrir paleta de comandos/i)).toBeInTheDocument();

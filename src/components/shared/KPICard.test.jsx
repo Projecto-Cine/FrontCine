@@ -7,25 +7,25 @@ import { LanguageProvider } from '../../i18n/LanguageContext';
 const renderWith = (ui) => render(<LanguageProvider>{ui}</LanguageProvider>);
 
 describe('KPICard', () => {
-  it('muestra label y value', () => {
+  it('renders label and value', () => {
     renderWith(<KPICard label="Ingresos" value="1.234 €" />);
     expect(screen.getByText('Ingresos')).toBeInTheDocument();
     expect(screen.getByText('1.234 €')).toBeInTheDocument();
   });
 
-  it('NO es interactivo si no se pasa onClick', () => {
+  it('is NOT interactive when no onClick is provided', () => {
     renderWith(<KPICard label="X" value="1" />);
-    // Sin onClick, no debe haber role="button".
+    // Without onClick there must be no role="button".
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('es interactivo cuando se pasa onClick (role=button + tabIndex)', () => {
+  it('is interactive when onClick is provided (role=button + tabIndex)', () => {
     renderWith(<KPICard label="X" value="1" onClick={() => {}} />);
     const btn = screen.getByRole('button', { name: 'X' });
     expect(btn).toHaveAttribute('tabindex', '0');
   });
 
-  it('llama a onClick al hacer click', async () => {
+  it('calls onClick on click', async () => {
     const onClick = vi.fn();
     const user = userEvent.setup();
     renderWith(<KPICard label="X" value="1" onClick={onClick} />);
@@ -34,7 +34,7 @@ describe('KPICard', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it('llama a onClick al pulsar Enter (accesibilidad teclado)', async () => {
+  it('calls onClick on Enter key (keyboard accessibility)', async () => {
     const onClick = vi.fn();
     const user = userEvent.setup();
     renderWith(<KPICard label="X" value="1" onClick={onClick} />);
@@ -45,7 +45,7 @@ describe('KPICard', () => {
     expect(onClick).toHaveBeenCalled();
   });
 
-  it('llama a onClick al pulsar Space', async () => {
+  it('calls onClick on Space key', async () => {
     const onClick = vi.fn();
     const user = userEvent.setup();
     renderWith(<KPICard label="X" value="1" onClick={onClick} />);
@@ -56,17 +56,17 @@ describe('KPICard', () => {
     expect(onClick).toHaveBeenCalled();
   });
 
-  it('muestra trend con + si es positivo', () => {
+  it('renders the trend with + when positive', () => {
     renderWith(<KPICard label="X" value="1" trend={5} />);
     expect(screen.getByText('+5%')).toBeInTheDocument();
   });
 
-  it('muestra trend con - si es negativo', () => {
+  it('renders the trend with - when negative', () => {
     renderWith(<KPICard label="X" value="1" trend={-3} />);
     expect(screen.getByText('-3%')).toBeInTheDocument();
   });
 
-  it('muestra subtítulo si se pasa', () => {
+  it('renders the subtitle when provided', () => {
     renderWith(<KPICard label="X" value="1" sub="vs ayer" />);
     expect(screen.getByText('vs ayer')).toBeInTheDocument();
   });

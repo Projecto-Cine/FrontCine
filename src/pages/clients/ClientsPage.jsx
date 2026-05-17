@@ -148,7 +148,7 @@ export default function ClientsPage() {
           password:   form.password,
           birthDate:  form.dateOfBirth || null,
           student:    form.student,
-          role:       'CLIENTE',
+          role:       'CLIENT',
         };
         const raw     = await clientsService.create(payload);
         const created = normalizeClient(raw, payload);

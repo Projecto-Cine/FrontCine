@@ -648,7 +648,7 @@ export default function TaquillaPage() {
             try {
               const res = await clientsService.create({
                 name: 'Cliente', lastName: 'Taquilla', email: ANON_EMAIL,
-                password: 'WalkIn2024Lumen', birthDate: '1990-01-01', student: false, role: 'CLIENTE',
+                password: 'WalkIn2024Lumen', birthDate: '1990-01-01', student: false, role: 'CLIENT',
               });
               const id = uid(res);
               if (id) {

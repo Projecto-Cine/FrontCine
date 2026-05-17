@@ -12,13 +12,13 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { usersService } from '../../services/usersService';
 import styles from './UsersPage.module.css';
 
-const ROLE_MAP = { CLIENTE: 'CLIENTE', ADMIN: 'ADMIN', SUPERVISOR: 'SUPERVISOR', OPERATOR: 'OPERATOR', TICKET: 'TICKET', MAINTENANCE: 'MAINTENANCE', READONLY: 'READONLY' };
-const ROLE_COLOR = { ADMIN: 'red', CLIENTE: 'green', SUPERVISOR: 'yellow', OPERATOR: 'accent', TICKET: 'purple', MAINTENANCE: 'cyan', READONLY: 'default' };
-const EMPTY = { name: '', lastName: '', email: '', password: '', role: 'CLIENTE', birthDate: '' };
+const ROLE_MAP = { CLIENT: 'CLIENT', CLIENTE: 'CLIENT', ADMIN: 'ADMIN', SUPERVISOR: 'SUPERVISOR', OPERATOR: 'OPERATOR', TICKET: 'TICKET', MAINTENANCE: 'MAINTENANCE', READONLY: 'READONLY' };
+const ROLE_COLOR = { ADMIN: 'red', CLIENT: 'green', CLIENTE: 'green', SUPERVISOR: 'yellow', OPERATOR: 'accent', TICKET: 'purple', MAINTENANCE: 'cyan', READONLY: 'default' };
+const EMPTY = { name: '', lastName: '', email: '', password: '', role: 'CLIENT', birthDate: '' };
 
 const normalizeUser = (user) => ({
   ...user,
-  role: ROLE_MAP[String(user.role ?? 'CLIENTE').toUpperCase()] ?? 'CLIENTE',
+  role: ROLE_MAP[String(user.role ?? 'CLIENT').toUpperCase()] ?? 'CLIENT',
   birthDate: user.birthDate ?? user.dateOfBirth ?? '',
 });
 
@@ -35,6 +35,7 @@ export default function UsersPage() {
 
   const ROLES = {
     ADMIN:       { label: t('users.role.ADMIN'),       color: 'red' },
+    CLIENT:      { label: t('users.role.CLIENT'),      color: 'green' },
     CLIENTE:     { label: t('users.role.CLIENT'),      color: 'green' },
     SUPERVISOR:  { label: 'Supervisor',                color: 'yellow' },
     OPERATOR:    { label: 'Operador',                  color: 'accent' },
@@ -117,7 +118,7 @@ export default function UsersPage() {
       <div className={styles.kpiRow}>
         <KPICard label={t('users.kpi.staff')}  value={users.length}                                           icon={Users}     color="accent" />
         <KPICard label={t('users.kpi.admins')} value={users.filter(user => user.role === 'ADMIN').length}     icon={Shield}    color="red" />
-        <KPICard label={t('users.kpi.clients')}value={users.filter(user => user.role === 'CLIENTE').length}   icon={UserCheck} color="green" />
+        <KPICard label={t('users.kpi.clients')}value={users.filter(user => user.role === 'CLIENT' || user.role === 'CLIENTE').length}   icon={UserCheck} color="green" />
       </div>
 
       <div className={styles.rolesGrid}>

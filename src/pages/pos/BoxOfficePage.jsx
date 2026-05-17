@@ -455,7 +455,6 @@ export default function TaquillaPage() {
         : Array.isArray(raw?.seats)   ? raw.seats
         : Array.isArray(raw?.items)   ? raw.items
         : [];
-      console.log('[seats] raw response type:', Array.isArray(raw) ? 'array' : typeof raw, 'items:', list.length, 'first:', list[0]);
       const now  = Date.now();
       const seen = new Set();
       const out  = [];
@@ -552,8 +551,7 @@ export default function TaquillaPage() {
       if (!screeningSeatIds.length && selectedSeats.length > 0) {
         try {
           const freshData = await sessionsService.syncSeats(selectedSession.id);
-          console.debug('[handlePay] syncSeats retry raw:', freshData);
-          const raw = Array.isArray(freshData) ? freshData
+              const raw = Array.isArray(freshData) ? freshData
             : Array.isArray(freshData?.content) ? freshData.content
             : Array.isArray(freshData?.data)    ? freshData.data
             : Array.isArray(freshData?.seats)   ? freshData.seats
@@ -592,8 +590,7 @@ export default function TaquillaPage() {
             }
           }
         } catch (syncErr) {
-          console.warn('[handlePay] syncSeats retry failed:', syncErr);
-        }
+            }
       }
 
       if (!screeningSeatIds.length) {
@@ -602,73 +599,70 @@ export default function TaquillaPage() {
         return;
       }
 
-      // Resolve a valid client userId for the purchase.
-      // Priority: selected client → find by email → create guest with email → reuse/create anonymous walk-in client
-      let resolvedUserId = selectedClient?.id ?? null;
+      // Resolve a valid client userId — always succeeds or falls back gracefully.
+      const ANON_KEY   = 'lumen_walkin_uid';
+      const ANON_EMAIL = 'walkincustomer@lumencinema.es';
       const emailQuery = guestEmail.trim();
 
-      if (!resolvedUserId) {
-        if (emailQuery) {
-          // 1. Search for existing client by email
-          try {
-            const searchRes = await clientsService.search(emailQuery);
-            const found = (Array.isArray(searchRes) ? searchRes : searchRes?.content ?? [])[0];
-            if (found?.id) {
-              resolvedUserId = found.id;
-            } else {
-              // 2. Not found → create a guest client with the email
-              try {
-                const created = await clientsService.create({
-                  name:      emailQuery.split('@')[0],
-                  lastName:  '',
-                  email:     emailQuery,
-                  password:  `Guest${Date.now()}!L`,
-                  birthDate: null,
-                  student:   false,
-                  role:      'CLIENTE',
-                });
-                if (created?.id) resolvedUserId = created.id;
-              } catch {}
-            }
-          } catch {}
-        }
+      const searchFirst = async (q) => {
+        try {
+          const r = await clientsService.search(q);
+          return (Array.isArray(r) ? r : r?.content ?? [])[0] ?? null;
+        } catch { return null; }
+      };
+      const createWalkIn = async () => {
+        try { return await clientsService.create({ name: 'Cliente', lastName: 'Taquilla', email: ANON_EMAIL, password: 'WalkIn2024!Lumen', birthDate: null, student: false, role: 'CLIENTE' }); }
+        catch (e) { return e?.status === 409 ? searchFirst(ANON_EMAIL) : null; }
+      };
+      const createGuest = async (email) => {
+        try { return await clientsService.create({ name: email.split('@')[0], lastName: '', email, password: `Guest${Date.now()}!L`, birthDate: null, student: false, role: 'CLIENTE' }); }
+        catch (e) { return e?.status === 409 ? searchFirst(email) : null; }
+      };
 
-        // 3. No email or creation failed → use/create reusable anonymous walk-in client
+      let resolvedUserId = selectedClient?.id ?? null;
+
+      if (!resolvedUserId && emailQuery) {
+        const found = await searchFirst(emailQuery);
+        resolvedUserId = found?.id ?? null;
         if (!resolvedUserId) {
-          const ANON_KEY   = 'lumen_walkin_uid';
-          const ANON_EMAIL = 'walkincustomer@lumencinema.es';
-          const cached     = Number(localStorage.getItem(ANON_KEY) || '0');
-          if (cached > 0) {
-            resolvedUserId = cached;
+          const created = await createGuest(emailQuery);
+          resolvedUserId = created?.id ?? null;
+        }
+      }
+
+      if (!resolvedUserId) {
+        const cached = Number(localStorage.getItem(ANON_KEY) || '0');
+        if (cached > 0) {
+          // Validate cached ID — recreate if DB was reset
+          const stillValid = await searchFirst(ANON_EMAIL);
+          if (stillValid?.id) {
+            if (stillValid.id !== cached) localStorage.setItem(ANON_KEY, String(stillValid.id));
+            resolvedUserId = stillValid.id;
           } else {
-            try {
-              const anonSearch = await clientsService.search(ANON_EMAIL);
-              const anonFound  = (Array.isArray(anonSearch) ? anonSearch : anonSearch?.content ?? [])[0];
-              if (anonFound?.id) {
-                localStorage.setItem(ANON_KEY, String(anonFound.id));
-                resolvedUserId = anonFound.id;
-              } else {
-                const anonCreated = await clientsService.create({
-                  name:      'Cliente',
-                  lastName:  'Taquilla',
-                  email:     ANON_EMAIL,
-                  password:  `WalkIn${Date.now()}!L`,
-                  birthDate: null,
-                  student:   false,
-                  role:      'CLIENTE',
-                });
-                if (anonCreated?.id) {
-                  localStorage.setItem(ANON_KEY, String(anonCreated.id));
-                  resolvedUserId = anonCreated.id;
-                }
-              }
-            } catch {}
+            localStorage.removeItem(ANON_KEY);
+            const created = await createWalkIn();
+            if (created?.id) {
+              localStorage.setItem(ANON_KEY, String(created.id));
+              resolvedUserId = created.id;
+            }
+          }
+        } else {
+          const found = await searchFirst(ANON_EMAIL);
+          if (found?.id) {
+            localStorage.setItem(ANON_KEY, String(found.id));
+            resolvedUserId = found.id;
+          } else {
+            const created = await createWalkIn();
+            if (created?.id) {
+              localStorage.setItem(ANON_KEY, String(created.id));
+              resolvedUserId = created.id;
+            }
           }
         }
       }
 
       if (!resolvedUserId) {
-        toast('No se pudo procesar la venta sin un cliente. Selecciónalo de la lista.', 'error');
+        toast('No se pudo asociar un cliente a esta venta. Selecciónalo de la lista.', 'error');
         setPaying(false);
         return;
       }
@@ -684,7 +678,6 @@ export default function TaquillaPage() {
         })),
       };
       if (guestEmail.trim()) purchaseBody.guestEmail = guestEmail.trim();
-      console.log('[handlePay] POST /purchases body:', JSON.stringify(purchaseBody, null, 2));
 
       const res = await salesService.createPurchase(purchaseBody);
 
@@ -760,7 +753,6 @@ export default function TaquillaPage() {
       } catch {
         backendMsg = jsonText.slice(0, 150);
       }
-      console.error('[handlePay] status:', status, '| backend response:', jsonText);
       const msg =
         status === 404 && (rawBody.toLowerCase().includes('seat') || rawBody.toLowerCase().includes('butaca'))
           ? 'Butaca no encontrada, recarga el mapa.' :

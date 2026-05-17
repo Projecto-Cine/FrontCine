@@ -4,41 +4,41 @@ import userEvent from '@testing-library/user-event';
 import Button from './Button';
 
 describe('Button', () => {
-  it('renderiza el texto que recibe como children', () => {
+  it('renders the text passed as children', () => {
     render(<Button>Guardar</Button>);
 
-    // getByRole('button', { name: '...' }) es la forma RECOMENDADA:
-    // valida accesibilidad (que sea un botón con nombre accesible)
-    // y a la vez encuentra el elemento.
+    // getByRole('button', { name: '...' }) is the RECOMMENDED query:
+    // it validates accessibility (a button with an accessible name)
+    // and finds the element at the same time.
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeInTheDocument();
   });
 
-  it('llama a onClick cuando el usuario hace click', async () => {
-    // vi.fn() crea un "espía": una función falsa que recuerda cómo la llamaron.
+  it('calls onClick when the user clicks', async () => {
+    // vi.fn() creates a "spy": a fake function that records its calls.
     const onClick = vi.fn();
-    // userEvent simula interacciones reales del usuario (mejor que fireEvent).
+    // userEvent simulates real user interactions (preferred over fireEvent).
     const user = userEvent.setup();
 
     render(<Button onClick={onClick}>Click me</Button>);
     await user.click(screen.getByRole('button', { name: 'Click me' }));
 
-    // Comprobamos que el callback se llamó exactamente una vez.
+    // Verify the callback was called exactly once.
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it('NO llama a onClick si está disabled', async () => {
+  it('does NOT call onClick when disabled', async () => {
     const onClick = vi.fn();
     const user = userEvent.setup();
 
     render(<Button disabled onClick={onClick}>Click me</Button>);
     await user.click(screen.getByRole('button', { name: 'Click me' }));
 
-    // Un botón deshabilitado no debe disparar eventos.
+    // A disabled button must not dispatch events.
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it('queda deshabilitado cuando loading={true}', () => {
-    // Esto evita el típico bug de doble submit en formularios.
+  it('is disabled when loading={true}', () => {
+    // Prevents the classic double-submit bug on forms.
     render(<Button loading>Enviando…</Button>);
 
     expect(screen.getByRole('button')).toBeDisabled();

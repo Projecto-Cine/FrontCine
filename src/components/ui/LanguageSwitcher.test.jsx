@@ -4,19 +4,19 @@ import userEvent from '@testing-library/user-event';
 import { LanguageProvider } from '../../i18n/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
 
-// LanguageSwitcher consume el contexto de idioma → lo envolvemos.
+// LanguageSwitcher consumes the language context → wrap it.
 const renderWithProvider = (ui) => render(<LanguageProvider>{ui}</LanguageProvider>);
 
 beforeEach(() => localStorage.clear());
 
 describe('LanguageSwitcher', () => {
-  it('renderiza un botón por idioma soportado', () => {
+  it('renders one button per supported language', () => {
     renderWithProvider(<LanguageSwitcher />);
     expect(screen.getByRole('button', { name: /Español/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /English/i })).toBeInTheDocument();
   });
 
-  it('marca aria-pressed=true en el idioma activo', () => {
+  it('marks aria-pressed=true on the active language', () => {
     localStorage.setItem('lumen_lang', 'es');
     renderWithProvider(<LanguageSwitcher />);
     const es = screen.getByRole('button', { name: /Español/i });
@@ -25,7 +25,7 @@ describe('LanguageSwitcher', () => {
     expect(en).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('al hacer click cambia el idioma activo', async () => {
+  it('clicking changes the active language', async () => {
     localStorage.setItem('lumen_lang', 'es');
     const user = userEvent.setup();
     renderWithProvider(<LanguageSwitcher />);

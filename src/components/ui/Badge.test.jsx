@@ -2,30 +2,30 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import Badge from './Badge';
 
-// describe = agrupa tests relacionados (suele coincidir con un componente)
+// describe = groups related tests (usually one per component).
 describe('Badge', () => {
-  // it / test = un caso concreto. La frase debe leerse como una afirmación.
-  it('muestra el texto que recibe como children', () => {
+  // it / test = a single concrete case. Read it as an assertion.
+  it('shows the text passed as children', () => {
     render(<Badge>Nuevo</Badge>);
 
-    // screen.getByText busca un nodo que contenga ese texto.
-    // Si no lo encuentra, el test falla con un error claro.
+    // screen.getByText looks for a node containing the given text.
+    // If it is not found, the test fails with a clear message.
     expect(screen.getByText('Nuevo')).toBeInTheDocument();
   });
 
-  it('NO muestra el "dot" por defecto', () => {
-    // Patrón "container": útil para asserts sobre clases o estructura
-    // cuando no hay texto visible que buscar.
+  it('does NOT show the "dot" by default', () => {
+    // "container" pattern: useful for asserting on class/structure
+    // when there is no visible text to look up.
     const { container } = render(<Badge>Hola</Badge>);
 
-    // El dot es un <span> con la clase styles.dot. Comprobamos que no exista.
+    // The dot is a nested <span>. Confirm it is not present.
     expect(container.querySelector('span > span')).toBeNull();
   });
 
-  it('muestra el "dot" cuando dot={true}', () => {
+  it('shows the "dot" when dot={true}', () => {
     const { container } = render(<Badge dot>Hola</Badge>);
 
-    // Ahora sí debe existir el span interno (el puntito).
+    // Now the inner span (the dot) must be there.
     expect(container.querySelector('span > span')).not.toBeNull();
   });
 });

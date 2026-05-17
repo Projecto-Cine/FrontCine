@@ -1,6 +1,6 @@
 /**
- * Smoke test de MainLayout: monta el layout completo con un Outlet fake.
- * Esto cubre los handlers de teclado (Ctrl+K, Ctrl+B, Alt+1..9).
+ * Smoke test for MainLayout: mounts the full layout with a fake Outlet.
+ * This covers the keyboard handlers (Ctrl+K, Ctrl+B, Alt+1..9).
  */
 import { describe, it, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
@@ -13,8 +13,8 @@ vi.mock('../contexts/AuthContext', () => ({
 }));
 
 describe('MainLayout', () => {
-  it('se monta y reacciona a atajos de teclado', async () => {
-    // Necesitamos mockear scrollIntoView porque CommandPalette lo invoca al abrir.
+  it('mounts and reacts to keyboard shortcuts', async () => {
+    // Stub scrollIntoView because CommandPalette invokes it on open.
     Element.prototype.scrollIntoView = vi.fn();
 
     const { default: MainLayout } = await import('./MainLayout');
@@ -33,12 +33,12 @@ describe('MainLayout', () => {
       </MemoryRouter>
     );
 
-    // Disparamos atajos para ejercitar el handler global.
+    // Fire shortcuts to exercise the global handler.
     fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
     fireEvent.keyDown(document, { key: 'b', ctrlKey: true });
     fireEvent.keyDown(document, { key: '1', altKey: true });
     fireEvent.keyDown(document, { key: '5', altKey: true });
-    // Tecla irrelevante: cubre la rama "no hace nada".
+    // Irrelevant key: covers the "no-op" branch.
     fireEvent.keyDown(document, { key: 'z' });
   });
 });

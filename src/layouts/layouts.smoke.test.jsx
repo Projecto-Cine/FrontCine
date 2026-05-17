@@ -1,7 +1,7 @@
 /**
- * Smoke tests para los componentes de layout (Sidebar, Header).
- * MainLayout queda fuera porque es el que orquesta routing y necesita
- * un setup más pesado.
+ * Smoke tests for the layout components (Sidebar, Header).
+ * MainLayout is excluded because it orchestrates routing and needs
+ * a heavier setup.
  */
 import { describe, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
@@ -25,17 +25,17 @@ const wrap = (ui) => (
 );
 
 describe('Smoke layouts', () => {
-  it('Sidebar se monta', async () => {
+  it('Sidebar mounts', async () => {
     const { default: Sidebar } = await import('./Sidebar');
     render(wrap(<Sidebar />));
   });
 
-  it('Header se monta (sin onOpenPalette)', async () => {
+  it('Header mounts (without onOpenPalette)', async () => {
     const { default: Header } = await import('./Header');
     render(wrap(<Header />));
   });
 
-  it('Header se monta con onOpenPalette', async () => {
+  it('Header mounts with onOpenPalette', async () => {
     const { default: Header } = await import('./Header');
     render(wrap(<Header onOpenPalette={() => {}} />));
   });

@@ -3,14 +3,14 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
-// Mockeamos useNavigate (no podemos navegar de verdad en un test).
+// Mock useNavigate (we cannot navigate for real inside a test).
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return { ...actual, useNavigate: () => navigateMock };
 });
 
-// Mockeamos AuthContext para controlar el comportamiento de login/error.
+// Mock AuthContext to drive the login / error behaviour.
 const loginMock = vi.fn();
 const setErrorMock = vi.fn();
 let mockError = '';
@@ -33,27 +33,27 @@ beforeEach(() => {
 });
 
 describe('Login page', () => {
-  it('renderiza inputs de email y contraseña', () => {
+  it('renders email and password inputs', () => {
     renderLogin();
     expect(document.getElementById('login-email')).toBeInTheDocument();
     expect(document.getElementById('login-password')).toBeInTheDocument();
   });
 
-  it('toggle "mostrar contraseña" cambia el tipo del input', async () => {
+  it('the "show password" toggle flips the input type', async () => {
     const user = userEvent.setup();
     renderLogin();
 
     const pwInput = document.getElementById('login-password');
     expect(pwInput).toHaveAttribute('type', 'password');
 
-    // El botón es el toggle del ojo (aria-pressed alterna).
+    // The button is the eye toggle (aria-pressed flips).
     const toggle = screen.getByRole('button', { name: /Mostrar|Show|Ocultar|Hide/i });
     await user.click(toggle);
 
     expect(pwInput).toHaveAttribute('type', 'text');
   });
 
-  it('al enviar el formulario llama a login y, si OK, navega a "/"', async () => {
+  it('submitting the form calls login and navigates to "/" on success', async () => {
     loginMock.mockResolvedValue(true);
     const user = userEvent.setup();
     renderLogin();
@@ -68,7 +68,7 @@ describe('Login page', () => {
     });
   });
 
-  it('si login devuelve false, NO navega', async () => {
+  it('if login returns false, does NOT navigate', async () => {
     loginMock.mockResolvedValue(false);
     const user = userEvent.setup();
     renderLogin();
@@ -81,18 +81,18 @@ describe('Login page', () => {
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
-  it('los botones de cuentas demo rellenan el email', async () => {
+  it('the demo-account buttons fill in the email', async () => {
     const user = userEvent.setup();
     renderLogin();
 
-    // El botón demo contiene el email como texto.
+    // The demo button uses the email as its visible text.
     const demoBtn = screen.getByRole('button', { name: /admin@lumen.es/ });
     await user.click(demoBtn);
 
     expect(document.getElementById('login-email')).toHaveValue('admin@lumen.es');
   });
 
-  it('cuando hay error muestra el mensaje con role=alert', () => {
+  it('when there is an error, renders the message with role=alert', () => {
     mockError = 'Credenciales inválidas';
     renderLogin();
     expect(screen.getByRole('alert')).toHaveTextContent(/Credenciales inválidas/);

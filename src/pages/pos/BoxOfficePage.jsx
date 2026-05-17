@@ -611,47 +611,9 @@ export default function TaquillaPage() {
         } catch { return null; }
       };
 
-      // Try to create a user; if the authenticated call fails, retry without token
-      // (Spring Boot backends often allow public POST /api/users for registration)
-      const tryCreateUser = async (payload) => {
-        // Attempt 1: authenticated (standard clientsService path)
-        try {
-          const res = await clientsService.create(payload);
-          if (res?.id) return res;
-        } catch (e) {
-          console.error('[pos] POST /users (auth):', e.message);
-          if (e?.status === 409) return searchFirst(payload.email);
-        }
-        // Attempt 2: unauthenticated POST — try /api/users and /api/auth/register
-        const attempts = [
-          { url: '/api/users',         body: payload },
-          { url: '/api/auth/register', body: payload },
-          // some backends only accept name/email/password at register
-          { url: '/api/auth/register', body: { name: payload.name, lastName: payload.lastName, email: payload.email, password: payload.password } },
-        ];
-        for (const { url, body } of attempts) {
-          try {
-            const res = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
-            });
-            if (res.status === 409) return searchFirst(payload.email);
-            if (res.ok) {
-              const data = await res.json().catch(() => null);
-              if (data?.id) return data;
-              // register endpoint might return token+user wrapper
-              const userId = data?.user?.id ?? data?.userId ?? data?.id;
-              if (userId) return { id: userId, ...data?.user };
-            } else {
-              const text = await res.text().catch(() => '');
-              console.error(`[pos] POST ${url} ${res.status}:`, text);
-            }
-          } catch (e) {
-            console.error(`[pos] POST ${url} network:`, e.message);
-          }
-        }
-        return null;
+      const createUser = async (payload) => {
+        try { return await clientsService.create(payload); }
+        catch (e) { return e?.status === 409 ? searchFirst(payload.email) : null; }
       };
 
       let resolvedUserId = selectedClient?.id ?? null;
@@ -661,9 +623,9 @@ export default function TaquillaPage() {
         resolvedUserId = found?.id ?? null;
         if (!resolvedUserId) {
           const safeName = emailQuery.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') || 'Cliente';
-          const created = await tryCreateUser({
+          const created = await createUser({
             name: safeName, lastName: '', email: emailQuery,
-            password: 'Guest2024Lumen', student: false, role: 'CLIENTE',
+            password: 'Guest2024Lumen', birthDate: '1990-01-01', student: false, role: 'CLIENTE',
           });
           resolvedUserId = created?.id ?? null;
         }
@@ -686,9 +648,9 @@ export default function TaquillaPage() {
             localStorage.setItem(ANON_KEY, String(found.id));
             resolvedUserId = found.id;
           } else {
-            const created = await tryCreateUser({
+            const created = await createUser({
               name: 'Cliente', lastName: 'Taquilla', email: ANON_EMAIL,
-              password: 'WalkIn2024Lumen', student: false, role: 'CLIENTE',
+              password: 'WalkIn2024Lumen', birthDate: '1990-01-01', student: false, role: 'CLIENTE',
             });
             if (created?.id) {
               localStorage.setItem(ANON_KEY, String(created.id));
@@ -699,7 +661,7 @@ export default function TaquillaPage() {
       }
 
       if (!resolvedUserId) {
-        toast('No se puede procesar la venta: el servidor rechaza crear el cliente anónimo. Comprueba la consola del navegador (F12) para ver el error exacto.', 'error');
+        toast('No se pudo crear el cliente. Selecciona uno de la lista o inténtalo de nuevo.', 'error');
         setPaying(false);
         return;
       }

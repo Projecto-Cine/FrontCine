@@ -9,51 +9,51 @@ beforeEach(() => {
 });
 
 describe('AccessibilityWidget', () => {
-  it('renderiza el botón de acceso (cerrado por defecto)', () => {
+  it('renders the trigger button (closed by default)', () => {
     render(<AccessibilityWidget />);
-    // Hay UN botón visible (el trigger flotante).
+    // Exactly ONE visible button (the floating trigger).
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBeGreaterThan(0);
   });
 
-  it('al hacer click abre el panel y muestra controles', async () => {
+  it('opens the panel and shows controls when clicked', async () => {
     const user = userEvent.setup();
     render(<AccessibilityWidget />);
 
     const trigger = screen.getAllByRole('button')[0];
     await user.click(trigger);
 
-    // Tras abrir hay muchos más botones (toggles de tamaño, contraste, etc.).
+    // After opening there are many more buttons (font/contrast toggles, etc.).
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBeGreaterThan(3);
   });
 
-  it('hacer click en cualquier botón del panel actualiza prefs en localStorage', async () => {
+  it('clicking any panel button updates prefs in localStorage', async () => {
     const user = userEvent.setup();
     render(<AccessibilityWidget />);
 
-    await user.click(screen.getAllByRole('button')[0]); // abre
+    await user.click(screen.getAllByRole('button')[0]); // open
 
-    // Pulsamos varios botones interiores — cualquiera debería persistir.
+    // Click several inner buttons — any of them should persist a pref.
     const buttons = screen.getAllByRole('button');
     for (const b of buttons.slice(1, 5)) {
-      try { await user.click(b); } catch {}
+      try { await user.click(b); } catch { /* ignore */ }
     }
 
     expect(localStorage.getItem('lumen_a11y')).not.toBeNull();
   });
 
-  it('Escape cierra el panel', async () => {
+  it('Escape closes the panel', async () => {
     const user = userEvent.setup();
     render(<AccessibilityWidget />);
 
     await user.click(screen.getAllByRole('button')[0]);
     fireEvent.keyDown(document, { key: 'Escape' });
-    // El widget reacciona al Escape — confirmamos que no estalla.
+    // The widget handles Escape — we only verify it does not blow up.
     expect(true).toBe(true);
   });
 
-  it('aplica clases al <html> según las prefs guardadas', () => {
+  it('applies classes on <html> based on the saved prefs', () => {
     localStorage.setItem('lumen_a11y', JSON.stringify({
       highContrast: true, fontSize: 'xlarge', underlineLinks: true, theme: 'light',
     }));

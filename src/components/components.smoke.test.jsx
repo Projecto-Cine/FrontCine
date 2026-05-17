@@ -1,5 +1,5 @@
 /**
- * Smoke tests de componentes complejos que aún no tenían tests dedicados.
+ * Smoke tests for complex components that did not yet have dedicated tests.
  */
 import { describe, it, vi, beforeAll } from 'vitest';
 import { render } from '@testing-library/react';
@@ -7,7 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '../i18n/LanguageContext';
 import { AppProvider } from '../contexts/AppContext';
 
-// AuthContext y servicios mockeados.
+// AuthContext and external services are mocked.
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({ user: { name: 'X', role: 'admin' }, logout: vi.fn() }),
 }));
@@ -20,7 +20,7 @@ vi.mock('@stripe/react-stripe-js', () => ({
   useElements: () => ({ getElement: () => ({}) }),
 }));
 
-// jsdom no implementa scrollIntoView; CommandPalette lo invoca al cambiar cursor.
+// jsdom does not implement scrollIntoView; CommandPalette invokes it when the cursor moves.
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn();
 });
@@ -32,7 +32,7 @@ const wrap = (ui) => (
 );
 
 describe('Smoke components', () => {
-  it('CommandPalette open=false (no renderiza)', async () => {
+  it('CommandPalette open=false (does not render)', async () => {
     const { default: CommandPalette } = await import('./shared/CommandPalette');
     render(wrap(<CommandPalette open={false} onClose={() => {}} />));
   });
@@ -47,13 +47,13 @@ describe('Smoke components', () => {
     render(wrap(<Widget />));
   });
 
-  it('SeatMap con datos vacíos', async () => {
+  it('SeatMap with empty data', async () => {
     const { default: SeatMap } = await import('./shared/SeatMap');
-    // SeatMap puede tener varios modos; lo intentamos con varias prop combos.
+    // SeatMap supports several modes; try the prop combo without real seats.
     render(wrap(<SeatMap seats={[]} selectedSeats={[]} onToggle={() => {}} maxSelect={5} />));
   });
 
-  it('SeatMap con asientos reales', async () => {
+  it('SeatMap with real seat data', async () => {
     const { default: SeatMap } = await import('./shared/SeatMap');
     render(wrap(<SeatMap
       seats={[

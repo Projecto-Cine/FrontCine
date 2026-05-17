@@ -32,6 +32,17 @@ function startToLetter(startTime = '') {
 
 const VALID_ROLES = new Set(['CAJERO', 'GERENCIA', 'LIMPIEZA', 'MANTENIMIENTO']);
 
+const ROLE_NORMALIZE = {
+  CASHIER:    'CAJERO',
+  MANAGEMENT: 'GERENCIA',
+  CLEANING:   'LIMPIEZA',
+  SECURITY:   'SEGURIDAD',
+  CAJERO:     'CAJERO',
+  GERENCIA:   'GERENCIA',
+  LIMPIEZA:   'LIMPIEZA',
+  MANTENIMIENTO: 'MANTENIMIENTO',
+};
+
 function getWeekStart(date) {
   const d = new Date(date);
   const day = d.getDay() || 7;
@@ -246,7 +257,8 @@ export default function CuadrantePage() {
     employeesService.getAll()
       .then(data => {
         const list = (Array.isArray(data) ? data : []).map(e => {
-          const role = String(e.role ?? e.position ?? e.workerRole ?? '').toUpperCase();
+          const raw  = String(e.role ?? e.position ?? e.workerRole ?? '').toUpperCase();
+          const role = ROLE_NORMALIZE[raw] ?? raw;
           const fullName = [e.name, e.lastName].filter(Boolean).join(' ').trim();
           return { ...e, id: e.id ?? e.workerId, name: fullName || e.username || e.email || '-', role };
         });

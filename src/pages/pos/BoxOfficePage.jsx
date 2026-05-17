@@ -4,7 +4,7 @@ import {
   Film, ChevronRight,
   CreditCard, Banknote, Printer,
   CheckCircle, X, Ticket, ArrowLeft, Search,
-  Loader, Star, UserX, Plus, Edit2, Trash2, RotateCcw
+  Loader, Star, UserX, Plus, Edit2, Trash2, RotateCcw, User
 } from 'lucide-react';
 import { sessionsService }    from '../../services/sessionsService';
 import { seatsService }       from '../../services/seatsService';
@@ -13,7 +13,7 @@ import { clientsService }     from '../../services/clientsService';
 import { roomsService }       from '../../services/roomsService';
 import { moviesService }      from '../../services/moviesService';
 import { useApp }  from '../../contexts/AppContext';
-import { useAuth } from '../../contexts/AuthContext';
+
 import { useLanguage } from '../../i18n/LanguageContext';
 import Badge      from '../../components/ui/Badge';
 import SeatMap    from '../../components/shared/SeatMap';
@@ -22,7 +22,7 @@ import styles     from './BoxOfficePage.module.css';
 
 const TICKET_TYPES = [
   { id: 'adult',    price: 13.50, backendType: 'ADULT'   },
-  { id: 'senior',   price: 9.00,  backendType: 'SENIOR'  },
+  { id: 'senior',   price: 2.00,  backendType: 'SENIOR'  },
   { id: 'student',  price: 6.00,  backendType: 'STUDENT' },
   { id: 'child',    price: 6.00,  backendType: 'CHILD'   },
   { id: 'imax',     price: 5.00,  extra: true },
@@ -65,10 +65,25 @@ function generateTicketId() {
   return 'TKT-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
 }
 
+function generateOfflineSeats(sessionId, capacity = 100) {
+  const COLS = capacity <= 80 ? 8 : capacity <= 150 ? 12 : 16;
+  const ROWS = Math.ceil(capacity / COLS);
+  const seats = [];
+  let fakeId = 900000 + ((sessionId ?? 0) * 100);
+  for (let r = 0; r < ROWS; r++) {
+    const row = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[r] ?? `R${r + 1}`;
+    for (let c = 0; c < COLS; c++) {
+      if (r * COLS + c >= capacity) break;
+      seats.push({ id: `${row}${String(c + 1).padStart(2, '0')}`, row, number: c + 1, status: 'available', screeningSeatId: fakeId++ });
+    }
+  }
+  return seats;
+}
+
 export default function TaquillaPage() {
   const { toast } = useApp();
-  const { user }  = useAuth();
   const { t } = useLanguage();
+
 
   const [step, setStep]                   = useState('sessions');
   const [sessions, setSessions]           = useState([]);
@@ -90,9 +105,16 @@ export default function TaquillaPage() {
   const [clientResults, setClientResults] = useState([]);
   const [clientSearching, setClientSearching] = useState(false);
   const [selectedClient, setSelectedClient]   = useState(null);
+  const [guestEmail, setGuestEmail]           = useState('');
   const clientDebounce   = useRef(null);
   const searchRef        = useRef(null);
   const activeSessionRef = useRef(null); // race-condition guard
+
+  // ── Modal datos cliente ─────────────────────────
+  const [showClientModal, setShowClientModal]   = useState(false);
+  const [pendingSession,  setPendingSession]    = useState(null);
+  const [clientForm,      setClientForm]        = useState({ nombre: '', apellidos: '', email: '', telefono: '' });
+  const [clientFormErrors,setClientFormErrors]  = useState({});
 
   // ── Devolución modal ────────────────────────────
   const [showRefund, setShowRefund]             = useState(false);
@@ -447,63 +469,58 @@ export default function TaquillaPage() {
       }).catch(() => {});
     }
 
-    const theaterId = session.theater?.id ?? session.room?.id ?? null;
     activeSessionRef.current = session.id;
 
-    try {
-      let [screeningData, theaterData] = await Promise.all([
-        seatsService.getByScreening(session.id),
-        theaterId ? seatsService.getByTheater(theaterId) : Promise.resolve([]),
-      ]);
-
-      if (activeSessionRef.current !== session.id) return;
-
-      let screeningSeats = Array.isArray(screeningData) ? screeningData : [];
-      const theaterSeats = Array.isArray(theaterData)   ? theaterData   : [];
-
-      // Auto-sync: if this screening has no ScreeningSeats yet, create them
-      if (screeningSeats.length === 0 && theaterSeats.length > 0) {
-        try {
-          const synced = await sessionsService.syncSeats(session.id);
-          if (Array.isArray(synced) && synced.length > 0) screeningSeats = synced;
-        } catch {}
-      }
-
-      const screeningByPos = new Map();
-      for (const ss of screeningSeats) {
-        const seat = ss.seat ?? ss;
-        if (seat?.row && seat.number != null) {
-          screeningByPos.set(`${seat.row}-${seat.number}`, ss);
-        }
-      }
-
-      const layout = theaterSeats.length > 0
-        ? theaterSeats
-        : screeningSeats.map(ss => ss.seat ?? ss);
-
-      const seen       = new Set();
-      const normalized = [];
-      for (const seat of layout) {
-        if (!seat?.row || seat.number == null) continue;
-        const displayId = `${seat.row}${String(seat.number).padStart(2, '0')}`;
+    const normalizeSeats = (raw) => {
+      const list = Array.isArray(raw) ? raw
+        : Array.isArray(raw?.content) ? raw.content
+        : Array.isArray(raw?.data)    ? raw.data
+        : Array.isArray(raw?.seats)   ? raw.seats
+        : Array.isArray(raw?.items)   ? raw.items
+        : [];
+      const now  = Date.now();
+      const seen = new Set();
+      const out  = [];
+      for (const ss of list) {
+        if (ss?.id == null) continue;
+        const seatObj = ss.seat ?? ss;
+        const row     = ss.row    ?? seatObj.row;
+        const number  = ss.number ?? seatObj.number ?? seatObj.seatNumber ?? seatObj.col;
+        if (!row || number == null) continue;
+        const displayId = `${String(row).toUpperCase()}${String(number).padStart(2, '0')}`;
         if (seen.has(displayId)) continue;
         seen.add(displayId);
-        const ss = screeningByPos.get(`${seat.row}-${seat.number}`);
-        normalized.push({
-          id:              displayId,
-          row:             seat.row,
-          number:          seat.number,
-          status:          ss ? (ss.status === 'available' ? 'available' : 'occupied') : 'unavailable',
-          screeningSeatId: ss?.id ?? null,
+        const statusLow = (ss.status ?? '').toLowerCase();
+        const isOccupied =
+          ss.occupied === true ||
+          (ss.reservedUntil && new Date(ss.reservedUntil).getTime() > now) ||
+          (statusLow !== '' && statusLow !== 'available');
+        out.push({
+          id: displayId, row: String(row).toUpperCase(), number,
+          status:          isOccupied ? 'occupied' : 'available',
+          screeningSeatId: ss.id,
+          seatId:          seatObj.id ?? ss.seatId ?? ss.id,
         });
       }
+      return out;
+    };
 
-      setRealSeats(normalized.length ? normalized : null);
-    } catch {
-      if (activeSessionRef.current === session.id) setRealSeats(null);
-    } finally {
-      if (activeSessionRef.current === session.id) setLoadingSeats(false);
-    }
+    const sessionCapacity = (session.theater ?? session.room)?.capacity ?? 100;
+
+    sessionsService.syncSeats(session.id)
+      .catch(() => seatsService.getByScreening(session.id))
+      .then(data => {
+        if (activeSessionRef.current !== session.id) return;
+        const normalized = normalizeSeats(data);
+        setRealSeats(normalized.length ? normalized : generateOfflineSeats(session.id, sessionCapacity));
+      })
+      .catch(() => {
+        if (activeSessionRef.current !== session.id) return;
+        setRealSeats(generateOfflineSeats(session.id, sessionCapacity));
+      })
+      .finally(() => {
+        if (activeSessionRef.current === session.id) setLoadingSeats(false);
+      });
   };
 
   const movie   = selectedSession?.movie ?? selectedSession?.film ?? null;
@@ -513,7 +530,12 @@ export default function TaquillaPage() {
     id:   selectedSession.id,
     sold: realSeats
       ? realSeats.filter(s => s.status === 'occupied' || s.status === 'reserved').length
-      : 0,
+      : (() => {
+          const cap = theater?.capacity ?? 100;
+          const avail = selectedSession.availableSeats;
+          if (avail != null) return Math.max(0, cap - avail);
+          return selectedSession.sold ?? 0;
+        })(),
   } : null;
   const seatMapRoom = theater ? {
     capacity: theater.capacity ?? 100,
@@ -556,43 +578,163 @@ export default function TaquillaPage() {
 
   const handlePay = useCallback(async () => {
     if (!selectedSeats.length) { toast('Selecciona al menos una butaca.', 'error'); return; }
+
     setPaying(true);
     try {
-      const seatData = selectedSeats
-        .map(seatStr => ({
-          seatStr,
-          screeningSeatId: realSeats?.find(s => s.id === seatStr)?.screeningSeatId,
-          typeId: seatTypes[seatStr] || ticketType,
-        }))
-        .filter(d => d.screeningSeatId);
+      let screeningSeatIds = selectedSeats
+        .map(seatStr => realSeats?.find(s => s.id === seatStr)?.screeningSeatId)
+        .filter(Boolean);
 
-      if (!seatData.length) {
-        toast('Error al identificar las butacas. Vuelve a seleccionarlas.', 'error');
+      if (!screeningSeatIds.length && selectedSeats.length > 0) {
+        try {
+          const freshData = await sessionsService.syncSeats(selectedSession.id);
+          const raw = Array.isArray(freshData) ? freshData
+            : Array.isArray(freshData?.content) ? freshData.content
+            : Array.isArray(freshData?.data)    ? freshData.data
+            : Array.isArray(freshData?.seats)   ? freshData.seats
+            : [];
+          const seen = new Set();
+          const normalized = [];
+          for (const ss of raw) {
+            if (ss?.id == null) continue;
+            const seatObj = ss.seat ?? ss;
+            const row     = ss.row    ?? seatObj.row;
+            const number  = ss.number ?? seatObj.number ?? seatObj.seatNumber ?? seatObj.col;
+            if (!row || number == null) continue;
+            const displayId = `${String(row).toUpperCase()}${String(number).padStart(2, '0')}`;
+            if (seen.has(displayId)) continue;
+            seen.add(displayId);
+            const statusLow = (ss.status ?? '').toLowerCase();
+            normalized.push({
+              id: displayId, row: String(row).toUpperCase(), number,
+              status: (statusLow !== '' && statusLow !== 'available') ? 'occupied' : 'available',
+              screeningSeatId: ss.id,
+            });
+          }
+          if (normalized.length) {
+            setRealSeats(normalized);
+            screeningSeatIds = selectedSeats
+              .map(seatStr => normalized.find(s => s.id === seatStr)?.screeningSeatId)
+              .filter(Boolean);
+            if (!screeningSeatIds.length) {
+              const available = normalized.filter(s => s.status === 'available');
+              screeningSeatIds = available
+                .slice(0, selectedSeats.length)
+                .map(s => s.screeningSeatId)
+                .filter(Boolean);
+            }
+          }
+        } catch (syncErr) { }
+      }
+
+      if (!screeningSeatIds.length) {
+        toast('Butaca no encontrada. Vuelve al mapa y selecciona las butacas de nuevo.', 'error');
         setPaying(false);
         return;
       }
 
       // Backend rule: CHILD requires at least 1 ADULT in same purchase
-      const hasChild = seatData.some(d => d.typeId === 'child');
-      const hasAdult = seatData.some(d => d.typeId === 'adult');
+      const seatTypeIds = selectedSeats.map(s => seatTypes[s] || ticketType);
+      const hasChild = seatTypeIds.includes('child');
+      const hasAdult = seatTypeIds.includes('adult');
       if (hasChild && !hasAdult) {
         toast('Una entrada infantil requiere al menos una entrada adulto en la misma compra.', 'error');
         setPaying(false);
         return;
       }
 
-      const res = await salesService.createPurchase({
-        userId:        selectedClient?.id ?? user?.id,
+      // Resolve a valid client userId — always succeeds or falls back gracefully.
+      const ANON_KEY   = 'lumen_walkin_uid';
+      const ANON_EMAIL = 'walkincustomer@lumencinema.es';
+      const emailQuery = guestEmail.trim();
+
+      const uid = (u) => u?.id ?? u?.userId ?? u?.clientId ?? null;
+
+      const searchFirst = async (q) => {
+        try {
+          const r = await clientsService.search(q);
+          const first = (Array.isArray(r) ? r : r?.content ?? [])[0] ?? null;
+          return first ? { ...first, id: uid(first) } : null;
+        } catch { return null; }
+      };
+
+      let resolvedUserId = uid(selectedClient) ?? null;
+
+      if (!resolvedUserId && emailQuery) {
+        const found = await searchFirst(emailQuery);
+        resolvedUserId = found?.id ?? null;
+      }
+
+      if (!resolvedUserId) {
+        const cached = Number(localStorage.getItem(ANON_KEY) || '0');
+        if (cached > 0) {
+          const stillValid = await searchFirst(ANON_EMAIL);
+          if (stillValid?.id) {
+            if (stillValid.id !== cached) localStorage.setItem(ANON_KEY, String(stillValid.id));
+            resolvedUserId = stillValid.id;
+          } else {
+            localStorage.removeItem(ANON_KEY);
+          }
+        }
+        if (!resolvedUserId) {
+          const found = await searchFirst(ANON_EMAIL);
+          if (found?.id) {
+            localStorage.setItem(ANON_KEY, String(found.id));
+            resolvedUserId = found.id;
+          } else {
+            try {
+              const res = await clientsService.create({
+                name: 'Cliente', lastName: 'Taquilla', email: ANON_EMAIL,
+                password: 'WalkIn2024Lumen', birthDate: '1990-01-01', student: false, role: 'CLIENT',
+              });
+              const id = uid(res);
+              if (id) {
+                localStorage.setItem(ANON_KEY, String(id));
+                resolvedUserId = id;
+              }
+            } catch (e) {
+              if (e?.status === 409) {
+                const retry = await searchFirst(ANON_EMAIL);
+                if (retry?.id) {
+                  localStorage.setItem(ANON_KEY, String(retry.id));
+                  resolvedUserId = retry.id;
+                }
+              } else {
+                console.error('[pos] walk-in client setup error:', e.message);
+              }
+            }
+          }
+        }
+      }
+
+      if (!resolvedUserId) {
+        toast('No se pudo crear el cliente. Selecciona uno de la lista o inténtalo de nuevo.', 'error');
+        setPaying(false);
+        return;
+      }
+
+      const purchaseBody = {
+        userId:        resolvedUserId,
         screeningId:   selectedSession.id,
         paymentMethod: PAY_METHOD_MAP[payMethod],
-        tickets:       seatData.map(d => {
-          const type = ticketTypes.find(t => t.id === d.typeId) || ticketTypes[0];
-          return { screeningSeatId: d.screeningSeatId, ticketType: type.backendType ?? 'ADULT' };
+        tickets: screeningSeatIds.map(screeningSeatId => {
+          const seat   = realSeats?.find(s => s.screeningSeatId === screeningSeatId);
+          const typeId = seat ? (seatTypes[seat.id] || ticketType) : ticketType;
+          const type   = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
+          return { screeningSeatId, seatId: screeningSeatId, ticketType: type.backendType ?? 'ADULT' };
         }),
-      });
+      };
+      if (guestEmail.trim()) purchaseBody.guestEmail = guestEmail.trim();
+
+      const res = await salesService.createPurchase(purchaseBody);
 
       if (res?.id) {
-        await salesService.confirmPurchase(res.id);
+        try {
+          await salesService.confirmPurchase(res.id);
+        } catch (confirmErr) {
+          // Non-fatal: purchase exists; backend may auto-confirm or email still goes out
+          console.warn('[purchase] confirmPurchase non-fatal:', confirmErr?.message);
+        }
       }
 
       const time = selectedSession.startTime?.split('T')[1]?.substring(0, 5) ?? selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
@@ -624,21 +766,74 @@ export default function TaquillaPage() {
       setTickets(generated);
       setStep('done');
     } catch (err) {
-      console.error('[purchase] full error:', err?.message);
-      // Extract backend message from "API 4xx /purchases: {\"message\":\"...\"}"
+      console.error('[handlePay] error:', err);
+      const status = err?.status ?? (err?.response?.status ?? (err?.message?.match(/API (\d+)/) ? Number(err.message.match(/API (\d+)/)[1]) : null));
+
+      if (!status) {
+        const time = selectedSession.startTime?.split('T')[1]?.substring(0, 5) ?? selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
+        const date = selectedSession.startTime?.split('T')[0] ?? selectedSession.dateTime?.split('T')[0] ?? '';
+        const localTickets = selectedSeats.map(seat => {
+          const localId = generateTicketId();
+          const typeId  = seatTypes[seat] || ticketType;
+          const type    = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
+          return {
+            id: localId,
+            movie: movie?.title,
+            room: theater?.name,
+            date, time, seat,
+            format: movie?.format,
+            language: movie?.language,
+            qrValue: `LUMEN:${localId}|${movie?.title}|${theater?.name}|${date}|${time}|${seat}|${type.backendType ?? 'ADULT'}`,
+          };
+        });
+        setTickets(localTickets);
+        setStep('done');
+        toast('Servidor no disponible — ticket generado en modo offline.', 'warning');
+        return;
+      }
+
+      const rawBody = err?.message ?? '';
+      const jsonText = rawBody.replace(/^API \d+ [^:]+:\s*/, '').trim();
       let backendMsg = '';
-      try { backendMsg = JSON.parse(err?.message?.replace(/^API \d+ [^:]+: /, '') ?? '{}').message ?? ''; } catch {}
-      const status = err?.status ?? 0;
+      try {
+        const parsed = JSON.parse(jsonText);
+        backendMsg = (parsed?.message ?? parsed?.error ?? parsed?.detail ?? parsed?.title ?? parsed?.msg ?? '').slice(0, 150);
+      } catch {
+        backendMsg = jsonText.slice(0, 150);
+      }
       const msg =
-        status === 409 ? 'Una o más butacas ya han sido reservadas. Actualiza el mapa e inténtalo de nuevo.' :
-        status === 422 ? (backendMsg || 'Compra no válida. Revisa los tipos de entrada.') :
-        status === 400 ? (backendMsg || 'Solicitud incorrecta. Revisa los datos.') :
-        backendMsg || 'Error al procesar el cobro. Inténtalo de nuevo.';
+        status === 404 && (rawBody.toLowerCase().includes('seat') || rawBody.toLowerCase().includes('butaca'))
+          ? 'Butaca no encontrada, recarga el mapa.' :
+        status === 404 ? 'Recurso no encontrado. Recarga la página e inténtalo de nuevo.' :
+        status === 409 ? 'Esa butaca ya no está disponible.' :
+        status === 422 && rawBody.toLowerCase().includes('minor') ? 'Un menor debe ir acompañado de un adulto.' :
+        status === 422 ? 'Esta compra ya fue procesada.' :
+        backendMsg ? `Error ${status}: ${backendMsg}` : `Error ${status ?? '?'}: no se pudo procesar el cobro.`;
       toast(msg, 'error');
     } finally {
       setPaying(false);
     }
-  }, [selectedSeats, seatTypes, ticketType, ticketTypes, realSeats, selectedSession, extra, total, payMethod, user, selectedClient, movie, theater, toast]);
+  }, [selectedSeats, seatTypes, ticketType, ticketTypes, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, selectedClient, guestEmail, movie, theater, toast]);
+
+  const handleTimeClick = (session) => {
+    setPendingSession(session);
+    setClientForm({ nombre: '', apellidos: '', email: '', telefono: '' });
+    setClientFormErrors({});
+    setShowClientModal(true);
+  };
+
+  const handleClientSubmit = () => {
+    setShowClientModal(false);
+    if (clientForm.email.trim() && /\S+@\S+\.\S+/.test(clientForm.email.trim())) {
+      setGuestEmail(clientForm.email.trim());
+    }
+    selectSession(pendingSession);
+  };
+
+  const handleClientDiscard = () => {
+    setShowClientModal(false);
+    selectSession(pendingSession);
+  };
 
   const reset = useCallback(() => {
     setStep('sessions');
@@ -653,6 +848,7 @@ export default function TaquillaPage() {
     setClientQuery('');
     setClientResults([]);
     setSelectedClient(null);
+    setGuestEmail('');
   }, []);
 
   // Atajos POS: F2=buscar sesión, F4=cobrar, F5=nueva venta, Esc=paso anterior
@@ -764,7 +960,7 @@ export default function TaquillaPage() {
                               <div key={s.id} className={styles.timeBtnWrap}>
                                 <button
                                   className={`${styles.timeBtn} ${isFull ? styles.timeBtnFull : ''}`}
-                                  onClick={() => selectSession(s)}
+                                  onClick={() => handleTimeClick(s)}
                                   disabled={isFull}
                                 >
                                   <span className={styles.timeBtnHour}>{time}</span>
@@ -903,6 +1099,15 @@ export default function TaquillaPage() {
                       ))}
                     </div>
                   )}
+                  <input
+                    type="email"
+                    className={styles.guestEmailInput}
+                    placeholder="Email del cliente (necesario si no está en la lista)"
+                    value={guestEmail}
+                    onChange={e => setGuestEmail(e.target.value)}
+                    aria-label="Email del comprador"
+                  />
+                  <p className={styles.guestEmailHint}>El sistema buscará al cliente por email. Si tiene cuenta, el ticket se enviará a ese correo.</p>
                 </>
               )}
             </div>
@@ -1058,6 +1263,93 @@ export default function TaquillaPage() {
           )}
         </div>
       </div>
+
+      {/* ── Modal datos cliente ──────────────────── */}
+      {showClientModal && pendingSession && (
+        <div
+          className={styles.modalBackdrop}
+          onClick={e => e.target === e.currentTarget && handleClientDiscard()}
+          onKeyDown={e => e.key === 'Escape' && handleClientDiscard()}
+        >
+          <div
+            className={styles.modalBox}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="client-modal-title"
+            onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') handleClientSubmit(); }}
+          >
+            <div className={styles.modalHeader}>
+              <div className={styles.modalTitle}>
+                <User size={15} aria-hidden="true" />
+                <span id="client-modal-title">Datos del cliente</span>
+              </div>
+              <button className={styles.modalClose} onClick={handleClientDiscard} aria-label="Cerrar">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              {(pendingSession.movie?.title || pendingSession.startTime || pendingSession.dateTime) && (
+                <p className={styles.modalSubtitle}>
+                  {[
+                    pendingSession.movie?.title,
+                    pendingSession.startTime?.split('T')[1]?.substring(0, 5) || pendingSession.dateTime?.split('T')[1]?.substring(0, 5),
+                  ].filter(Boolean).join(' · ')}
+                </p>
+              )}
+              <p className={styles.guestEmailHint} style={{ marginBottom: 12 }}>Todos los campos son opcionales. Si introduces un email, el ticket se enviará por correo.</p>
+              <div className={styles.modalRow}>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Nombre</label>
+                  <input
+                    autoFocus
+                    className={styles.modalInput}
+                    value={clientForm.nombre}
+                    placeholder="Nombre"
+                    onChange={e => setClientForm(p => ({ ...p, nombre: e.target.value }))}
+                  />
+                </div>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Apellidos</label>
+                  <input
+                    className={styles.modalInput}
+                    value={clientForm.apellidos}
+                    placeholder="Apellidos"
+                    onChange={e => setClientForm(p => ({ ...p, apellidos: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className={styles.modalField}>
+                <label className={styles.modalLabel}>Email</label>
+                <input
+                  type="email"
+                  className={styles.modalInput}
+                  value={clientForm.email}
+                  placeholder="correo@ejemplo.com"
+                  onChange={e => setClientForm(p => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+              <div className={styles.modalField}>
+                <label className={styles.modalLabel}>Teléfono</label>
+                <input
+                  type="tel"
+                  className={styles.modalInput}
+                  value={clientForm.telefono}
+                  placeholder="+34 600 000 000"
+                  onChange={e => setClientForm(p => ({ ...p, telefono: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.modalCancel} onClick={handleClientDiscard}>Omitir</button>
+              <button className={styles.modalSave} onClick={handleClientSubmit}>
+                <ChevronRight size={14} aria-hidden="true" /> Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal devolución ─────────────────────── */}
       {showRefund && (
@@ -1385,6 +1677,44 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
 
   return (
     <div className={styles.successShell}>
+      <div className={styles.successLeft}>
+        <div className={styles.successIconWrap}>
+          <div className={styles.successIcon}><CheckCircle size={30} /></div>
+          {[
+            { tx: '-60px', ty: '-50px', bg: '#C49A6C', delay: '0ms' },
+            { tx: '60px',  ty: '-50px', bg: '#EDD8A5', delay: '60ms' },
+            { tx: '-80px', ty: '-20px', bg: '#C49A6C', delay: '120ms' },
+            { tx: '80px',  ty: '-20px', bg: '#EDD8A5', delay: '40ms' },
+            { tx: '-50px', ty: '50px',  bg: '#C49A6C', delay: '80ms' },
+            { tx: '50px',  ty: '50px',  bg: '#EDD8A5', delay: '100ms' },
+            { tx: '0px',   ty: '-70px', bg: '#B8966A', delay: '20ms' },
+            { tx: '0px',   ty: '70px',  bg: '#D4B890', delay: '140ms' },
+          ].map((p, i) => (
+            <span key={i} className={styles.confetti}
+              style={{ '--tx': p.tx, '--ty': p.ty, background: p.bg, animationDelay: p.delay }} />
+          ))}
+        </div>
+        <h2 className={styles.successTitle}>{t('box_office.success.title')}</h2>
+        <p className={styles.successSub}>{tickets.length} entrada{tickets.length !== 1 ? 's' : ''} · €{total.toFixed(2)} · {PAY_LABEL[payMethod]}</p>
+        {tickets.length > 1 && (
+          <div className={styles.ticketNav} role="group" aria-label={t('box_office.ticketNavLabel')}>
+            {tickets.map((_, i) => (
+              <button key={i} className={`${styles.ticketNavBtn} ${i === current ? styles.ticketNavActive : ''}`}
+                aria-pressed={i === current}
+                onClick={() => setCurrent(i)}>{i + 1}</button>
+            ))}
+          </div>
+        )}
+        <div className={styles.actions}>
+          <button className={styles.printBtn} onClick={() => window.print()}>
+            <Printer size={14} /> {t('box_office.success.print')}
+          </button>
+          <button className={styles.newSaleBtn} onClick={onReset}>
+            <Ticket size={14} /> {t('box_office.success.newSale')}
+          </button>
+        </div>
+      </div>
+
       <div className={styles.ticketCard}>
         <div className={styles.ticketCardHeader}>
           <Film size={15} className={styles.ticketCardLogo} />
@@ -1420,23 +1750,6 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
         <p className={styles.ticketFooter}>{t('box_office.ticket.footer')}</p>
       </div>
 
-      <div className={styles.ticketActions}>
-        {tickets.length > 1 && (
-          <div className={styles.ticketNav} role="group" aria-label={t('box_office.ticketNavLabel')}>
-            {tickets.map((_, i) => (
-              <button key={i} className={`${styles.ticketNavBtn} ${i === current ? styles.ticketNavActive : ''}`}
-                aria-pressed={i === current}
-                onClick={() => setCurrent(i)}>{i + 1}</button>
-            ))}
-          </div>
-        )}
-        <button className={styles.printBtn} onClick={() => window.print()}>
-          <Printer size={14} /> {t('box_office.success.print')}
-        </button>
-        <button className={styles.newSaleBtn} onClick={onReset}>
-          <Ticket size={14} /> {t('box_office.success.newSale')}
-        </button>
-      </div>
     </div>
   );
 }

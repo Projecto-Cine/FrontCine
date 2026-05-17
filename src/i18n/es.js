@@ -687,7 +687,7 @@ export default {
     },
     type: {
       adult:   'Adulto',
-      senior:  'Reducida',
+      senior:  'Senior',
       student: 'Estudiante',
       child:   'Infantil',
       imax:    'IMAX',

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import styles from './SeatMap.module.css';
 
 const ROW_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -44,15 +44,20 @@ function RealSeatMap({ seats, selectedSeats, onToggle, maxSelect }) {
   const maxCols   = Math.max(...rows.map(r => r.seats.length), 1);
   const AISLE     = maxCols > 10 ? Math.floor(maxCols / 2) : -1;
 
-  const handleSeat = (id, isOcc, isUnavail) => {
+  const [rippling, setRippling] = useState(null);
+
+  const handleSeat = useCallback((id, isOcc, isUnavail) => {
     if (isOcc || isUnavail) return;
-    if (selectedSeats.includes(id)) {
-      onToggle(selectedSeats.filter(s => s !== id));
-    } else {
+    if (!selectedSeats.includes(id)) {
       if (selectedSeats.length >= maxSelect) return;
-      onToggle([...selectedSeats, id]);
+      setRippling(id);
+      setTimeout(() => setRippling(null), 420);
     }
-  };
+    onToggle(selectedSeats.includes(id)
+      ? selectedSeats.filter(s => s !== id)
+      : [...selectedSeats, id]
+    );
+  }, [selectedSeats, onToggle, maxSelect]);
 
   return (
     <div className={styles.cinema}>
@@ -80,7 +85,7 @@ function RealSeatMap({ seats, selectedSeats, onToggle, maxSelect }) {
                   const isUnavail = unavailable.has(id);
                   const isSel     = selectedSeats.includes(id);
                   return (
-                    <div key={seat.id} className={styles.seatWrap}>
+                    <div key={seat.id} className={`${styles.seatWrap}${rippling === id ? ` ${styles.rippling}` : ''}`}>
                       {c === AISLE && <span className={styles.aisle} />}
                       <button
                         className={`${styles.seat} ${isUnavail ? styles.unavail : isOcc ? styles.occ : isSel ? styles.sel : styles.free}`}

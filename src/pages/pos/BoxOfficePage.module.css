@@ -176,6 +176,9 @@
 .modalSave { display: flex; align-items: center; gap: 6px; background: var(--accent); color: var(--bg-0); border: none; border-radius: var(--r); padding: 7px 18px; font-size: var(--fs-md); font-weight: 600; cursor: pointer; }
 .modalSave:disabled { opacity: 0.6; cursor: not-allowed; }
 .modalSave:not(:disabled):hover { opacity: 0.85; }
+.inputError  { border-color: var(--red) !important; }
+.modalError  { font-size: var(--fs-xs); color: var(--red); margin-top: -4px; }
+.modalSubtitle { font-size: var(--fs-sm); color: var(--text-3); margin: -4px 0 4px; font-family: var(--mono); }
 
 .backBtn { display: flex; align-items: center; gap: 6px; color: var(--text-3); font-size: var(--fs-md); background: none; border: none; cursor: pointer; padding: 4px 0; transition: color var(--t); }
 .backBtn:hover { color: var(--accent); }
@@ -494,6 +497,20 @@
 .cobrarBtn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; transform: none; }
 
 /* ── Success / Ticket ──────────────────────────────── */
+@keyframes successIconPop {
+  0%   { transform: scale(0.4) rotate(-15deg); opacity: 0; }
+  70%  { transform: scale(1.15) rotate(4deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes ticketSlideIn {
+  from { transform: translateY(24px) scale(0.97); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes confettiBurst {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+}
+
 .successShell {
   display: flex;
   flex-direction: column;
@@ -511,6 +528,30 @@
   flex-wrap: wrap;
   justify-content: center;
 }
+
+.successLeft { display: flex; flex-direction: column; gap: 20px; align-items: flex-start; padding: 24px; }
+
+.successIconWrap { position: relative; display: inline-flex; }
+.confetti {
+  position: absolute;
+  width: 6px; height: 6px;
+  border-radius: 2px;
+  animation: confettiBurst 600ms ease-out forwards;
+  pointer-events: none;
+  top: 50%; left: 50%;
+  margin: -3px 0 0 -3px;
+}
+
+.successIcon {
+  width: 64px; height: 64px;
+  background: var(--green-dim);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--green);
+  animation: successIconPop 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.successTitle { font-size: 28px; font-weight: 800; color: var(--text-1); }
+.successSub { font-size: var(--fs-lg); color: var(--text-3); }
 
 .ticketNav { display: flex; gap: 6px; }
 .ticketNavBtn { width: 32px; height: 32px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg-3); color: var(--text-2); font-size: var(--fs-base); font-weight: 700; cursor: pointer; transition: all var(--t); }
@@ -535,6 +576,7 @@
   width: 360px;
   max-height: calc(100vh - var(--header-h) - 120px);
   overflow-y: auto;
+  animation: ticketSlideIn 400ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
 }
 
 .ticketCardHeader { display: flex; align-items: center; gap: 10px; padding: 16px 20px; background: var(--accent-dim); font-size: var(--fs-base); font-weight: 800; color: var(--accent); letter-spacing: 0.1em; flex-shrink: 0; }
@@ -615,6 +657,9 @@
 .clientSearchInput { width: 100%; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px 7px 28px; color: var(--text-1); font-size: var(--fs-md); outline: none; }
 .clientSearchInput:focus { border-color: var(--accent); }
 .clientLoader { position: absolute; right: 10px; color: var(--text-3); }
+.guestEmailHint { font-size: var(--fs-xs); color: var(--text-3); margin-top: 4px; padding-left: 2px; }
+.guestEmailInput { width: 100%; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px; color: var(--text-1); font-size: var(--fs-md); outline: none; margin-top: 6px; box-sizing: border-box; }
+.guestEmailInput:focus { border-color: var(--accent); }
 .clientDropdown { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); margin-top: 4px; overflow: hidden; }
 .clientDropdownItem { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: transparent; border: none; border-bottom: 1px solid var(--border); cursor: pointer; text-align: left; transition: background var(--t); }
 .clientDropdownItem:last-child { border-bottom: none; }

@@ -622,23 +622,25 @@ export default function TaquillaPage() {
           console.error('[pos] POST /users (auth):', e.message);
           if (e?.status === 409) return searchFirst(payload.email);
         }
-        // Attempt 2: unauthenticated (public registration, no Bearer token)
-        try {
-          const res = await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          if (res.status === 409) return searchFirst(payload.email);
-          if (res.ok) {
-            const data = await res.json().catch(() => null);
-            if (data?.id) return data;
-          } else {
-            const text = await res.text().catch(() => '');
-            console.error('[pos] POST /users (no-auth) ' + res.status + ':', text);
+        // Attempt 2: unauthenticated POST /api/users (public registration)
+        for (const url of ['/api/users', '/api/auth/register']) {
+          try {
+            const res = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            if (res.status === 409) return searchFirst(payload.email);
+            if (res.ok) {
+              const data = await res.json().catch(() => null);
+              if (data?.id) return data;
+            } else {
+              const text = await res.text().catch(() => '');
+              console.error(`[pos] POST ${url} (no-auth) ${res.status}:`, text);
+            }
+          } catch (e) {
+            console.error(`[pos] POST ${url} (no-auth) network:`, e.message);
           }
-        } catch (e) {
-          console.error('[pos] POST /users (no-auth) network:', e.message);
         }
         return null;
       };

@@ -615,33 +615,18 @@ export default function TaquillaPage() {
         } catch { return null; }
       };
 
-      const createUser = async (payload) => {
-        try {
-          const res = await clientsService.create(payload);
-          const id = uid(res);
-          if (!id) { console.error('[pos] createUser — no id in response:', res); return null; }
-          return { ...res, id };
-        } catch (e) {
-          console.error('[pos] createUser error:', e.message);
-          return e?.status === 409 ? searchFirst(payload.email) : null;
-        }
-      };
+      // 1. Registered client selected from the list
+      let resolvedUserId = uid(selectedClient) ?? null;
 
-      let resolvedUserId = selectedClient?.id ?? selectedClient?.userId ?? null;
-
+      // 2. Email entered → search for an existing registered account only.
+      //    If not found we still use the walk-in client below; guestEmail
+      //    is already set so the backend will email the ticket regardless.
       if (!resolvedUserId && emailQuery) {
         const found = await searchFirst(emailQuery);
         resolvedUserId = found?.id ?? null;
-        if (!resolvedUserId) {
-          const safeName = emailQuery.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') || 'Cliente';
-          const created = await createUser({
-            name: safeName, lastName: '', email: emailQuery,
-            password: 'Guest2024Lumen', birthDate: '1990-01-01', student: false, role: 'CLIENTE',
-          });
-          resolvedUserId = created?.id ?? null;
-        }
       }
 
+      // 3. Anonymous / email-not-registered → shared walk-in system client
       if (!resolvedUserId) {
         const cached = Number(localStorage.getItem(ANON_KEY) || '0');
         if (cached > 0) {
@@ -659,13 +644,27 @@ export default function TaquillaPage() {
             localStorage.setItem(ANON_KEY, String(found.id));
             resolvedUserId = found.id;
           } else {
-            const created = await createUser({
-              name: 'Cliente', lastName: 'Taquilla', email: ANON_EMAIL,
-              password: 'WalkIn2024Lumen', birthDate: '1990-01-01', student: false, role: 'CLIENTE',
-            });
-            if (created?.id) {
-              localStorage.setItem(ANON_KEY, String(created.id));
-              resolvedUserId = created.id;
+            // One-time system setup: create the shared walk-in account
+            try {
+              const res = await clientsService.create({
+                name: 'Cliente', lastName: 'Taquilla', email: ANON_EMAIL,
+                password: 'WalkIn2024Lumen', birthDate: '1990-01-01', student: false, role: 'CLIENTE',
+              });
+              const id = uid(res);
+              if (id) {
+                localStorage.setItem(ANON_KEY, String(id));
+                resolvedUserId = id;
+              }
+            } catch (e) {
+              if (e?.status === 409) {
+                const retry = await searchFirst(ANON_EMAIL);
+                if (retry?.id) {
+                  localStorage.setItem(ANON_KEY, String(retry.id));
+                  resolvedUserId = retry.id;
+                }
+              } else {
+                console.error('[pos] walk-in client setup error:', e.message);
+              }
             }
           }
         }

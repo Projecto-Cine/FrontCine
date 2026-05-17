@@ -13,6 +13,7 @@ import { clientsService }     from '../../services/clientsService';
 import { roomsService }       from '../../services/roomsService';
 import { moviesService }      from '../../services/moviesService';
 import { useApp }  from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import Badge      from '../../components/ui/Badge';
 import SeatMap    from '../../components/shared/SeatMap';
@@ -82,6 +83,7 @@ function generateOfflineSeats(sessionId, capacity = 100) {
 export default function TaquillaPage() {
   const { toast } = useApp();
   const { t } = useLanguage();
+  const { user: authUser } = useAuth();
 
   const [step, setStep]                   = useState('sessions');
   const [sessions, setSessions]           = useState([]);
@@ -453,7 +455,7 @@ export default function TaquillaPage() {
         : Array.isArray(raw?.seats)   ? raw.seats
         : Array.isArray(raw?.items)   ? raw.items
         : [];
-      console.debug('[seats] raw response type:', Array.isArray(raw) ? 'array' : typeof raw, 'items:', list.length, 'first:', list[0]);
+      console.log('[seats] raw response type:', Array.isArray(raw) ? 'array' : typeof raw, 'items:', list.length, 'first:', list[0]);
       const now  = Date.now();
       const seen = new Set();
       const out  = [];
@@ -476,6 +478,7 @@ export default function TaquillaPage() {
           id: displayId, row: String(row).toUpperCase(), number,
           status:          isOccupied ? 'occupied' : 'available',
           screeningSeatId: ss.id,
+          seatId:          seatObj.id ?? ss.seatId ?? ss.id,
         });
       }
       return out;
@@ -599,19 +602,19 @@ export default function TaquillaPage() {
         return;
       }
 
+      const resolvedUserId = selectedClient?.id ?? authUser?.id ?? null;
       const purchaseBody = {
+        userId:        resolvedUserId,
         screeningId:   selectedSession.id,
         paymentMethod: PAY_METHOD_MAP[payMethod],
         tickets:       screeningSeatIds.map(screeningSeatId => ({
           screeningSeatId,
+          seatId: screeningSeatId,
           ticketType: baseType.backendType ?? 'ADULT',
         })),
       };
-      if (selectedClient?.id) {
-        purchaseBody.userId = selectedClient.id;
-      } else {
-        purchaseBody.guestEmail = guestEmail.trim() || `anonimo${Date.now()}@lumencinema.es`;
-      }
+      if (guestEmail.trim()) purchaseBody.guestEmail = guestEmail.trim();
+      console.log('[handlePay] POST /purchases body:', JSON.stringify(purchaseBody, null, 2));
 
       const res = await salesService.createPurchase(purchaseBody);
 
@@ -683,10 +686,11 @@ export default function TaquillaPage() {
       let backendMsg = '';
       try {
         const parsed = JSON.parse(jsonText);
-        backendMsg = (parsed?.message ?? parsed?.error ?? parsed?.detail ?? '').slice(0, 120);
+        backendMsg = (parsed?.message ?? parsed?.error ?? parsed?.detail ?? parsed?.title ?? parsed?.msg ?? '').slice(0, 150);
       } catch {
-        backendMsg = jsonText.slice(0, 120);
+        backendMsg = jsonText.slice(0, 150);
       }
+      console.error('[handlePay] status:', status, '| backend response:', jsonText);
       const msg =
         status === 404 && (rawBody.toLowerCase().includes('seat') || rawBody.toLowerCase().includes('butaca'))
           ? 'Butaca no encontrada, recarga el mapa.' :
@@ -694,12 +698,12 @@ export default function TaquillaPage() {
         status === 409 ? 'Esa butaca ya no está disponible.' :
         status === 422 && rawBody.toLowerCase().includes('minor') ? 'Un menor debe ir acompañado de un adulto.' :
         status === 422 ? 'Esta compra ya fue procesada.' :
-        backendMsg || 'Error al procesar el cobro. Inténtalo de nuevo.';
+        backendMsg ? `Error ${status}: ${backendMsg}` : `Error ${status ?? '?'}: no se pudo procesar el cobro.`;
       toast(msg, 'error');
     } finally {
       setPaying(false);
     }
-  }, [selectedSeats, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, selectedClient, guestEmail, movie, theater, toast]);
+  }, [selectedSeats, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, selectedClient, guestEmail, authUser, movie, theater, toast]);
 
   const handleTimeClick = (session) => {
     setPendingSession(session);

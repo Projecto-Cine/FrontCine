@@ -103,6 +103,16 @@ describe('StripePaymentForm', () => {
     if (alert) expect(alert.textContent).toMatch(/Tarjeta rechazada/);
   });
 
+  it('confirmPayment with an unfinished intent shows the unexpected-error message', async () => {
+    confirmPaymentMock.mockResolvedValue({ paymentIntent: { status: 'requires_payment_method' } });
+    const { container } = wrap(<StripePaymentForm amount={5} onSuccess={vi.fn()} onCancel={vi.fn()} />);
+
+    fireEvent.submit(container.querySelector('form'));
+
+    await screen.findByRole('alert');
+    expect(container.querySelector('[role="alert"]').textContent).toMatch(/inesperado|unexpected/i);
+  });
+
   it('cancel button invokes onCancel', async () => {
     const onCancel = vi.fn();
     const user = userEvent.setup();

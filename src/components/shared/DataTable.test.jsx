@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DataTable from './DataTable';
 import { LanguageProvider } from '../../i18n/LanguageContext';
@@ -84,6 +84,29 @@ describe('DataTable', () => {
     await user.click(buttons[buttons.length - 1]);
 
     expect(screen.getByText('Carla')).toBeInTheDocument();
+  });
+
+  it('pagination: previous button returns to the first page', async () => {
+    const user = userEvent.setup();
+    renderWith(<DataTable columns={COLUMNS} data={DATA} pageSize={2} />);
+
+    const buttons = screen.getAllByRole('button');
+    await user.click(buttons[buttons.length - 1]);
+    expect(screen.getByText('Carla')).toBeInTheDocument();
+
+    await user.click(screen.getAllByRole('button')[0]);
+    expect(screen.getByText('Ana')).toBeInTheDocument();
+  });
+
+  it('invokes onRowClick from keyboard activation', () => {
+    const onRowClick = vi.fn();
+    renderWith(<DataTable columns={COLUMNS} data={DATA} onRowClick={onRowClick} />);
+
+    const row = screen.getByText('Ana').closest('tr');
+    fireEvent.keyDown(row, { key: 'Enter' });
+    fireEvent.keyDown(row, { key: ' ' });
+
+    expect(onRowClick).toHaveBeenCalledTimes(2);
   });
 
   it('rowActions renders the markup returned by the callback', () => {

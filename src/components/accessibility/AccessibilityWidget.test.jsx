@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AccessibilityWidget from './AccessibilityWidget';
@@ -6,6 +6,11 @@ import AccessibilityWidget from './AccessibilityWidget';
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.className = '';
+  window.speechSynthesis = { speak: vi.fn(), cancel: vi.fn() };
+  window.SpeechSynthesisUtterance = function SpeechSynthesisUtterance(text) {
+    this.text = text;
+  };
+  globalThis.SpeechSynthesisUtterance = window.SpeechSynthesisUtterance;
 });
 
 describe('AccessibilityWidget', () => {
@@ -64,5 +69,37 @@ describe('AccessibilityWidget', () => {
     expect(html.classList.contains('a11y-font-xlarge')).toBe(true);
     expect(html.classList.contains('a11y-underline-links')).toBe(true);
     expect(html.classList.contains('a11y-light-mode')).toBe(true);
+  });
+
+  it('uses all controls, reads selected text, stops reading, resets, and closes on outside click', async () => {
+    const user = userEvent.setup();
+    const main = document.createElement('main');
+    main.id = 'main-content';
+    main.innerText = 'Texto principal para lectura';
+    document.body.appendChild(main);
+
+    vi.spyOn(window, 'getSelection').mockReturnValue({ toString: () => 'Texto seleccionado' });
+
+    render(<AccessibilityWidget />);
+    await user.click(screen.getByLabelText(/abrir opciones/i));
+
+    await user.click(screen.getByRole('switch', { name: /modo claro/i }));
+    await user.click(screen.getByRole('switch', { name: /alto contraste/i }));
+    await user.click(screen.getByRole('button', { name: /^Grande:/i }));
+    await user.click(screen.getByRole('button', { name: /^X-Grande:/i }));
+    await user.click(screen.getByRole('switch', { name: /subrayar enlaces/i }));
+    await user.click(screen.getByRole('switch', { name: /lector de texto/i }));
+
+    await user.click(screen.getByRole('button', { name: /leer texto seleccionado/i }));
+    expect(window.speechSynthesis.speak).toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /detener lectura/i }));
+    expect(window.speechSynthesis.cancel).toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /restablecer/i }));
+    expect(document.documentElement.classList.contains('a11y-high-contrast')).toBe(false);
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

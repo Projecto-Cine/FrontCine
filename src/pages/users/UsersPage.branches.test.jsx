@@ -186,4 +186,50 @@ describe('UsersPage — branch coverage', () => {
     // Modal should NOT open
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
+
+  it('triggers email validation via onBlur', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText('admin@x.com')).toBeInTheDocument());
+
+    const createBtn = screen.getAllByRole('button').find(b => /Nuevo|Crear|usuario/i.test(b.textContent ?? ''));
+    if (createBtn) {
+      fireEvent.click(createBtn);
+      const emailIn = document.getElementById('usr-email');
+      if (emailIn) {
+        fireEvent.change(emailIn, { target: { value: '' } });
+        fireEvent.blur(emailIn);
+      }
+    }
+  });
+
+  it('updates form fields (name, lastName, password, role, birthDate)', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText('admin@x.com')).toBeInTheDocument());
+
+    const createBtn = screen.getAllByRole('button').find(b => /Nuevo|Crear|usuario/i.test(b.textContent ?? ''));
+    if (createBtn) {
+      fireEvent.click(createBtn);
+      const inputs = document.querySelectorAll('[role="dialog"] input');
+      inputs.forEach(i => fireEvent.change(i, { target: { value: 'x' } }));
+      const select = document.querySelector('[role="dialog"] select');
+      if (select) fireEvent.change(select, { target: { value: 'ADMIN' } });
+    }
+  });
+
+  it('opens edit modal and saves successfully', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText('admin@x.com')).toBeInTheDocument());
+
+    const rowBtns = screen.getAllByRole('button').filter(b => b.closest('td'));
+    if (rowBtns[0]) {
+      fireEvent.click(rowBtns[0]);
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeInTheDocument());
+      // Just save (uses existing form values)
+      const save = [...document.querySelectorAll('[role="dialog"] button')].find(b => /Guardar/i.test(b.textContent ?? ''));
+      if (save) {
+        fireEvent.click(save);
+        await waitFor(() => expect(usersUpdate).toHaveBeenCalled());
+      }
+    }
+  });
 });

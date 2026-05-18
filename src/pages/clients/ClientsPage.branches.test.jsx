@@ -217,4 +217,47 @@ describe('ClientsPage — branch coverage', () => {
       await waitFor(() => expect(clientsGetById).toHaveBeenCalled());
     }
   });
+
+  it('opens detail view for a client with lastName (covers branch)', async () => {
+    clientsGetById.mockResolvedValueOnce({
+      id: 1, name: 'Ana', lastName: 'López', email: 'ana@x.com',
+      status: 'ACTIVE', userType: 'STUDENT', username: 'analopez',
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Ana López')).toBeInTheDocument());
+
+    const row = document.querySelector('tbody tr');
+    if (row) {
+      fireEvent.click(row);
+      await waitFor(() => expect(clientsGetById).toHaveBeenCalled());
+    }
+  });
+
+  it('opens detail view for a client without lastName and missing email', async () => {
+    clientsGetById.mockResolvedValueOnce({
+      id: 3, username: 'carla',
+      // no lastName, no email, no status, no userType
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Ana López')).toBeInTheDocument());
+
+    // click on third row (carla)
+    const rows = document.querySelectorAll('tbody tr');
+    if (rows[2]) {
+      fireEvent.click(rows[2]);
+      await waitFor(() => expect(clientsGetById).toHaveBeenCalled());
+    }
+  });
+
+  it('opens edit modal showing modalEditTitle with name fallback', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Ana López')).toBeInTheDocument());
+
+    const rowBtns = screen.getAllByRole('button').filter(b => b.closest('td'));
+    if (rowBtns[0]) {
+      fireEvent.click(rowBtns[0]);
+      // Modal should be open
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeInTheDocument());
+    }
+  });
 });

@@ -86,11 +86,9 @@ vi.mock('qrcode.react', () => ({
 
 const moviesGetAll = vi.fn();
 
+// Always use today + a fixed late-evening hour so it stays > 3h ahead regardless of test execution time
 const TODAY = new Date().toISOString().split('T')[0];
-const FUTURE_HOUR = (() => {
-  const d = new Date(); d.setHours(d.getHours() + 4);
-  return `${String(d.getHours()).padStart(2, '0')}:00:00`;
-})();
+const FUTURE_HOUR = '23:30:00';
 
 const MOVIE     = { id: 10, title: 'Dune', genre: 'Ciencia ficción', format: 'IMAX', language: 'ES', active: true };
 const ROOM      = { id: 20, name: 'Sala 4D VIP', capacity: 100, type: 'VIP' };

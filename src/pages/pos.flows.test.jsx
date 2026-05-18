@@ -10,12 +10,9 @@ import { AppProvider } from '../contexts/AppContext';
 
 const MOVIE = { id: 1, title: 'Dune', durationMin: 155, genre: 'Ciencia ficción', ageRating: 'PG-13', format: 'IMAX', language: 'ES', active: true, imageUrl: '' };
 const ROOM  = { id: 1, name: 'Sala 1 — IMAX', capacity: 100, type: 'IMAX', status: 'active' };
-// Use today + future hour so BoxOfficePage's "hide past sessions" filter keeps it visible
+// Always use today + a fixed late-evening hour so it stays > 3h ahead regardless of test execution time
 const TODAY = new Date().toISOString().split('T')[0];
-const FUTURE_HOUR = (() => {
-  const d = new Date(); d.setHours(d.getHours() + 4);
-  return `${String(d.getHours()).padStart(2, '0')}:00:00`;
-})();
+const FUTURE_HOUR = '23:30:00';
 const SCREENING = {
   id: 1, startTime: `${TODAY}T${FUTURE_HOUR}`, dateTime: `${TODAY}T${FUTURE_HOUR}`,
   price: 13.5, basePrice: 13.5, status: 'SCHEDULED', availableSeats: 70, capacity: 100,

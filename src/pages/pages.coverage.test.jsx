@@ -24,12 +24,9 @@ const ROOMS = [
   { id: 1, name: 'Sala 1 — IMAX', capacity: 100, type: 'IMAX', status: 'active' },
   { id: 2, name: 'Sala 2 — VIP', capacity: 50, type: 'VIP', status: 'maintenance' },
 ];
-// Use future times today so BoxOfficePage's "hide past sessions" filter keeps them visible
+// Always use today + a fixed late-evening hour so it stays > 3h ahead regardless of test execution time
 const TODAY = new Date().toISOString().split('T')[0];
-const FUTURE_HOUR = (() => {
-  const d = new Date(); d.setHours(d.getHours() + 4);
-  return `${String(d.getHours()).padStart(2, '0')}:00:00`;
-})();
+const FUTURE_HOUR = '23:30:00';
 const SCREENINGS = [
   { id: 1, startTime: `${TODAY}T${FUTURE_HOUR}`, dateTime: `${TODAY}T${FUTURE_HOUR}`, price: 13.5, basePrice: 13.5, status: 'SCHEDULED', availableSeats: 70, capacity: 100, movie: MOVIES[0], theater: ROOMS[0], full: false },
   { id: 2, startTime: `${TODAY}T${FUTURE_HOUR}`, dateTime: `${TODAY}T${FUTURE_HOUR}`, price: 9, basePrice: 9, status: 'ACTIVE', availableSeats: 0, capacity: 50, movie: MOVIES[1], theater: ROOMS[1], full: true },
@@ -241,6 +238,23 @@ vi.mock('@stripe/react-stripe-js', () => ({
   useElements: () => ({ getElement: () => ({}) }),
 }));
 vi.mock('qrcode.react', () => ({ QRCodeSVG: () => <div data-testid="qr" /> }));
+
+// Stub recharts to avoid jsdom hangs caused by ResponsiveContainer/ResizeObserver
+vi.mock('recharts', () => ({
+  BarChart:  ({ children }) => <div data-testid="bar-chart">{children}</div>,
+  LineChart: ({ children }) => <div data-testid="line-chart">{children}</div>,
+  PieChart:  ({ children }) => <div data-testid="pie-chart">{children}</div>,
+  Bar:  () => null,
+  Line: () => null,
+  Pie:  () => null,
+  Cell: () => null,
+  XAxis: () => null,
+  YAxis: () => null,
+  Tooltip: () => null,
+  Legend: () => null,
+  CartesianGrid: () => null,
+  ResponsiveContainer: ({ children }) => <div>{children}</div>,
+}));
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -214,4 +214,42 @@ describe('Dashboard — branch coverage', () => {
     renderPage();
     await waitFor(() => expect(document.body.textContent.length).toBeGreaterThan(0), { timeout: 8000 });
   });
+
+  it('renders today sessions with missing movie/theater/startTime (uses "—" fallbacks)', async () => {
+    dashGet.mockResolvedValue({});
+    dashGetPurchases.mockResolvedValue([]);
+    reportsSalesWeek.mockResolvedValue([]);
+    reportsOccupancy.mockResolvedValue([]);
+    sessionsGetUpcoming.mockResolvedValue([
+      { id: 1, startTime: `${TODAY}T10:00`, status: 'ACTIVE' },                                 // missing movie/theater
+      { id: 2, startTime: `${TODAY}T11:00`, movie: {}, theater: {} },                            // empty movie/theater
+      { id: 3, dateTime: `${TODAY}T12:00`, movie: { title: 'X' }, theater: { name: 'Sala A' } }, // dateTime instead of startTime
+      { id: 4, movie: { title: 'Y' } },                                                          // no time at all
+    ]);
+    sessionsGetAll.mockResolvedValue([]);
+    incidentsGetAll.mockResolvedValue([]);
+    merchGetAll.mockResolvedValue([]);
+    renderPage();
+    await waitFor(() => expect(document.body.textContent.length).toBeGreaterThan(0), { timeout: 8000 });
+  });
+
+  it('handles top-3 movies and products with merchandise sales (covers quantity*unitPrice fallback)', async () => {
+    dashGet.mockResolvedValue({});
+    dashGetPurchases.mockResolvedValue([
+      { id: 1, status: 'CONFIRMED', totalAmount: 25, movieTitle: 'Dune' },
+    ]);
+    reportsSalesWeek.mockResolvedValue([]);
+    reportsOccupancy.mockResolvedValue([]);
+    sessionsGetUpcoming.mockResolvedValue([]);
+    sessionsGetAll.mockResolvedValue([]);
+    incidentsGetAll.mockResolvedValue([]);
+    merchGetAll.mockResolvedValue([
+      // totalAmount missing → fallback to qty * unitPrice
+      { id: 1, merchandiseName: 'Pop', quantity: 3, unitPrice: 5 },
+      // Both 0/missing → product name still tallied with 0 revenue
+      { id: 2, product: { name: 'Mug' } },
+    ]);
+    renderPage();
+    await waitFor(() => expect(document.body.textContent.length).toBeGreaterThan(0), { timeout: 8000 });
+  });
 }, 30000);

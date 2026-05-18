@@ -251,4 +251,53 @@ describe('SchedulesPage — branch coverage', () => {
       }
     }
   });
+
+  it('opens edit modal for screening missing movie/theater objects (uses lookup)', async () => {
+    // Load with a screening that only has movieId/theaterId — openEdit should use them
+    scrGetAll.mockResolvedValueOnce([
+      { id: 50, movieId: 10, theaterId: 20, dateTime: `${TODAY}T18:00`, status: 'SCHEDULED', price: 7 },
+    ]);
+    renderPage();
+    await waitFor(() => expect(scrGetAll).toHaveBeenCalled());
+
+    const rowButtons = screen.getAllByRole('button').filter(b => b.closest('td'));
+    if (rowButtons[0]) {
+      fireEvent.click(rowButtons[0]);
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeInTheDocument());
+      // movieId should be filled
+      const sel = document.querySelector('[role="dialog"] select#scr-movie');
+      expect(sel?.value).toBe('10');
+    }
+  });
+
+  it('opens edit modal for screening without movie/theater/status (defaults to SCHEDULED)', async () => {
+    scrGetAll.mockResolvedValueOnce([
+      { id: 60, dateTime: `${TODAY}T18:00` },
+    ]);
+    renderPage();
+    await waitFor(() => expect(scrGetAll).toHaveBeenCalled());
+
+    const rowButtons = screen.getAllByRole('button').filter(b => b.closest('td'));
+    if (rowButtons[0]) {
+      fireEvent.click(rowButtons[0]);
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeInTheDocument());
+      const statusSel = document.querySelector('[role="dialog"] select#scr-status');
+      expect(statusSel?.value).toBe('SCHEDULED');
+    }
+  });
+
+  it('toLocalDT trims long datetime strings', async () => {
+    scrGetAll.mockResolvedValueOnce([
+      { id: 70, movieId: 10, theaterId: 20, dateTime: `${TODAY}T18:00:00.000Z`, status: 'SCHEDULED', price: 9 },
+    ]);
+    renderPage();
+    await waitFor(() => expect(scrGetAll).toHaveBeenCalled());
+    const rowButtons = screen.getAllByRole('button').filter(b => b.closest('td'));
+    if (rowButtons[0]) {
+      fireEvent.click(rowButtons[0]);
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeInTheDocument());
+      const dtInput = document.querySelector('[role="dialog"] input[type="datetime-local"]');
+      expect(dtInput?.value.length).toBeLessThanOrEqual(16);
+    }
+  });
 });

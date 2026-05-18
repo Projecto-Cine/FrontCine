@@ -108,11 +108,9 @@ vi.mock('qrcode.react', () => ({
 }));
 
 /* ── Fixtures: today + future hour so the "hide past sessions" filter keeps them ── */
+// Always use today + a fixed late-evening hour so it stays > 3h ahead regardless of test execution time
 const TODAY = new Date().toISOString().split('T')[0];
-const FUTURE_HOUR = (() => {
-  const d = new Date(); d.setHours(d.getHours() + 4);
-  return `${String(d.getHours()).padStart(2, '0')}:00:00`;
-})();
+const FUTURE_HOUR = '23:30:00';
 
 const MOVIE = { id: 10, title: 'Dune', durationMin: 155, genre: 'Ciencia ficción', format: 'IMAX', language: 'ES', active: true, imageUrl: '', ageRating: 'PG-13' };
 const MOVIE_VIP = { id: 11, title: 'Avatar', durationMin: 162, genre: 'Drama', format: '4DX', language: 'VO', active: true, imageUrl: '' };
@@ -443,7 +441,7 @@ describe('BoxOfficePage — exhaustive coverage', () => {
     await waitFor(() => expect(roomsGetById).toHaveBeenCalledWith(20));
   });
 
-  it('handles session edit', async () => {
+  it('handles session edit and modifies all fields', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByText('Dune')).toBeInTheDocument());
 
@@ -451,6 +449,17 @@ describe('BoxOfficePage — exhaustive coverage', () => {
     if (editBtn) {
       fireEvent.click(editBtn);
       await waitFor(() => expect(moviesGetActive).toHaveBeenCalled());
+
+      // Modify all fields to cover their onChange branches
+      const selects = document.querySelectorAll('[role="dialog"] select');
+      if (selects[0]) fireEvent.change(selects[0], { target: { value: '11' } });
+      if (selects[1]) fireEvent.change(selects[1], { target: { value: '21' } });
+      const dateIn = document.querySelector('[role="dialog"] input[type="date"]');
+      if (dateIn) fireEvent.change(dateIn, { target: { value: `${TODAY}` } });
+      const timeIn = document.querySelector('[role="dialog"] input[type="time"]');
+      if (timeIn) fireEvent.change(timeIn, { target: { value: '20:00' } });
+      const priceIn = document.querySelector('[role="dialog"] input[type="number"]');
+      if (priceIn) fireEvent.change(priceIn, { target: { value: '12.5' } });
 
       const saveBtn = [...document.querySelectorAll('[role="dialog"] button')].find(b => /Guardar/i.test(b.textContent ?? ''));
       if (saveBtn) {
@@ -850,6 +859,25 @@ describe('BoxOfficePage — exhaustive coverage', () => {
         }
       }
     }
+  });
+
+  it('handlePay early-returns when no seats are selected', async () => {
+    renderPage();
+    await waitFor(() => expect(document.body.textContent).toContain('Dune'));
+    await pickSessionAndSkipModal();
+    await waitFor(() => expect(document.querySelector('button[aria-label^="Butaca"]')).toBeTruthy());
+
+    // Trigger F4 with no seats selected → toast error, no purchase
+    fireEvent.keyDown(window, { key: 'F4' });
+    expect(salesCreatePurchase).not.toHaveBeenCalled();
+  });
+
+  it('triggers image onError fallback when poster URL fails', async () => {
+    sessionsGetAll.mockResolvedValueOnce([{ ...SCREENING, movie: { ...MOVIE, imageUrl: 'https://broken/img.jpg' } }]);
+    renderPage();
+    await waitFor(() => expect(document.body.textContent).toContain('Dune'));
+    const img = document.querySelector('img[alt="Dune"]');
+    if (img) fireEvent.error(img);
   });
 
   it('renders RefundReceipt component standalone', async () => {

@@ -194,4 +194,43 @@ describe('ShiftsPage — branch coverage', () => {
     await waitFor(() => expect(screen.getByText(/Ana/)).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /generar semana/i }));
   });
+
+  it('loads existing T-shift backend data (14:00 → "T")', async () => {
+    shiftsGetByRange.mockImplementation((from) => Promise.resolve([
+      { id: 1, employeeId: 1, shiftDate: from, startTime: '14:00:00', endTime: '22:00:00' },
+    ]));
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Ana/)).toBeInTheDocument());
+  });
+
+  it('loads existing N-shift backend data (18:00 → "N")', async () => {
+    shiftsGetByRange.mockImplementation((from) => Promise.resolve([
+      { id: 1, employeeId: 1, shiftDate: from, startTime: '18:00:00', endTime: '02:00:00' },
+    ]));
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Ana/)).toBeInTheDocument());
+  });
+
+  it('loads backend shifts with unknown start time (default "L")', async () => {
+    shiftsGetByRange.mockImplementation((from) => Promise.resolve([
+      { id: 1, employeeId: 1, shiftDate: from, startTime: '11:00:00', endTime: '19:00:00' },
+    ]));
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Ana/)).toBeInTheDocument());
+  });
+
+  it('handles update without id (skipped silently)', async () => {
+    shiftsGetByRange.mockImplementation((from) => Promise.resolve([
+      // No id → update/remove won't run, but existing record is found
+      { employeeId: 1, shiftDate: from, startTime: '08:00:00', endTime: '16:00:00' },
+    ]));
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Ana/)).toBeInTheDocument());
+
+    const cell = screen.getAllByRole('button').find(b => /^[MTNL]$/.test(b.textContent ?? ''));
+    fireEvent.click(cell);
+    await waitFor(() => expect(screen.getAllByRole('button').some(b => /tarde/i.test(b.title ?? ''))).toBe(true));
+    const tarde = screen.getAllByRole('button').find(b => /tarde/i.test(b.title ?? ''));
+    fireEvent.click(tarde);
+  });
 });

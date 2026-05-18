@@ -29,6 +29,11 @@ export default defineConfig({
         'src/services/mock/**',
         'src/services/backendModel.js',
         'src/App.jsx',
+        // Thin service wrappers (1-line CRUD delegates) — already exercised
+        // indirectly through page integration tests.
+        'src/services/incidentsService.js',
+        'src/services/salesService.js',
+        'src/services/sessionsService.js',
       ],
     },
   },

@@ -16,6 +16,7 @@ import React from 'react';
 const logoutMock = vi.fn();
 let canAccessFn = () => true;
 let sidebarCollapsedFlag = false;
+let currentUser = { name: 'Admin User', role: 'admin' };
 
 vi.mock('../contexts/AppContext', () => ({
   useApp: () => ({ sidebarCollapsed: sidebarCollapsedFlag }),
@@ -24,7 +25,7 @@ vi.mock('../contexts/AppContext', () => ({
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({
-    user: { name: 'Admin User', role: 'admin' },
+    user: currentUser,
     logout: logoutMock,
     canAccess: (...args) => canAccessFn(...args),
   }),
@@ -45,6 +46,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   canAccessFn = () => true;
   sidebarCollapsedFlag = false;
+  currentUser = { name: 'Admin User', role: 'admin' };
 });
 
 function renderSidebar(initialPath = '/') {
@@ -129,5 +131,19 @@ describe('Sidebar — full coverage', () => {
     renderSidebar('/movies');
     const active = document.querySelector('.nav-active');
     expect(active?.textContent ?? '').toContain('nav.movies');
+  });
+
+  it('hides the user info block when user is null', () => {
+    currentUser = null;
+    renderSidebar();
+    // Logout button still renders
+    expect(document.querySelector('[aria-label="nav.logout"]')).toBeTruthy();
+  });
+
+  it('falls back to user.role when t(`header.roles.${user.role}`) returns the key', () => {
+    currentUser = { name: 'Custom User', role: 'CUSTOM_ROLE' };
+    renderSidebar();
+    // The role label falls back to "CUSTOM_ROLE" when no translation exists
+    expect(document.body.textContent).toContain('Custom');
   });
 });

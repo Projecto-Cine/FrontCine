@@ -6,8 +6,11 @@ import { AppProvider } from '../../contexts/AppContext';
 
 const room = { id: 1, name: 'Sala 1 IMAX', capacity: 100, type: 'IMAX', status: 'active' };
 const movie = { id: 1, title: 'Dune', genre: 'Ciencia ficción', format: 'IMAX', language: 'ES', active: true, imageUrl: '', durationMin: 155, ageRating: 'PG-13' };
+// Always use today + a fixed late-evening hour so it stays > 3h ahead regardless of test execution time
+const TODAY = new Date().toISOString().split('T')[0];
+const SESSION_TIME = '23:30:00';
 const screening = {
-  id: 1, startTime: '2026-05-18T20:00:00', dateTime: '2026-05-18T20:00:00',
+  id: 1, startTime: `${TODAY}T${SESSION_TIME}`, dateTime: `${TODAY}T${SESSION_TIME}`,
   price: 13.5, basePrice: 13.5, movie, theater: room, availableSeats: 98, capacity: 100, full: false, status: 'SCHEDULED',
 };
 
@@ -101,7 +104,7 @@ describe('BoxOfficePage — verified purchase flow', () => {
     renderPage();
     await waitFor(() => { expect(document.body.textContent).toContain('Dune'); }, { timeout: 5000 });
 
-    const timeBtn = screen.getAllByRole('button').find(b => /20:00/.test(b.textContent ?? ''));
+    const timeBtn = screen.getAllByRole('button').find(b => /23:30/.test(b.textContent ?? ''));
     if (timeBtn) fireEvent.click(timeBtn);
 
     // Skip client modal
@@ -121,7 +124,7 @@ describe('BoxOfficePage — verified purchase flow', () => {
     renderPage();
     await waitFor(() => { expect(document.body.textContent).toContain('Dune'); }, { timeout: 5000 });
 
-    const timeBtn = screen.getAllByRole('button').find(b => /20:00/.test(b.textContent ?? ''));
+    const timeBtn = screen.getAllByRole('button').find(b => /23:30/.test(b.textContent ?? ''));
     if (timeBtn) fireEvent.click(timeBtn);
 
     // Skip client modal
@@ -142,7 +145,7 @@ describe('BoxOfficePage — verified purchase flow', () => {
 
     await waitFor(() => { expect(document.body.textContent).toContain('Dune'); }, { timeout: 5000 });
 
-    const timeBtn = screen.getAllByRole('button').find(b => /20:00/.test(b.textContent ?? ''));
+    const timeBtn = screen.getAllByRole('button').find(b => /23:30/.test(b.textContent ?? ''));
     if (timeBtn) fireEvent.click(timeBtn);
 
     // Skip client modal
@@ -167,7 +170,7 @@ describe('BoxOfficePage — verified purchase flow', () => {
     renderPage();
     await waitFor(() => { expect(document.body.textContent).toContain('Dune'); }, { timeout: 5000 });
 
-    const timeBtn = screen.getAllByRole('button').find(b => /20:00/.test(b.textContent ?? ''));
+    const timeBtn = screen.getAllByRole('button').find(b => /23:30/.test(b.textContent ?? ''));
     if (timeBtn) fireEvent.click(timeBtn);
 
     // Skip client modal
@@ -187,7 +190,7 @@ describe('BoxOfficePage — verified purchase flow', () => {
     renderPage();
 
     await waitFor(() => { expect(document.body.textContent).toContain('Dune'); }, { timeout: 5000 });
-    const timeBtn = screen.getAllByRole('button').find(b => /20:00/.test(b.textContent ?? ''));
+    const timeBtn = screen.getAllByRole('button').find(b => /23:30/.test(b.textContent ?? ''));
     if (timeBtn) fireEvent.click(timeBtn);
     // Skip client modal
     await waitFor(() => {

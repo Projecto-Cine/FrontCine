@@ -424,4 +424,42 @@ describe('RefundsPage — comprehensive', () => {
     if (xButton) fireEvent.click(xButton);
     await waitFor(() => expect(screen.queryByText(/Confirmar reembolso/i)).not.toBeInTheDocument());
   });
+
+  it('switches back to ticket tab from merchandise (covers tab branch)', async () => {
+    renderPage();
+    // Switch to merch
+    fireEvent.click(screen.getAllByRole('button').find(b => /Caja/i.test(b.textContent ?? '')));
+    await waitFor(() => expect(screen.getByText('Palomitas')).toBeInTheDocument());
+    // Switch back to taquilla
+    fireEvent.click(screen.getAllByRole('button').find(b => /Taquilla/i.test(b.textContent ?? '')));
+    await waitFor(() => expect(screen.getByText('Dune')).toBeInTheDocument());
+  });
+
+  it('renders merchandise sales with missing user (uses "Cliente anónimo" fallback)', async () => {
+    merchSalesGetAll.mockResolvedValueOnce([
+      { id: 300, merchandise: { name: 'X', price: 1 }, quantity: 1, totalPrice: 1, saleDate: `${TODAY}T18:00:00` },
+    ]);
+    renderPage();
+    fireEvent.click(screen.getAllByRole('button').find(b => /Caja/i.test(b.textContent ?? '')));
+    await waitFor(() => expect(screen.getByText('Cliente anónimo')).toBeInTheDocument());
+  });
+
+  it('renders ticket purchases with no tickets array (no seats badges)', async () => {
+    sessionsGetPurchases.mockResolvedValueOnce([
+      { id: 500, status: 'PAID', totalAmount: 10, paymentMethod: 'CARD', user: { name: 'Z' } },
+    ]);
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Dune')).toBeInTheDocument());
+    fireEvent.click(screen.getAllByRole('button').find(b => b.textContent.includes('Dune')));
+    await waitFor(() => expect(screen.getByText('Z')).toBeInTheDocument());
+  });
+
+  it('renders merchandise sale using createdAt fallback for date', async () => {
+    merchSalesGetAll.mockResolvedValueOnce([
+      { id: 301, merchandise: { name: 'Y', price: 2 }, quantity: 3, totalPrice: 6, createdAt: `${TODAY}T19:00:00`, user: { username: 'guille' } },
+    ]);
+    renderPage();
+    fireEvent.click(screen.getAllByRole('button').find(b => /Caja/i.test(b.textContent ?? '')));
+    await waitFor(() => expect(screen.getByText('guille')).toBeInTheDocument());
+  });
 });

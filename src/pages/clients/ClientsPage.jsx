@@ -214,10 +214,12 @@ export default function ClientsPage() {
         </div>
         <div>
           <div style={{ fontWeight: 500, fontSize: 12 }}>{v ?? row.username ?? '-'}</div>
-          <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{row.lastName ?? ''}</div>
         </div>
       </div>
     )},
+    { key: 'lastName', label: 'Apellidos', render: (v) =>
+      <span style={{ fontSize: 12, color: 'var(--text-1)' }}>{v ?? '-'}</span>
+    },
     { key: 'email', label: t('clients.col.email'), render: v =>
       <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v ?? '-'}</span> },
     { key: 'userType', label: 'Tipo', width: 110, render: v => {

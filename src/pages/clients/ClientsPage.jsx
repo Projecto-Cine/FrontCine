@@ -13,9 +13,10 @@ import styles from './ClientsPage.module.css';
 
 const STATUS_COLOR = { ACTIVE: 'green', INACTIVE: 'default', SUSPENDED: 'red' };
 
+const FIDELITY_THRESHOLD = 10;
 const EMPTY_FORM = {
   name: '', lastName: '', username: '', email: '', password: '',
-  dateOfBirth: '', student: false, fidelityMember: false,
+  dateOfBirth: '', student: false, fidelityMember: false, visits: 0,
 };
 
 function initials(name = '') {
@@ -106,6 +107,7 @@ export default function ClientsPage() {
 
   const openEdit = (row) => {
     setEditing(row);
+    const visits = Number(row.annualVisits ?? row.visitsPerYear ?? 0);
     setForm({
       name:          row.name ?? '',
       lastName:      row.lastName ?? '',
@@ -114,7 +116,8 @@ export default function ClientsPage() {
       password:      '',
       dateOfBirth:   row.dateOfBirth ?? row.birthDate ?? '',
       student:       !!(row.student || row.isStudent),
-      fidelityMember: !!(row.fidelityDiscountEligible),
+      fidelityMember: visits > FIDELITY_THRESHOLD || !!(row.discountActive || row.fidelityDiscountEligible),
+      visits,
     });
     setModal('form');
   };
@@ -360,7 +363,13 @@ export default function ClientsPage() {
                   {form.fidelityMember ? 'Socio activo' : 'No es socio'}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>
-                  {form.fidelityMember ? 'Tiene acceso al descuento del 10% en entradas' : 'Activar para dar acceso a promociones de socio'}
+                  {form.fidelityMember && editing && form.visits > FIDELITY_THRESHOLD
+                    ? `Automático · ${form.visits} visitas este año — 10% sobre total de entradas`
+                    : form.fidelityMember
+                    ? 'Activado manualmente · recibirá email de bienvenida al Club Lumen'
+                    : editing
+                    ? `${form.visits}/${FIDELITY_THRESHOLD} visitas este año — se activa automáticamente al superar ${FIDELITY_THRESHOLD}`
+                    : `Se activa automáticamente al superar ${FIDELITY_THRESHOLD} visitas este año`}
                 </div>
               </div>
               <div style={{

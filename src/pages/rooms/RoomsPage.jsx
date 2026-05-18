@@ -42,16 +42,20 @@ export default function RoomsPage() {
       return;
     }
     const payload = { name: form.name.trim(), capacity: Number(form.capacity) };
-    if (editing) {
-      const saved = await theatersService.update(editing.id, payload);
-      setRooms(prev => prev.map(room => room.id === editing.id ? saved : room));
-      toast('Sala actualizada.', 'success');
-    } else {
-      const saved = await theatersService.create(payload);
-      setRooms(prev => [...prev, saved]);
-      toast('Sala creada.', 'success');
+    try {
+      if (editing) {
+        const saved = await theatersService.update(editing.id, payload);
+        setRooms(prev => prev.map(room => room.id === editing.id ? saved : room));
+        toast('Sala actualizada.', 'success');
+      } else {
+        const saved = await theatersService.create(payload);
+        setRooms(prev => [...prev, saved]);
+        toast('Sala creada.', 'success');
+      }
+      setModal(null);
+    } catch {
+      toast('Error al guardar la sala.', 'error');
     }
-    setModal(null);
   };
 
   const handleDelete = async () => {

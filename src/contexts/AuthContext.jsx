@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Restaurar sesión al recargar si hay token guardado
+  // Restore the session on reload when a token is already stored.
   useEffect(() => {
     const token = localStorage.getItem('lumen_token');
     if (!token) { setLoading(false); return; }
@@ -25,7 +25,7 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  // Escuchar 401 globales desde api.js → limpiar sesión sin hard-redirect
+  // Listen for global 401 events from api.js and clear the session without a hard redirect.
   useEffect(() => {
     const handle = () => setUser(null);
     window.addEventListener('auth:expired', handle);

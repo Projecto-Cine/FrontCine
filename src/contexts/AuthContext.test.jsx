@@ -33,6 +33,27 @@ describe('AuthContext', () => {
     await waitFor(() => expect(result.current?.user).toEqual({ name: 'Ana', role: 'admin' }));
   });
 
+  it('clears a broken saved user payload', async () => {
+    localStorage.setItem('lumen_token', 'abc');
+    localStorage.setItem('lumen_user', '{bad-json');
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current).not.toBeNull());
+    expect(result.current.user).toBeNull();
+    expect(localStorage.getItem('lumen_token')).toBeNull();
+    expect(localStorage.getItem('lumen_user')).toBeNull();
+  });
+
+  it('clears an orphan token when there is no saved user', async () => {
+    localStorage.setItem('lumen_token', 'abc');
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => expect(result.current).not.toBeNull());
+    expect(localStorage.getItem('lumen_token')).toBeNull();
+  });
+
   it('login OK saves token and user', async () => {
     authService.login.mockResolvedValue({
       token: 't1',

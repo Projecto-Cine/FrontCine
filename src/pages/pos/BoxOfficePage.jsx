@@ -64,7 +64,7 @@ function generateTicketId() {
   return 'TKT-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
 }
 
-export default function TaquillaPage() {
+export default function BoxOfficePage() {
   const { toast } = useApp();
   const { user }  = useAuth();
   const { t } = useLanguage();
@@ -98,7 +98,6 @@ export default function TaquillaPage() {
     sessionsService.getAll({ date: today })
       .then(data => {
         const arr = Array.isArray(data) ? data : [];
-        console.log('Sessions from API:', arr.length, 'items, first item:', arr[0]);
         setSessions(mergeSessionPosters(arr));
       })
       .catch(() => toast('Error al cargar sesiones.', 'error'))
@@ -142,7 +141,6 @@ export default function TaquillaPage() {
   }, [filteredSessions]);
 
   const selectSession = (session) => {
-    console.log('selectSession called with:', session);
     if (!session) return;
     setSelectedSession(session);
     setSelectedSeats([]);
@@ -293,7 +291,7 @@ export default function TaquillaPage() {
     setSelectedClient(null);
   }, []);
 
-  // Atajos POS: F2=buscar sesión, F4=cobrar, F5=nueva venta, Esc=paso anterior
+  // POS shortcuts: F2=search session, F4=pay, F5=new sale, Esc=previous step.
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'F2' && step === 'sessions') {
@@ -321,10 +319,10 @@ export default function TaquillaPage() {
 
   return (
     <div className={styles.shell}>
-      {/* ── LEFT ─────────────────────────────────── */}
+      {/* Main flow */}
       <div className={styles.left}>
 
-        {/* STEP: sessions */}
+        {/* Sessions step */}
         {step === 'sessions' && (
           <>
             <div className={styles.leftHeader}>
@@ -402,7 +400,7 @@ export default function TaquillaPage() {
           </>
         )}
 
-        {/* STEP: seats */}
+        {/* Seats step */}
         {step === 'seats' && selectedSession && selectedSession.id && (
           <>
             <div className={styles.leftHeader}>
@@ -459,7 +457,7 @@ export default function TaquillaPage() {
           </>
         )}
 
-        {/* STEP: payment */}
+        {/* Payment step */}
         {step === 'payment' && (
           <>
             <div className={styles.leftHeader}>
@@ -555,7 +553,7 @@ export default function TaquillaPage() {
         )}
       </div>
 
-      {/* ── RIGHT — summary ──────────────────────── */}
+      {/* Summary */}
       <div className={styles.right}>
         <div className={styles.cartHeader}>
           <Ticket size={14} />
@@ -649,8 +647,8 @@ export default function TaquillaPage() {
   );
 }
 
-/* ── Ticket success screen ───────────────────────── */
-function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
+/* Ticket success screen */
+export function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
   const [current, setCurrent] = useState(0);
   const ticket    = tickets[current];
 

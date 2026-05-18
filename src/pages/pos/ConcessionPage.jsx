@@ -33,7 +33,7 @@ function generateReceiptId() {
   return 'RCP-' + Date.now().toString(36).toUpperCase();
 }
 
-export default function CajaPage() {
+export default function ConcessionPage() {
   const { toast } = useApp();
   const { user }  = useAuth();
   const { t }     = useLanguage();
@@ -50,10 +50,10 @@ export default function CajaPage() {
   const [paying, setPaying]           = useState(false);
   const searchRef = useRef(null);
 
-  // Gestión de productos (solo admin/supervisor/operator)
+  // Product management is limited to admin, supervisor, and operator roles.
   const canManage    = MANAGE_ROLES.includes((user?.role ?? '').toLowerCase());
   const [showManager,     setShowManager]     = useState(false);
-  const [productForm,     setProductForm]     = useState(null); // null = lista, objeto = formulario
+  const [productForm,     setProductForm]     = useState(null); // null = list, object = form
   const [editingProduct,  setEditingProduct]  = useState(null);
   const [savingProduct,   setSavingProduct]   = useState(false);
   const [deletingId,      setDeletingId]      = useState(null);
@@ -76,22 +76,22 @@ export default function CajaPage() {
     setUploadingImg(false);
   };
 
-  // Normaliza campos que el backend puede devolver con distintos nombres
+  // Normalize fields that the backend may return with different names.
   const normalizeProduct = (p) => ({
     ...p,
     imageUrl: p.imageUrl ?? p.image_url ?? p.poster ?? '',
     description: p.description ?? p.desc ?? '',
   });
 
-  // Cargar productos de concesión desde el backend
+  // Load concession products from the backend.
   useEffect(() => {
     inventoryService.getAll()
       .then(data => {
         const items = (Array.isArray(data) ? data : []).map(normalizeProduct);
-        // Mostrar solo productos de concesión con stock disponible
+        // Show only concession products with available stock.
         const concession = items.filter(p => p.quantity === undefined || p.quantity > 0);
         setProducts(mergeImgs(concession));
-        // Categoría por defecto: la primera disponible
+        // Default category: first available category.
         const cats = [...new Set(concession.map(p => p.category))];
         if (cats.length > 0 && !cats.includes('Todo')) setCategory('Todo');
       })
@@ -101,7 +101,7 @@ export default function CajaPage() {
 
   const CATEGORIES = FIXED_CATS;
 
-  // Atajos POS: F2=buscar, F4=cobrar, F5=nueva venta, Esc=vaciar carrito
+  // POS shortcuts: F2=search, F4=pay, F5=new sale, Esc=clear cart.
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'F2') { e.preventDefault(); searchRef.current?.focus(); }
@@ -163,7 +163,7 @@ export default function CajaPage() {
         cashier_id:     user?.id ?? null,
       });
     } catch {
-      // Si el endpoint aún no existe, continuamos igualmente con el recibo local
+      // If the endpoint is not available yet, continue with the local receipt.
     } finally {
       setPaying(false);
     }
@@ -255,7 +255,7 @@ export default function CajaPage() {
 
   return (
     <div className={styles.shell}>
-      {/* ── LEFT — productos ─────────────────────────────── */}
+      {/* Products */}
       <div className={styles.left}>
         <div className={styles.topBar}>
           <div className={styles.searchWrap}>
@@ -332,7 +332,7 @@ export default function CajaPage() {
         )}
       </div>
 
-      {/* ── RIGHT — carrito ─────────────────────────────── */}
+      {/* Cart */}
       <div className={styles.right}>
         <div className={styles.cartHeader}>
           <ShoppingCart size={15} />
@@ -437,7 +437,7 @@ export default function CajaPage() {
         </div>
       </div>
 
-      {/* ── Modal confirmación ─────────────────── */}
+      {/* Payment confirmation modal */}
       {showPayModal && (
         <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && setShowPayModal(false)}>
           <div className={styles.payModal} role="dialog" aria-modal="true" aria-labelledby="pay-modal-title">
@@ -470,7 +470,7 @@ export default function CajaPage() {
         </div>
       )}
 
-      {/* ── Recibo ─────────────────────────────── */}
+      {/* Receipt */}
       {receipt && (
         <div className={styles.modalOverlay}>
           <div className={styles.receiptModal} role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
@@ -517,7 +517,7 @@ export default function CajaPage() {
           </div>
         </div>
       )}
-      {/* ── Modal gestión de productos ────────────── */}
+      {/* Product management modal */}
       {showManager && (
         <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && setShowManager(false)}>
           <div className={styles.managerModal} role="dialog" aria-modal="true" aria-labelledby="manager-modal-title">
@@ -527,7 +527,7 @@ export default function CajaPage() {
             </div>
 
             {productForm === null ? (
-              /* ── Lista ── */
+              /* Product list */
               <div className={styles.managerBody}>
                 <button className={styles.managerNewBtn} onClick={openNewProduct}>
                   <Plus size={14} /> {t('concession.newProduct')}
@@ -563,7 +563,7 @@ export default function CajaPage() {
                 </div>
               </div>
             ) : (
-              /* ── Formulario ── */
+              /* Product form */
               <div className={styles.managerBody}>
                 <button className={styles.managerBackBtn} onClick={() => { setProductForm(null); setEditingProduct(null); }}>
                   {t('concession.backToList')}

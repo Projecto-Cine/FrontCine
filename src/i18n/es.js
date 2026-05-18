@@ -463,11 +463,9 @@ export default {
       ok:   'OK',
     },
     categories: {
-      Técnico:   'Técnico',
-      Concesión: 'Concesión',
-      Oficina:   'Oficina',
-      Limpieza:  'Limpieza',
-      Comercial: 'Comercial',
+      Bebida:      'Bebida',
+      Comida:      'Comida',
+      Merchandise: 'Merchandise',
     },
     form: {
       name:      'Nombre *',
@@ -687,7 +685,7 @@ export default {
     },
     type: {
       adult:   'Adulto',
-      senior:  'Reducida',
+      senior:  'Senior',
       student: 'Estudiante',
       child:   'Infantil',
       imax:    'IMAX',

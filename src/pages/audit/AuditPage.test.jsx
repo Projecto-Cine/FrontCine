@@ -26,9 +26,10 @@ const mockLogs = [
   { id: 2, timestamp: `${today}T11:00:00`, user: 'carlos', action: 'CREATE', resource: 'movie', detail: 'Created Dune', ip: '192.168.1.2', severity: 'warning' },
   { id: 3, timestamp: `${today}T12:00:00`, user: 'admin', action: 'DELETE', resource: 'user', detail: 'Deleted user', ip: '192.168.1.1', severity: 'danger' },
 ];
+const today = new Date().toISOString().split('T')[0];
 const mockUsers = [
   { id: 1, name: 'Admin', username: 'admin', status: 'active', email: 'admin@x.com', last_login: `${today}T09:00:00` },
-  { id: 2, name: 'Carlos', username: 'carlos', status: 'active', email: 'carlos@x.com', last_login: `${today} 08:00:00` },
+  { id: 2, name: 'Carlos', username: 'carlos', status: 'active', email: 'carlos@x.com', last_login: `${today}T08:00:00` },
 ];
 
 beforeEach(() => {

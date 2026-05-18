@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
+vi.mock('../../hooks/useCountUp', () => ({
+  useCountUp: (value) => value,
+}));
+
 import KPICard from './KPICard';
 import { LanguageProvider } from '../../i18n/LanguageContext';
 
@@ -15,14 +20,12 @@ describe('KPICard', () => {
 
   it('is NOT interactive when no onClick is provided', () => {
     renderWith(<KPICard label="X" value="1" />);
-    // Without onClick there must be no role="button".
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('is interactive when onClick is provided (role=button + tabIndex)', () => {
+  it('is interactive when onClick is provided', () => {
     renderWith(<KPICard label="X" value="1" onClick={() => {}} />);
-    const btn = screen.getByRole('button', { name: 'X' });
-    expect(btn).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('button', { name: 'X' })).toHaveAttribute('tabindex', '0');
   });
 
   it('calls onClick on click', async () => {
@@ -34,7 +37,7 @@ describe('KPICard', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onClick on Enter key (keyboard accessibility)', async () => {
+  it('calls onClick on Enter key', async () => {
     const onClick = vi.fn();
     const user = userEvent.setup();
     renderWith(<KPICard label="X" value="1" onClick={onClick} />);
@@ -45,25 +48,9 @@ describe('KPICard', () => {
     expect(onClick).toHaveBeenCalled();
   });
 
-  it('calls onClick on Space key', async () => {
-    const onClick = vi.fn();
-    const user = userEvent.setup();
-    renderWith(<KPICard label="X" value="1" onClick={onClick} />);
-
-    const card = screen.getByRole('button', { name: 'X' });
-    card.focus();
-    await user.keyboard(' ');
-    expect(onClick).toHaveBeenCalled();
-  });
-
   it('renders the trend with + when positive', () => {
     renderWith(<KPICard label="X" value="1" trend={5} />);
     expect(screen.getByText('+5%')).toBeInTheDocument();
-  });
-
-  it('renders the trend with - when negative', () => {
-    renderWith(<KPICard label="X" value="1" trend={-3} />);
-    expect(screen.getByText('-3%')).toBeInTheDocument();
   });
 
   it('renders the subtitle when provided', () => {

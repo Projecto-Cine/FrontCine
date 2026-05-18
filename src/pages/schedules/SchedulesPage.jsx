@@ -35,7 +35,7 @@ export default function SchedulesPage() {
 
   useEffect(() => {
     Promise.all([screeningsService.getAll(), moviesService.getAll(), theatersService.getAll()])
-      .then(([sd, md, td]) => { setScreenings(sd ?? []); setMovies(md ?? []); setTheaters(td ?? []); })
+      .then(([sd, md, td]) => { setScreenings((sd ?? []).map(normalizeFromBackend)); setMovies(md ?? []); setTheaters(td ?? []); })
       .catch(() => toast('No se pudieron cargar los horarios.', 'error'));
   }, [toast]);
 
@@ -58,6 +58,21 @@ export default function SchedulesPage() {
   };
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
+  function normalizeFromBackend(s) {
+    if (!s) return s;
+    const now = new Date();
+    const start = new Date(s.startTime ?? s.dateTime);
+    const end = new Date(s.endDatetime);
+    let status = s.status;
+    if (!status) {
+      if (s.full) status = 'FULL';
+      else if (now >= start && now <= end) status = 'ACTIVE';
+      else if (now > end) status = 'SCHEDULED';
+      else status = 'SCHEDULED';
+    }
+    return { ...s, dateTime: s.dateTime ?? s.startTime, price: s.price ?? s.basePrice, status };
+  }
+
   const handleSave = async () => {
     if (!form.movieId || !form.theaterId || !form.dateTime) {
       toast('Película, sala y fecha son obligatorios.', 'error'); return;
@@ -65,17 +80,16 @@ export default function SchedulesPage() {
     const payload = {
       movieId:   Number(form.movieId),
       theaterId: Number(form.theaterId),
-      dateTime:  form.dateTime,
-      price:     form.price === '' ? undefined : Number(form.price),
-      status:    form.status,
+      startTime: form.dateTime,
+      basePrice: form.price === '' ? undefined : Number(form.price),
     };
     if (editing) {
       const saved = await screeningsService.update(editing.id, payload);
-      setScreenings(prev => prev.map(s => s.id === editing.id ? saved : s));
+      setScreenings(prev => prev.map(s => s.id === editing.id ? normalizeFromBackend(saved) : s));
       toast('Proyección actualizada.', 'success');
     } else {
       const saved = await screeningsService.create(payload);
-      setScreenings(prev => [...prev, saved]);
+      setScreenings(prev => [...prev, normalizeFromBackend(saved)]);
       toast('Proyección creada.', 'success');
     }
     setModal(null);

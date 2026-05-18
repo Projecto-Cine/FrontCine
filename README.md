@@ -450,7 +450,3 @@ npm run lint
   Desarrollado con pasión para la gestión moderna de cines 🎬
 </p>
 
-<p align="center">
-  <strong>Lumen Cinema</strong>
-</p>
- 

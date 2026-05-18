@@ -13,10 +13,4 @@ export const salesService = {
 
   // Venta de merchandise — body: { userId, merchandiseId, quantity }
   createMerchandiseSale: (data) => api.post('/merchandisesales', data),
-
-  // Venta en taquilla (tickets)
-  createTicketSale: (data) => api.post('/purchases', data),
-
-  // Venta en dulcería
-  createConcessionSale: (data) => api.post('/merchandise/sales', data),
 };

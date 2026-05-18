@@ -33,6 +33,10 @@ function RealSeatMap({ seats, selectedSeats, onToggle, maxSelect }) {
     () => new Set(seats.filter(s => s.status === 'occupied' || s.status === 'reserved').map(s => `${s.row}${String(s.number).padStart(2, '0')}`)),
     [seats]
   );
+  const unavailable = useMemo(
+    () => new Set(seats.filter(s => s.status === 'unavailable').map(s => `${s.row}${String(s.number).padStart(2, '0')}`)),
+    [seats]
+  );
 
   const available = seats.filter(s => s.status === 'available').length;
   const total     = seats.length;
@@ -40,8 +44,8 @@ function RealSeatMap({ seats, selectedSeats, onToggle, maxSelect }) {
   const maxCols   = Math.max(...rows.map(r => r.seats.length), 1);
   const AISLE     = maxCols > 10 ? Math.floor(maxCols / 2) : -1;
 
-  const handleSeat = (id, isOcc) => {
-    if (isOcc) return;
+  const handleSeat = (id, isOcc, isUnavail) => {
+    if (isOcc || isUnavail) return;
     if (selectedSeats.includes(id)) {
       onToggle(selectedSeats.filter(s => s !== id));
     } else {
@@ -60,6 +64,7 @@ function RealSeatMap({ seats, selectedSeats, onToggle, maxSelect }) {
         <span className={styles.legendItem}><span className={`${styles.legendSeat} ${styles.lFree}`} />Libre</span>
         <span className={styles.legendItem}><span className={`${styles.legendSeat} ${styles.lOcc}`} />Ocupada</span>
         <span className={styles.legendItem}><span className={`${styles.legendSeat} ${styles.lSel}`} />Seleccionada</span>
+        {unavailable.size > 0 && <span className={styles.legendItem}><span className={`${styles.legendSeat} ${styles.lUnavail}`} />No disponible</span>}
         <span className={styles.legendSep} />
         <span className={styles.legendInfo}>{available} libres · {occPct}% ocupación</span>
       </div>
@@ -70,18 +75,19 @@ function RealSeatMap({ seats, selectedSeats, onToggle, maxSelect }) {
               <span className={styles.rowLbl}>{row}</span>
               <div className={styles.seats}>
                 {rowSeats.map((seat, c) => {
-                  const id    = `${seat.row}${String(seat.number).padStart(2, '0')}`;
-                  const isOcc = occupied.has(id);
-                  const isSel = selectedSeats.includes(id);
+                  const id        = `${seat.row}${String(seat.number).padStart(2, '0')}`;
+                  const isOcc     = occupied.has(id);
+                  const isUnavail = unavailable.has(id);
+                  const isSel     = selectedSeats.includes(id);
                   return (
                     <div key={seat.id} className={styles.seatWrap}>
                       {c === AISLE && <span className={styles.aisle} />}
                       <button
-                        className={`${styles.seat} ${isOcc ? styles.occ : isSel ? styles.sel : styles.free}`}
-                        onClick={() => handleSeat(id, isOcc)}
-                        disabled={isOcc}
-                        title={isOcc ? `${id} — ocupada` : isSel ? `${id} — seleccionada` : `${id} — libre`}
-                        aria-label={`Butaca ${id}${isOcc ? ' ocupada' : isSel ? ' seleccionada' : ' libre'}`}
+                        className={`${styles.seat} ${isUnavail ? styles.unavail : isOcc ? styles.occ : isSel ? styles.sel : styles.free}`}
+                        onClick={() => handleSeat(id, isOcc, isUnavail)}
+                        disabled={isOcc || isUnavail}
+                        title={isUnavail ? `${id} — no disponible en esta sesión` : isOcc ? `${id} — ocupada` : isSel ? `${id} — seleccionada` : `${id} — libre`}
+                        aria-label={`Butaca ${id}${isUnavail ? ' no disponible' : isOcc ? ' ocupada' : isSel ? ' seleccionada' : ' libre'}`}
                       />
                     </div>
                   );

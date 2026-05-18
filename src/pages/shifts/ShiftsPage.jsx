@@ -1,23 +1,48 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Users, RefreshCw, ChevronLeft, ChevronRight, Download, Calendar } from 'lucide-react';
-import { workersService } from '../../services/workersService';
+import { Users, RefreshCw, ChevronLeft, ChevronRight, Download, Calendar, Loader } from 'lucide-react';
+import { shiftsService } from '../../services/shiftsService';
+import { employeesService } from '../../services/employeesService';
 import { useApp } from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import styles from './ShiftsPage.module.css';
 
-// ── Shift codes (stable — not translated) ──────────────
 const SHIFT_ORDER = ['M', 'T', 'N', 'L'];
 
 const ROLE_SHIFTS = {
-  admin:       ['M', 'M', 'T'],
-  supervisor:  ['M', 'T', 'T', 'N'],
-  operator:    ['M', 'T', 'N'],
-  ticket:      ['M', 'T'],
-  maintenance: ['M', 'T', 'N'],
-  readonly:    ['M'],
+  CAJERO:        ['M', 'T'],
+  GERENCIA:      ['M', 'M', 'T'],
+  LIMPIEZA:      ['M', 'N'],
+  MANTENIMIENTO: ['M', 'T', 'N'],
 };
 
-// ── Date helpers ───────────────────────────────────────
+const SHIFT_TIMES = {
+  M: { start: '08:00:00', end: '16:00:00' },
+  T: { start: '14:00:00', end: '22:00:00' },
+  N: { start: '18:00:00', end: '02:00:00' },
+};
+
+function startToLetter(startTime = '') {
+  const hh = startTime.substring(0, 5);
+  if (hh === '08:00') return 'M';
+  if (hh === '14:00') return 'T';
+  if (hh === '18:00') return 'N';
+  return 'L';
+}
+
+const VALID_ROLES = new Set(['CAJERO', 'GERENCIA', 'LIMPIEZA', 'MANTENIMIENTO']);
+
+const ROLE_NORMALIZE = {
+  CASHIER:    'CAJERO',
+  MANAGEMENT: 'GERENCIA',
+  CLEANING:   'LIMPIEZA',
+  SECURITY:   'SEGURIDAD',
+  CAJERO:     'CAJERO',
+  GERENCIA:   'GERENCIA',
+  LIMPIEZA:   'LIMPIEZA',
+  MANTENIMIENTO: 'MANTENIMIENTO',
+};
+
 function getWeekStart(date) {
   const d = new Date(date);
   const day = d.getDay() || 7;
@@ -45,15 +70,9 @@ function weekKey(date) {
   return getWeekStart(date).toISOString().split('T')[0];
 }
 
-// ── Schedule generator ─────────────────────────────────
-function generateWeekSchedule(employees, weekStartDate, genKey = 0) {
-  const wn = weekNum(weekStartDate) + weekStartDate.getFullYear() * 100;
+function generateWeekSchedule(employees, weekStart, genKey = 0) {
+  const wn = weekNum(weekStart) + weekStart.getFullYear() * 100;
   let seed = ((wn * 31337 + 7 + genKey * 999983) >>> 0);
-
-  const rand = () => {
-    seed = ((seed * 1664525 + 1013904223) >>> 0);
-    return seed / 0xffffffff;
-  };
 
   const weights = [2, 1, 1, 1, 1, 3, 3];
   const totalW = weights.reduce((a, b) => a + b, 0);
@@ -82,14 +101,12 @@ function generateWeekSchedule(employees, weekStartDate, genKey = 0) {
   });
 }
 
-// ── Coverage stats ─────────────────────────────────────
 function coverageStats(rows) {
   const counts = { M: 0, T: 0, N: 0, L: 0 };
   rows.forEach(r => r.days.forEach(d => { if (counts[d] !== undefined) counts[d]++; }));
   return counts;
 }
 
-// ── ShiftPicker sub-component ──────────────────────────
 function ShiftPicker({ onSelect, onClose, shifts }) {
   const ref = useRef(null);
 
@@ -116,7 +133,6 @@ function ShiftPicker({ onSelect, onClose, shifts }) {
   );
 }
 
-// ── ShiftCell sub-component ────────────────────────────
 function ShiftCell({ shift, isEditing, onEdit, onSelect, onClose, shifts }) {
   return (
     <div className={styles.cellWrap}>
@@ -132,8 +148,7 @@ function ShiftCell({ shift, isEditing, onEdit, onSelect, onClose, shifts }) {
   );
 }
 
-// ── WeekTable sub-component ────────────────────────────
-function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onCloseEdit, dayNames, shifts, roleLabels, colLabels, lang }) {
+function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onCloseEdit, dayNames, shifts, roleLabels, colLabels, readOnly }) {
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
@@ -179,7 +194,7 @@ function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onClo
                       <ShiftCell
                         shift={shift}
                         isEditing={isEditing}
-                        onEdit={() => onEditCell(emp.id, d)}
+                        onEdit={readOnly ? undefined : () => onEditCell(emp.id, d)}
                         onSelect={(s) => onShiftChange(emp.id, d, s)}
                         onClose={onCloseEdit}
                         shifts={shifts}
@@ -200,10 +215,11 @@ function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onClo
   );
 }
 
-// ── Main page ──────────────────────────────────────────
 export default function CuadrantePage() {
   const { toast } = useApp();
+  const { user }  = useAuth();
   const { t, language } = useLanguage();
+  const readOnly = ['LIMPIEZA', 'MANTENIMIENTO'].includes(user?.role);
   const [mode, setMode] = useState('week');
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [monthStart, setMonthStart] = useState(() => {
@@ -212,12 +228,53 @@ export default function CuadrantePage() {
   });
 
   const [allUsers, setAllUsers] = useState([]);
-  const [scheduleMap, setScheduleMap] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('lumen_schedule_map') ?? '{}'); } catch { return {}; }
-  });
+  const [scheduleMap, setScheduleMap] = useState({});
   const [editCell, setEditCell] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  // Reactive translations for shift labels and day names
+  const buildRowsFromShifts = (employees, shifts, ws) =>
+    employees.map(emp => ({
+      ...emp,
+      days: Array.from({ length: 7 }, (_, i) => {
+        const dateStr = addDays(ws, i).toISOString().split('T')[0];
+        const shift = shifts.find(s => s.employeeId === emp.id && s.shiftDate === dateStr);
+        return shift ? startToLetter(shift.startTime) : 'L';
+      }),
+    }));
+
+  const loadWeekIntoMap = async (ws, employees) => {
+    const from = ws.toISOString().split('T')[0];
+    const to   = addDays(ws, 6).toISOString().split('T')[0];
+    try {
+      const shifts = await shiftsService.getByRange(from, to) ?? [];
+      const rows = buildRowsFromShifts(employees, Array.isArray(shifts) ? shifts : [], ws);
+      setScheduleMap(prev => ({ ...prev, [weekKey(ws)]: rows }));
+    } catch {}
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    employeesService.getAll()
+      .then(data => {
+        const list = (Array.isArray(data) ? data : []).map(e => {
+          const raw  = String(e.role ?? e.position ?? e.workerRole ?? '').toUpperCase();
+          const role = ROLE_NORMALIZE[raw] ?? raw;
+          const fullName = [e.name, e.lastName].filter(Boolean).join(' ').trim();
+          return { ...e, id: e.id ?? e.workerId, name: fullName || e.username || e.email || '-', role };
+        });
+        setAllUsers(list);
+        const active = list.filter(e => VALID_ROLES.has(e.role));
+        return loadWeekIntoMap(weekStart, active);
+      })
+      .catch(() => setAllUsers([]))
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeEmployees.length === 0) return;
+    loadWeekIntoMap(weekStart, activeEmployees);
+  }, [weekStart]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const SHIFTS = {
     M: { label: t('shifts.shift.M'), hours: t('shifts.hours.M') },
     T: { label: t('shifts.shift.T'), hours: t('shifts.hours.T') },
@@ -226,12 +283,10 @@ export default function CuadrantePage() {
   };
   const DAY_NAMES  = t('shifts.day');
   const ROLE_LABELS = {
-    admin:       t('shifts.role.admin'),
-    supervisor:  t('shifts.role.supervisor'),
-    operator:    t('shifts.role.operator'),
-    ticket:      t('shifts.role.ticket'),
-    maintenance: t('shifts.role.maintenance'),
-    readonly:    t('shifts.role.readonly'),
+    CAJERO:        t('shifts.role.CAJERO'),
+    GERENCIA:      t('shifts.role.GERENCIA'),
+    LIMPIEZA:      t('shifts.role.LIMPIEZA'),
+    MANTENIMIENTO: t('shifts.role.MANTENIMIENTO'),
   };
   const COL_LABELS = {
     employee: t('shifts.col.employee'),
@@ -239,22 +294,19 @@ export default function CuadrantePage() {
     hours:    t('shifts.col.hours'),
   };
 
-  useEffect(() => {
-    workersService.getAll().then(data => {
-      setAllUsers(Array.isArray(data) ? data : []);
-    }).catch(() => {});
-  }, []);
-
   const activeEmployees = useMemo(
-    () => allUsers,
+    () => allUsers.filter(e => VALID_ROLES.has(String(e.role).toUpperCase())),
     [allUsers]
   );
 
+  const filterRows = (rows) => rows.filter(emp => VALID_ROLES.has(String(emp.role).toUpperCase()));
+
   const currentKey = weekKey(weekStart);
-  const weekRows = useMemo(
-    () => scheduleMap[currentKey] ?? generateWeekSchedule(activeEmployees, weekStart, 0),
-    [currentKey, scheduleMap, activeEmployees, weekStart]
-  );
+  const weekRows = useMemo(() => {
+    const cached = scheduleMap[currentKey];
+    if (cached) return filterRows(cached);
+    return filterRows(generateWeekSchedule(activeEmployees, weekStart, 0));
+  }, [currentKey, scheduleMap, activeEmployees, weekStart]);
 
   const monthWeeks = useMemo(() => {
     const weeks = [];
@@ -265,10 +317,12 @@ export default function CuadrantePage() {
         .some(d => d.getMonth() === targetMonth);
       if (!hasMonth) break;
       const key = weekKey(cursor);
+      const cached = scheduleMap[key];
+      const filtered = cached ? filterRows(cached) : [];
       weeks.push({
         start: new Date(cursor),
         key,
-        rows: scheduleMap[key] ?? generateWeekSchedule(activeEmployees, cursor, 0),
+        rows: filtered.length > 0 ? filtered : generateWeekSchedule(activeEmployees, cursor, 0),
       });
       cursor = addDays(cursor, 7);
     }
@@ -277,17 +331,14 @@ export default function CuadrantePage() {
 
   const stats = coverageStats(weekRows);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     const genKey = Date.now();
+    let updates = {};
+
     if (mode === 'week') {
-      setScheduleMap(prev => {
-        const next = { ...prev, [currentKey]: generateWeekSchedule(activeEmployees, weekStart, genKey) };
-        try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
-        return next;
-      });
+      setScheduleMap(prev => ({ ...prev, [currentKey]: generateWeekSchedule(activeEmployees, weekStart, genKey) }));
       toast(t('shifts.weekGenerated'), 'success');
     } else {
-      const updates = {};
       let cursor = getWeekStart(monthStart);
       const targetMonth = monthStart.getMonth();
       for (let w = 0; w < 6; w++) {
@@ -297,20 +348,17 @@ export default function CuadrantePage() {
         updates[weekKey(cursor)] = generateWeekSchedule(activeEmployees, cursor, genKey + w);
         cursor = addDays(cursor, 7);
       }
-      setScheduleMap(prev => {
-        const next = { ...prev, ...updates };
-        try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
-        return next;
-      });
+      setScheduleMap(prev => ({ ...prev, ...updates }));
       toast(t('shifts.monthGenerated', { count: Object.keys(updates).length }), 'success');
     }
+
     setEditCell(null);
   };
 
-  const handleShiftChange = (empId, dayIdx, newShift) => {
+  const handleShiftChange = async (empId, dayIdx, newShift) => {
     setScheduleMap(prev => {
       const rows = prev[currentKey] ?? generateWeekSchedule(activeEmployees, weekStart, 0);
-      const next = {
+      return {
         ...prev,
         [currentKey]: rows.map(emp =>
           emp.id === empId
@@ -318,10 +366,38 @@ export default function CuadrantePage() {
             : emp
         ),
       };
-      try { localStorage.setItem('lumen_schedule_map', JSON.stringify(next)); } catch {}
-      return next;
     });
     setEditCell(null);
+
+    const date = addDays(weekStart, dayIdx);
+    const dateStr = date.toISOString().split('T')[0];
+
+    try {
+      const existingShifts = await shiftsService.getByRange(dateStr, dateStr) || [];
+      const existing = existingShifts.find(s => s.employeeId === empId);
+      if (existing) {
+        if (existing.id) {
+          if (newShift === 'L') {
+            await shiftsService.remove(existing.id);
+          } else {
+            const times = SHIFT_TIMES[newShift];
+            await shiftsService.update(existing.id, {
+              startTime: times.start,
+              endTime: times.end,
+            });
+          }
+        }
+      } else if (newShift !== 'L') {
+        const times = SHIFT_TIMES[newShift];
+        await shiftsService.create({
+          employeeId: empId,
+          shiftDate: dateStr,
+          startTime: times.start,
+          endTime: times.end,
+          status: 'SCHEDULED',
+        });
+      }
+    } catch {}
   };
 
   const handleEditCell = (empId, dayIdx) => {
@@ -349,14 +425,16 @@ export default function CuadrantePage() {
 
   return (
     <div className={styles.page}>
-      {/* ── Top bar ── */}
       <div className={styles.topBar}>
         <div className={styles.topLeft}>
           <Users size={18} className={styles.titleIcon} />
           <div>
             <h1 className={styles.title}>{t('shifts.title')}</h1>
             <p className={styles.sub}>
-              {t('shifts.subtitle', { count: activeEmployees.length })}
+              {loading
+                ? (t('shifts.loading') || 'Cargando...')
+                : t('shifts.subtitle', { count: activeEmployees.length })
+              }
             </p>
           </div>
         </div>
@@ -383,10 +461,12 @@ export default function CuadrantePage() {
             <button className={styles.navBtn} onClick={nextPeriod}><ChevronRight size={14} /></button>
           </div>
 
-          <button className={styles.generateBtn} onClick={handleGenerate}>
-            <RefreshCw size={13} />
-            {mode === 'week' ? t('shifts.generate.week') : t('shifts.generate.month')}
-          </button>
+          {!readOnly && (
+            <button className={styles.generateBtn} onClick={handleGenerate}>
+              <RefreshCw size={13} />
+              {mode === 'week' ? t('shifts.generate.week') : t('shifts.generate.month')}
+            </button>
+          )}
 
           <button className={styles.exportBtn} title="Imprimir / Exportar PDF" onClick={() => window.print()}>
             <Download size={13} />
@@ -394,31 +474,21 @@ export default function CuadrantePage() {
         </div>
       </div>
 
-      {/* ── Weekly coverage bar ── */}
-      {mode === 'week' && (
-        <div className={styles.coverageBar}>
-          <div className={styles.coverageItems}>
-            {Object.entries(SHIFTS).map(([k, s]) => (
-              <div key={k} className={styles.coverageItem}>
-                <span className={`${styles.shiftDot} ${styles[`dot${k}`]}`} />
-                <span className={styles.coverageLabel}>{s.label}</span>
-                <span className={styles.coverageHours}>{s.hours}</span>
-                <span className={styles.coverageCount}>{stats[k]}</span>
-              </div>
-            ))}
-          </div>
-          <div className={styles.coverageSep} />
-          <div className={styles.coverageLegend}>
-            {SHIFT_ORDER.map(k => (
-              <span key={k} className={`${styles.legendPill} ${styles[`pill${k}`]}`}>
-                {k} = {SHIFTS[k].label}
-              </span>
-            ))}
-          </div>
+      {loading && (
+        <div className={styles.loadingState}>
+          <Loader size={24} className={styles.spinner} />
+          <span>{t('shifts.loading') || 'Cargando turnos...'}</span>
         </div>
       )}
 
-      {/* ── Week view ── */}
+      {!loading && activeEmployees.length === 0 && (
+        <div className={styles.loadingState} style={{ color: 'var(--text-3)', flexDirection: 'column', gap: 8 }}>
+          <Users size={32} style={{ opacity: 0.3 }} />
+          <span>No hay empleados con rol válido en el sistema.</span>
+          <span style={{ fontSize: '0.78rem', opacity: 0.6 }}>Crea empleados en la sección <strong>Empleados</strong> con rol CAJERO, GERENCIA, LIMPIEZA o MANTENIMIENTO.</span>
+        </div>
+      )}
+
       {mode === 'week' && (
         <WeekTable
           rows={weekRows}
@@ -432,10 +502,10 @@ export default function CuadrantePage() {
           roleLabels={ROLE_LABELS}
           colLabels={COL_LABELS}
           lang={lang}
+          readOnly={readOnly}
         />
       )}
 
-      {/* ── Month view ── */}
       {mode === 'month' && (
         <div className={styles.monthView}>
           {monthWeeks.map((week) => (
@@ -501,7 +571,6 @@ export default function CuadrantePage() {
         </div>
       )}
 
-      {/* ── Footer ── */}
       <div className={styles.footer}>
         <span className={styles.footerNote}>
           {t('shifts.footer.note')}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Monochrome eclipse for Safari pinned tab — must be pure black paths -->
+  <!-- Sun/corona circle -->
+  <circle cx="12" cy="20" r="11" fill="black"/>
+  <!-- Eclipse body cuts out the upper-right (subtract via background-colored circle) -->
+  <!-- Since mask-icon must be black-only, we simulate the crescent with a path -->
+  <path d="
+    M 12,9
+    A 11,11 0 1,0 12,31
+    A 11,11 0 1,0 12,9
+    Z
+    M 17,10
+    A 10,10 0 1,1 17,28
+    A 10,10 0 1,1 17,10
+    Z
+  " fill="black" fill-rule="evenodd"/>
+</svg>

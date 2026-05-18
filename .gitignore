@@ -13,6 +13,10 @@ dist
 dist-ssr
 *.local
 
+# Lighthouse audit reports (large HTML/JSON — keep only AUDIT-REPORT.md)
+lighthouse/*.html
+lighthouse/*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

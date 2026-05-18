@@ -1,4 +1,7 @@
+import { mockRequest } from './mock/mockStore';
+
 export const BASE = import.meta.env.VITE_API_URL ?? '/api';
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 function unwrap(data) {
   if (data && typeof data === 'object') {
@@ -11,6 +14,7 @@ function unwrap(data) {
 }
 
 async function request(path, options = {}) {
+  if (USE_MOCK) return mockRequest(path, options);
   const token = localStorage.getItem('lumen_token');
   const isFormData = options.body instanceof FormData;
   const res = await fetch(`${BASE}${path}`, {
@@ -23,10 +27,9 @@ async function request(path, options = {}) {
   });
 
   if (res.status === 401) {
-    if (!path.includes('/auth/login')) {
+    if (!path.startsWith('/auth/')) {
       localStorage.removeItem('lumen_token');
       localStorage.removeItem('lumen_user');
-      // Notificar a AuthContext via evento para que actualice el estado React
       window.dispatchEvent(new CustomEvent('auth:expired'));
       const err = new Error('Sesión expirada. Vuelve a iniciar sesión.');
       err.status = 401;

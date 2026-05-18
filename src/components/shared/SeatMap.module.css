@@ -90,9 +90,10 @@
   flex-shrink: 0;
 }
 
-.lFree  { background: #211910; border: 1px solid rgba(184,150,106,0.35); }
-.lOcc   { background: #1A140C; border: 1px solid #302618; }
-.lSel   { background: #B8966A; border: 1px solid #CCA87C; }
+.lFree   { background: #211910; border: 1px solid rgba(184,150,106,0.35); }
+.lOcc    { background: #1A140C; border: 1px solid #302618; }
+.lSel    { background: #B8966A; border: 1px solid #CCA87C; }
+.lUnavail { background: repeating-linear-gradient(45deg,#110d09,#110d09 3px,#1a1410 3px,#1a1410 6px); border: 1px solid #1e1810; }
 
 .legendSep { width: 1px; height: 14px; background: rgba(184,150,106,0.12); }
 
@@ -213,6 +214,20 @@
 .sel:hover {
   background: #CCA87C;
   transform: translateY(-2px) scaleY(1.06);
+}
+
+/* Unavailable seat (exists in theater but not linked to this screening) */
+.unavail {
+  background: repeating-linear-gradient(
+    45deg,
+    #110d09,
+    #110d09 3px,
+    #1a1410 3px,
+    #1a1410 6px
+  );
+  border: 1px solid #1e1810;
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* Ghost (out of bounds, last row filler) */

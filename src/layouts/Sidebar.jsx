@@ -9,6 +9,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import logoSrc from '../assets/logoLumen.png';
+import logoWebp from '../assets/logoLumen.webp';
 import styles from './Sidebar.module.css';
 
 const NAV = [
@@ -70,7 +71,7 @@ function NavItem({ item, collapsed, t }) {
 
 export default function Sidebar() {
   const { sidebarCollapsed } = useApp();
-  const { user, logout }     = useAuth();
+  const { user, logout, canAccess } = useAuth();
   const { t }                = useLanguage();
   const [collapsed, setCollapsed] = useState({});
 
@@ -83,18 +84,27 @@ export default function Sidebar() {
       aria-label="Navegación principal"
     >
       <div className={styles.logo}>
-        <img
-          src={logoSrc}
-          alt="Lumen Cinema"
-          className={`${styles.logoImg} ${sidebarCollapsed ? styles.logoImgCollapsed : ''}`}
-          width={sidebarCollapsed ? 32 : 120}
-          height={32}
-        />
+        <picture>
+          <source srcSet={logoWebp} type="image/webp" />
+          <img
+            src={logoSrc}
+            alt="Lumen Cinema"
+            className={`${styles.logoImg} ${sidebarCollapsed ? styles.logoImgCollapsed : ''}`}
+            width={sidebarCollapsed ? 32 : 120}
+            height={32}
+          />
+        </picture>
       </div>
 
       <nav aria-label="Menú principal">
         {NAV.map((item, i) => {
-          if (item.to) return <NavItem key={item.to} item={item} collapsed={sidebarCollapsed} t={t} />;
+          if (item.to) {
+            if (!canAccess(item.to === '/' ? '/' : item.to)) return null;
+            return <NavItem key={item.to} item={item} collapsed={sidebarCollapsed} t={t} />;
+          }
+
+          const visibleItems = item.items.filter(sub => canAccess(sub.to));
+          if (visibleItems.length === 0) return null;
 
           const isCollapsedSection = !!collapsed[item.sectionKey];
           const sectionId = `nav-section-${i}`;
@@ -122,7 +132,7 @@ export default function Sidebar() {
                 role="group"
                 aria-labelledby={!sidebarCollapsed ? sectionId : undefined}
               >
-                {!isCollapsedSection && item.items.map(sub => (
+                {!isCollapsedSection && visibleItems.map(sub => (
                   <NavItem key={sub.to} item={sub} collapsed={sidebarCollapsed} t={t} />
                 ))}
               </div>

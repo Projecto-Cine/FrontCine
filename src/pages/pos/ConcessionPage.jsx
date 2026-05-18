@@ -13,17 +13,19 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import EmptyState from '../../components/shared/EmptyState';
 import styles from './ConcessionPage.module.css';
 
-const CATEGORY_EMOJI = { Palomitas: '🍿', Bebidas: '🥤', Snacks: '🌮', Combos: '🎁', Concesión: '🛒' };
-const DEFAULT_CATEGORIES = ['Palomitas', 'Bebidas', 'Snacks', 'Combos', 'Concesión'];
-const getEmoji = (p) => p.emoji ?? CATEGORY_EMOJI[p.category] ?? '🔲';
+const CAT_LABEL = { Todo: 'Todo', FOOD: 'Comida', DRINK: 'Bebida', MERCHANDISE: 'Merchandising' };
+const CAT_EMOJI = { FOOD: '🍿', DRINK: '🥤', MERCHANDISE: '🛒' };
+const FIXED_CATS = ['Todo', 'FOOD', 'DRINK', 'MERCHANDISE'];
+
+const getEmoji = (p) => p.emoji ?? CAT_EMOJI[p.category] ?? '🔲';
 const getPrice = (p) => p.price ?? p.price_unit ?? 0;
 
-const EMPTY_PRODUCT = { name: '', category: 'Palomitas', price: '', description: '', emoji: '', imageUrl: '', quantity: '' };
-const MANAGE_ROLES  = ['admin', 'supervisor', 'operator'];
+const EMPTY_PRODUCT = { name: '', category: 'FOOD', price: '', description: '', emoji: '', imageUrl: '', stock: '' };
+
 
 const IMG_KEY = 'lumen_product_images';
 const getStoredImgs = () => { try { return JSON.parse(localStorage.getItem(IMG_KEY) ?? '{}'); } catch { return {}; } };
-const saveStoredImg = (id, url) => { try { const s = getStoredImgs(); if (url) s[String(id)] = url; else delete s[String(id)]; localStorage.setItem(IMG_KEY, JSON.stringify(s)); } catch {} };
+const saveStoredImg = (id, url) => { try { const s = getStoredImgs(); if (url) s[String(id)] = url; else delete s[String(id)]; localStorage.setItem(IMG_KEY, JSON.stringify(s)); } catch { /* storage unavailable */ } };
 const mergeImgs = (prods) => { const s = getStoredImgs(); return prods.map(p => ({ ...p, imageUrl: s[String(p.id)] || p.imageUrl || '' })); };
 
 
@@ -48,8 +50,7 @@ export default function CajaPage() {
   const [paying, setPaying]           = useState(false);
   const searchRef = useRef(null);
 
-  // Gestión de productos (solo admin/supervisor/operator)
-  const canManage    = MANAGE_ROLES.includes((user?.role ?? '').toLowerCase());
+  const canManage = ['GERENCIA', 'CAJERO'].includes(user?.role);
   const [showManager,     setShowManager]     = useState(false);
   const [productForm,     setProductForm]     = useState(null); // null = lista, objeto = formulario
   const [editingProduct,  setEditingProduct]  = useState(null);
@@ -97,13 +98,14 @@ export default function CajaPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const CATEGORIES = ['Todo', ...new Set(products.map(p => p.category))];
+  const CATEGORIES = FIXED_CATS;
 
-  // Atajos de teclado: F2 = buscar, F4 = cobrar, Esc = vaciar carrito
+  // Atajos POS: F2=buscar, F4=cobrar, F5=nueva venta, Esc=vaciar carrito
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'F2') { e.preventDefault(); searchRef.current?.focus(); }
       if (e.key === 'F4' && cart.length > 0) { e.preventDefault(); setShowPayModal(true); }
+      if (e.key === 'F5') { e.preventDefault(); setCart([]); setReceipt(null); setShowPayModal(false); setTimeout(() => searchRef.current?.focus(), 50); }
       if (e.key === 'Escape' && !showPayModal && !receipt) setCart([]);
     };
     window.addEventListener('keydown', handler);
@@ -146,19 +148,15 @@ export default function CajaPage() {
     }
     setPaying(true);
     try {
-      await salesService.createConcessionSale({
-        items: cart.map(({ product, qty }) => ({
-          product_id: product.id,
-          name:       product.name,
-          qty,
-          unit_price: getPrice(product),
-        })),
-        total,
-        payment_method: payMethod.toUpperCase(),
-        cash_given:     payMethod === 'cash' ? parseFloat(cashGiven) : null,
-        change:         change ? parseFloat(change) : null,
-        cashier_id:     user?.id ?? null,
-      });
+      await Promise.all(
+        cart.map(({ product, qty }) =>
+          salesService.createMerchandiseSale({
+            userId:        user?.id,
+            merchandiseId: product.id,
+            quantity:      qty,
+          })
+        )
+      );
     } catch {
       // Si el endpoint aún no existe, continuamos igualmente con el recibo local
     } finally {
@@ -189,7 +187,7 @@ export default function CajaPage() {
   };
 
   const openNewProduct  = () => { setEditingProduct(null); setProductForm({ ...EMPTY_PRODUCT }); };
-  const openEditProduct = (p) => { setEditingProduct(p);   setProductForm({ ...EMPTY_PRODUCT, ...p, price: String(getPrice(p)), quantity: String(p.quantity ?? '') }); };
+  const openEditProduct = (p) => { setEditingProduct(p);   setProductForm({ ...EMPTY_PRODUCT, ...p, price: String(getPrice(p)), stock: String(p.stock ?? '') }); };
 
   const handleSaveProduct = async () => {
     if (!productForm.name.trim() || !productForm.price) { toast('Nombre y precio son obligatorios.', 'error'); return; }
@@ -201,19 +199,19 @@ export default function CajaPage() {
       description: productForm.description,
       emoji:       productForm.emoji,
       imageUrl:    productForm.imageUrl,
-      quantity:    productForm.quantity !== '' ? Number(productForm.quantity) : undefined,
+      stock:       productForm.stock !== '' ? Number(productForm.stock) : 0,
     };
     try {
       if (editingProduct) {
+        if (payload.imageUrl) saveStoredImg(editingProduct.id, payload.imageUrl);
         const saved = await inventoryService.update(editingProduct.id, payload);
-        const merged = { ...editingProduct, ...(saved ?? {}), ...payload };
-        saveStoredImg(editingProduct.id, payload.imageUrl);
+        const merged = { ...editingProduct, ...payload, ...(saved ?? {}), imageUrl: payload.imageUrl || saved?.imageUrl || editingProduct.imageUrl };
         setProducts(prev => prev.map(p => p.id === editingProduct.id ? merged : p));
         toast(`"${payload.name}" actualizado.`, 'success');
       } else {
         const saved = await inventoryService.create(payload);
-        const created = { ...(saved ?? {}), ...payload, id: saved?.id ?? Date.now() };
-        saveStoredImg(created.id, payload.imageUrl);
+        const created = { ...payload, ...(saved ?? {}), id: saved?.id ?? Date.now(), imageUrl: payload.imageUrl || saved?.imageUrl || '' };
+        if (created.imageUrl) saveStoredImg(created.id, created.imageUrl);
         setProducts(prev => [...prev, created]);
         toast(`"${payload.name}" añadido.`, 'success');
       }
@@ -260,11 +258,12 @@ export default function CajaPage() {
             <input
               ref={searchRef}
               className={styles.searchInput}
+              aria-label={t('concession.search')}
               placeholder={t('concession.search')}
               value={search}
               onChange={e => { setSearch(e.target.value); setCategory('Todo'); }}
             />
-            {search && <button className={styles.searchClear} onClick={() => setSearch('')}><X size={12} /></button>}
+            {search && <button className={styles.searchClear} aria-label={t('concession.clearSearch')} onClick={() => setSearch('')}><X size={12} aria-hidden="true" /></button>}
           </div>
           <div className={styles.shortcuts}>
             {t('concession.shortcuts').split(' · ').map((s, i) => [
@@ -285,9 +284,10 @@ export default function CajaPage() {
             <button
               key={c}
               className={`${styles.catTab} ${category === c && !search ? styles.catActive : ''}`}
+              aria-pressed={category === c && !search}
               onClick={() => { setCategory(c); setSearch(''); }}
             >
-              {CATEGORY_EMOJI[c] ?? '🔲'} {c === 'Todo' ? t('concession.all') : c}
+              {c !== 'Todo' && (CAT_EMOJI[c] ?? '🔲') + ' '}{CAT_LABEL[c] ?? c}
             </button>
           ))}
         </div>
@@ -304,6 +304,7 @@ export default function CajaPage() {
                 <button
                   key={product.id}
                   className={`${styles.productCard} ${inCart ? styles.productInCart : ''}`}
+                  aria-pressed={!!inCart}
                   onClick={() => addToCart(product)}
                 >
                   {product.imageUrl
@@ -333,8 +334,8 @@ export default function CajaPage() {
           <span>{t('concession.order')}</span>
           <span className={styles.cartCount}>{t('concession.items', { n: totalItems })}</span>
           {cart.length > 0 && (
-            <button className={styles.clearBtn} onClick={() => setCart([])} title={t('concession.cancel')}>
-              <Trash2 size={13} />
+            <button className={styles.clearBtn} aria-label={t('concession.clearCart')} onClick={() => setCart([])}>
+              <Trash2 size={13} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -355,13 +356,13 @@ export default function CajaPage() {
                   <span className={styles.lineUnit}>€{getPrice(product).toFixed(2)} / ud.</span>
                 </div>
                 <div className={styles.lineQty}>
-                  <button className={styles.qtyBtn} onClick={() => changeQty(product.id, -1)}><Minus size={12} /></button>
-                  <span className={styles.qtyNum}>{qty}</span>
-                  <button className={styles.qtyBtn} onClick={() => changeQty(product.id, 1)}><Plus size={12} /></button>
+                  <button className={styles.qtyBtn} aria-label={`${t('concession.decreaseQty')} ${product.name}`} onClick={() => changeQty(product.id, -1)}><Minus size={12} aria-hidden="true" /></button>
+                  <span className={styles.qtyNum} aria-live="polite" aria-atomic="true">{qty}</span>
+                  <button className={styles.qtyBtn} aria-label={`${t('concession.increaseQty')} ${product.name}`} onClick={() => changeQty(product.id, 1)}><Plus size={12} aria-hidden="true" /></button>
                 </div>
                 <div className={styles.lineSubtotal}>
                   <span>€{(getPrice(product) * qty).toFixed(2)}</span>
-                  <button className={styles.lineRemove} onClick={() => removeFromCart(product.id)}><X size={11} /></button>
+                  <button className={styles.lineRemove} aria-label={`${t('concession.removeItem')} ${product.name}`} onClick={() => removeFromCart(product.id)}><X size={11} aria-hidden="true" /></button>
                 </div>
               </div>
             ))
@@ -390,8 +391,9 @@ export default function CajaPage() {
             {PAY_METHODS.map(({ id, label, Icon }) => (
               <button key={id}
                 className={`${styles.payTab} ${payMethod === id ? styles.payTabActive : ''}`}
+                aria-pressed={payMethod === id}
                 onClick={() => setPayMethod(id)}>
-                <Icon size={14} /><span>{label}</span>
+                <Icon size={14} aria-hidden="true" /><span>{label}</span>
               </button>
             ))}
           </div>
@@ -433,10 +435,10 @@ export default function CajaPage() {
       {/* ── Modal confirmación ─────────────────── */}
       {showPayModal && (
         <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && setShowPayModal(false)}>
-          <div className={styles.payModal}>
+          <div className={styles.payModal} role="dialog" aria-modal="true" aria-labelledby="pay-modal-title">
             <div className={styles.payModalHeader}>
-              <span>{t('concession.confirmPay')}</span>
-              <button onClick={() => setShowPayModal(false)}><X size={16} /></button>
+              <span id="pay-modal-title">{t('concession.confirmPay')}</span>
+              <button aria-label={t('concession.close')} onClick={() => setShowPayModal(false)}><X size={16} aria-hidden="true" /></button>
             </div>
             <div className={styles.payModalBody}>
               <div className={styles.payModalTotal}>€{total.toFixed(2)}</div>
@@ -456,7 +458,7 @@ export default function CajaPage() {
             <div className={styles.payModalFooter}>
               <button className={styles.payModalCancel} onClick={() => setShowPayModal(false)}>{t('concession.cancel')}</button>
               <button className={styles.payModalConfirm} onClick={handlePay} disabled={paying}>
-                {paying ? <Loader size={16} /> : <CheckCircle size={16} />} {t('concession.confirmPay')}
+                {paying ? <Loader size={16} aria-hidden="true" /> : <CheckCircle size={16} aria-hidden="true" />} {t('concession.confirmPay')}
               </button>
             </div>
           </div>
@@ -466,10 +468,10 @@ export default function CajaPage() {
       {/* ── Recibo ─────────────────────────────── */}
       {receipt && (
         <div className={styles.modalOverlay}>
-          <div className={styles.receiptModal}>
+          <div className={styles.receiptModal} role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
             <div className={styles.receiptHeader}>
-              <CheckCircle size={22} className={styles.receiptOk} />
-              <span>{t('concession.paid')}</span>
+              <CheckCircle size={22} className={styles.receiptOk} aria-hidden="true" />
+              <span id="receipt-modal-title">{t('concession.paid')}</span>
             </div>
             <div className={styles.receiptBody}>
               <div className={styles.receiptMeta}>
@@ -501,10 +503,10 @@ export default function CajaPage() {
             </div>
             <div className={styles.receiptFooter}>
               <button className={styles.receiptPrint} onClick={() => window.print()}>
-                <Printer size={14} /> {t('concession.print')}
+                <Printer size={14} aria-hidden="true" /> {t('concession.print')}
               </button>
               <button className={styles.receiptNew} onClick={resetAll}>
-                <RotateCcw size={14} /> {t('concession.newSale')}
+                <RotateCcw size={14} aria-hidden="true" /> {t('concession.newSale')}
               </button>
             </div>
           </div>
@@ -513,10 +515,10 @@ export default function CajaPage() {
       {/* ── Modal gestión de productos ────────────── */}
       {showManager && (
         <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && setShowManager(false)}>
-          <div className={styles.managerModal}>
+          <div className={styles.managerModal} role="dialog" aria-modal="true" aria-labelledby="manager-modal-title">
             <div className={styles.managerHeader}>
-              <span>{t('concession.manageTitle')}</span>
-              <button onClick={() => setShowManager(false)}><X size={16} /></button>
+              <span id="manager-modal-title">{t('concession.manageTitle')}</span>
+              <button aria-label={t('concession.close')} onClick={() => setShowManager(false)}><X size={16} aria-hidden="true" /></button>
             </div>
 
             {productForm === null ? (
@@ -535,18 +537,18 @@ export default function CajaPage() {
                       </span>
                       <div className={styles.managerItemInfo}>
                         <span className={styles.managerItemName}>{p.name}</span>
-                        <span className={styles.managerItemMeta}>{p.category} · €{getPrice(p).toFixed(2)}</span>
+                        <span className={styles.managerItemMeta}>{CAT_LABEL[p.category] ?? p.category} · €{getPrice(p).toFixed(2)}</span>
                       </div>
-                      <button className={styles.managerEditBtn} onClick={() => openEditProduct(p)} title="Editar">
-                        <Edit2 size={13} />
+                      <button className={styles.managerEditBtn} aria-label={`${t('concession.editProduct')} ${p.name}`} onClick={() => openEditProduct(p)}>
+                        <Edit2 size={13} aria-hidden="true" />
                       </button>
                       <button
                         className={styles.managerDeleteBtn}
+                        aria-label={`${t('concession.deleteProduct')} ${p.name}`}
                         onClick={() => handleDeleteProduct(p)}
                         disabled={deletingId === p.id}
-                        title="Eliminar"
                       >
-                        {deletingId === p.id ? <Loader size={13} /> : <Trash2 size={13} />}
+                        {deletingId === p.id ? <Loader size={13} aria-hidden="true" /> : <Trash2 size={13} aria-hidden="true" />}
                       </button>
                     </div>
                   ))}
@@ -564,37 +566,37 @@ export default function CajaPage() {
                 <h3 className={styles.managerFormTitle}>{editingProduct ? t('concession.editProduct') : t('concession.newProduct')}</h3>
                 <div className={styles.managerFormGrid}>
                   <div className={styles.managerFieldFull}>
-                    <label className={styles.managerLabel}>{t('concession.form.name')}</label>
-                    <input className={styles.managerInput} value={productForm.name} onChange={e => setField('name', e.target.value)} placeholder={t('concession.form.imgPh')} />
+                    <label className={styles.managerLabel} htmlFor="pf-name">{t('concession.form.name')}</label>
+                    <input id="pf-name" className={styles.managerInput} value={productForm.name} onChange={e => setField('name', e.target.value)} placeholder={t('concession.form.imgPh')} />
                   </div>
                   <div>
-                    <label className={styles.managerLabel}>{t('concession.form.category')}</label>
-                    <select className={styles.managerInput} value={productForm.category} onChange={e => setField('category', e.target.value)}>
-                      {[...new Set([...DEFAULT_CATEGORIES, ...products.map(p => p.category)])].map(c => (
-                        <option key={c}>{c}</option>
-                      ))}
+                    <label className={styles.managerLabel} htmlFor="pf-category">{t('concession.form.category')}</label>
+                    <select id="pf-category" className={styles.managerInput} value={productForm.category} onChange={e => setField('category', e.target.value)}>
+                      <option value="FOOD">Comida</option>
+                      <option value="DRINK">Bebida</option>
+                      <option value="MERCHANDISE">Merchandising</option>
                     </select>
                   </div>
                   <div>
-                    <label className={styles.managerLabel}>{t('concession.form.price')}</label>
-                    <input className={styles.managerInput} type="number" step="0.10" min="0" value={productForm.price} onChange={e => setField('price', e.target.value)} placeholder="0.00" />
+                    <label className={styles.managerLabel} htmlFor="pf-price">{t('concession.form.price')}</label>
+                    <input id="pf-price" className={styles.managerInput} type="number" step="0.10" min="0" value={productForm.price} onChange={e => setField('price', e.target.value)} placeholder="0.00" />
                   </div>
                   <div>
-                    <label className={styles.managerLabel}>{t('concession.form.stock')}</label>
-                    <input className={styles.managerInput} type="number" min="0" value={productForm.quantity} onChange={e => setField('quantity', e.target.value)} placeholder={t('concession.form.noLimit')} />
+                    <label className={styles.managerLabel} htmlFor="pf-stock">{t('concession.form.stock')}</label>
+                    <input id="pf-stock" className={styles.managerInput} type="number" min="0" value={productForm.stock} onChange={e => setField('stock', e.target.value)} placeholder={t('concession.form.noLimit')} />
                   </div>
                   <div>
-                    <label className={styles.managerLabel}>{t('concession.form.emoji')}</label>
-                    <input className={styles.managerInput} value={productForm.emoji} onChange={e => setField('emoji', e.target.value)} placeholder="🍿" maxLength={4} />
+                    <label className={styles.managerLabel} htmlFor="pf-emoji">{t('concession.form.emoji')}</label>
+                    <input id="pf-emoji" className={styles.managerInput} value={productForm.emoji} onChange={e => setField('emoji', e.target.value)} placeholder="🍿" maxLength={4} />
                   </div>
                   <div className={styles.managerFieldFull}>
                     <label className={styles.managerLabel}>{t('concession.form.image')}</label>
-                    <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
+                    <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} aria-label={t('concession.form.image')} />
                     {productForm.imageUrl ? (
                       <div className={styles.imgPreviewWrap}>
-                        <img src={productForm.imageUrl} alt="preview" className={styles.managerImgPreview} />
-                        <button type="button" className={styles.imgRemoveBtn} onClick={() => setField('imageUrl', '')} title={t('concession.form.removeImg')}>
-                          <X size={11} /> {t('concession.form.removeImg')}
+                        <img src={productForm.imageUrl} alt={t('concession.form.imgPreviewAlt')} className={styles.managerImgPreview} />
+                        <button type="button" className={styles.imgRemoveBtn} onClick={() => setField('imageUrl', '')}>
+                          <X size={11} aria-hidden="true" /> {t('concession.form.removeImg')}
                         </button>
                       </div>
                     ) : (
@@ -604,20 +606,20 @@ export default function CajaPage() {
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploadingImg}
                       >
-                        {uploadingImg ? <Loader size={14} className={styles.spin} /> : <Upload size={14} />}
+                        {uploadingImg ? <Loader size={14} className={styles.spin} aria-hidden="true" /> : <Upload size={14} aria-hidden="true" />}
                         {uploadingImg ? t('concession.form.uploading') : t('concession.form.selectImg')}
                       </button>
                     )}
                   </div>
                   <div className={styles.managerFieldFull}>
-                    <label className={styles.managerLabel}>{t('concession.form.desc')}</label>
-                    <input className={styles.managerInput} value={productForm.description} onChange={e => setField('description', e.target.value)} placeholder={t('concession.form.descPh')} />
+                    <label className={styles.managerLabel} htmlFor="pf-desc">{t('concession.form.desc')}</label>
+                    <input id="pf-desc" className={styles.managerInput} value={productForm.description} onChange={e => setField('description', e.target.value)} placeholder={t('concession.form.descPh')} />
                   </div>
                 </div>
                 <div className={styles.managerFormActions}>
                   <button className={styles.managerCancelBtn} onClick={() => { setProductForm(null); setEditingProduct(null); }}>{t('concession.cancel')}</button>
                   <button className={styles.managerSaveBtn} onClick={handleSaveProduct} disabled={savingProduct}>
-                    {savingProduct ? <Loader size={14} /> : <Save size={14} />}
+                    {savingProduct ? <Loader size={14} aria-hidden="true" /> : <Save size={14} aria-hidden="true" />}
                     {editingProduct ? t('common.saveChanges') : t('concession.createProduct')}
                   </button>
                 </div>

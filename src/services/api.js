@@ -1,20 +1,21 @@
-import { mockRequest } from './mock/mockStore';
-
 export const BASE = import.meta.env.VITE_API_URL ?? '/api';
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 function unwrap(data) {
   if (data && typeof data === 'object') {
     if (Array.isArray(data.content)) return data.content;
     if (Array.isArray(data.data)) return data.data;
-    if ('data' in data) return data.data;
+    if ('data' in data) {
+      const inner = data.data;
+      if (Array.isArray(inner?.content)) return inner.content;
+      if (Array.isArray(inner)) return inner;
+      return inner;
+    }
     if ('payload' in data) return data.payload;
   }
   return data;
 }
 
 async function request(path, options = {}) {
-  if (USE_MOCK) return mockRequest(path, options);
   const token = localStorage.getItem('lumen_token');
   const isFormData = options.body instanceof FormData;
   const res = await fetch(`${BASE}${path}`, {

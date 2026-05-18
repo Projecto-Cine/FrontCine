@@ -15,7 +15,7 @@ const ROLES = ['CAJERO', 'GERENCIA', 'LIMPIEZA', 'MANTENIMIENTO'];
 const ROLE_COLOR = { CAJERO: 'accent', GERENCIA: 'red', LIMPIEZA: 'green', MANTENIMIENTO: 'cyan' };
 const ROLE_LABEL = { CAJERO: 'Cajero/a', GERENCIA: 'Gerencia', LIMPIEZA: 'Limpieza', MANTENIMIENTO: 'Mantenimiento' };
 
-const EMPTY = { name: '', email: '', password: '', role: 'CAJERO' };
+const EMPTY = { name: '', email: '', password: '', role: 'CAJERO', phoneNumber: '' };
 
 const normalize = (e) => {
   const role = String(e.role ?? e.position ?? e.workerRole ?? 'CAJERO').toUpperCase();
@@ -50,7 +50,7 @@ export default function EmployeesPage() {
   }, [toast]);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setErrors({}); setModal('form'); };
-  const openEdit   = (emp) => { setEditing(emp); setForm({ name: emp.name ?? '', email: emp.email ?? '', password: '', role: emp.role ?? 'CAJERO' }); setErrors({}); setModal('form'); };
+  const openEdit   = (emp) => { setEditing(emp); setForm({ name: emp.name ?? '', email: emp.email ?? '', password: '', role: emp.role ?? 'CAJERO', phoneNumber: emp.phoneNumber ?? emp.phone ?? '' }); setErrors({}); setModal('form'); };
   const set        = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   const validate = () => {
@@ -65,7 +65,7 @@ export default function EmployeesPage() {
   const handleSave = async () => {
     if (!validate()) return;
     try {
-      const payload = { name: form.name.trim(), email: form.email.trim(), role: form.role };
+      const payload = { name: form.name.trim(), email: form.email.trim(), role: form.role, phoneNumber: form.phoneNumber.trim() || undefined };
       if (editing) {
         if (form.password.trim()) payload.password = form.password.trim();
         const saved = await employeesService.update(editing.id, payload);
@@ -168,6 +168,11 @@ export default function EmployeesPage() {
             <select id="emp-role" className={styles.input} value={form.role} onChange={e => set('role', e.target.value)}>
               {ROLES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
             </select>
+          </div>
+          <div>
+            <label className={styles.label} htmlFor="emp-phone">Teléfono</label>
+            <input id="emp-phone" className={styles.input} value={form.phoneNumber}
+              onChange={e => set('phoneNumber', e.target.value)} placeholder="+34 600 000 000" />
           </div>
         </div>
       </Modal>

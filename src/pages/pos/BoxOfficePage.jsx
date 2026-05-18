@@ -4,7 +4,7 @@ import {
   Film, ChevronRight,
   CreditCard, Banknote, Printer,
   CheckCircle, X, Ticket, ArrowLeft, Search,
-  Loader, Star, UserX, Plus, Edit2, Trash2, RotateCcw, User
+  Loader, Star, UserX, Plus, Edit2, Trash2, RotateCcw, User, UserPlus
 } from 'lucide-react';
 import { sessionsService }    from '../../services/sessionsService';
 import { seatsService }       from '../../services/seatsService';
@@ -109,6 +109,7 @@ export default function TaquillaPage() {
   const [clientSearching, setClientSearching] = useState(false);
   const [selectedClient, setSelectedClient]   = useState(null);
   const [guestEmail, setGuestEmail]           = useState('');
+  const [isMember, setIsMember]             = useState(null); // null=unasked, true=member, false=guest
   const clientDebounce   = useRef(null);
   const searchRef        = useRef(null);
   const activeSessionRef = useRef(null); // race-condition guard
@@ -116,8 +117,6 @@ export default function TaquillaPage() {
   // ── Modal datos cliente ─────────────────────────
   const [showClientModal, setShowClientModal]   = useState(false);
   const [pendingSession,  setPendingSession]    = useState(null);
-  const [clientForm,      setClientForm]        = useState({ nombre: '', apellidos: '', email: '', telefono: '' });
-  const [clientFormErrors,setClientFormErrors]  = useState({});
 
   // ── Devolución modal ────────────────────────────
   const [showRefund, setShowRefund]             = useState(false);
@@ -659,78 +658,25 @@ export default function TaquillaPage() {
         return;
       }
 
-      // Resolve a valid client userId — always succeeds or falls back gracefully.
-      const ANON_KEY   = 'lumen_walkin_uid';
-      const ANON_EMAIL = 'walkincustomer@lumencinema.es';
-      const emailQuery = guestEmail.trim();
+      // Resolve user based on member/guest flow
+      let resolvedUserId = null;
+      let resolvedGuestEmail = '';
 
-      const uid = (u) => u?.id ?? u?.userId ?? u?.clientId ?? null;
-
-      const searchFirst = async (q) => {
-        try {
-          const r = await clientsService.search(q);
-          const first = (Array.isArray(r) ? r : r?.content ?? [])[0] ?? null;
-          return first ? { ...first, id: uid(first) } : null;
-        } catch { return null; }
-      };
-
-      let resolvedUserId = uid(selectedClient) ?? null;
-
-      if (!resolvedUserId && emailQuery) {
-        const found = await searchFirst(emailQuery);
-        resolvedUserId = found?.id ?? null;
-      }
-
-      if (!resolvedUserId) {
-        const cached = Number(localStorage.getItem(ANON_KEY) || '0');
-        if (cached > 0) {
-          const stillValid = await searchFirst(ANON_EMAIL);
-          if (stillValid?.id) {
-            if (stillValid.id !== cached) localStorage.setItem(ANON_KEY, String(stillValid.id));
-            resolvedUserId = stillValid.id;
-          } else {
-            localStorage.removeItem(ANON_KEY);
-          }
+      if (isMember === true) {
+        if (!selectedClient?.id) {
+          toast('Por favor, busca y selecciona el socio antes de pagar.', 'error');
+          setPaying(false);
+          return;
         }
-        if (!resolvedUserId) {
-          const found = await searchFirst(ANON_EMAIL);
-          if (found?.id) {
-            localStorage.setItem(ANON_KEY, String(found.id));
-            resolvedUserId = found.id;
-          } else {
-            try {
-              const res = await clientsService.create({
-                name: 'Cliente', lastName: 'Taquilla', email: ANON_EMAIL,
-                password: 'WalkIn2024Lumen', birthDate: '1990-01-01', student: false, role: 'CLIENT',
-              });
-              const id = uid(res);
-              if (id) {
-                localStorage.setItem(ANON_KEY, String(id));
-                resolvedUserId = id;
-              }
-            } catch (e) {
-              if (e?.status === 409) {
-                const retry = await searchFirst(ANON_EMAIL);
-                if (retry?.id) {
-                  localStorage.setItem(ANON_KEY, String(retry.id));
-                  resolvedUserId = retry.id;
-                }
-              } else {
-                console.error('[pos] walk-in client setup error:', e.message);
-              }
-            }
-          }
-        }
-      }
-
-      if (!resolvedUserId) {
-        toast('No se pudo crear el cliente. Selecciona uno de la lista o inténtalo de nuevo.', 'error');
-        setPaying(false);
-        return;
+        resolvedUserId = selectedClient.id;
+      } else if (selectedClient?.id) {
+        resolvedUserId = selectedClient.id;
+        resolvedGuestEmail = selectedClient.email || guestEmail;
+      } else if (guestEmail.trim()) {
+        resolvedGuestEmail = guestEmail.trim();
       }
 
       const purchaseBody = {
-        userId:        resolvedUserId,
         screeningId:   selectedSession.id,
         paymentMethod: PAY_METHOD_MAP[payMethod],
         tickets: screeningSeatIds.map(screeningSeatId => {
@@ -740,23 +686,24 @@ export default function TaquillaPage() {
           return { screeningSeatId, seatId: screeningSeatId, ticketType: type.backendType ?? 'ADULT' };
         }),
       };
-      if (guestEmail.trim()) purchaseBody.guestEmail = guestEmail.trim();
+      if (resolvedUserId) purchaseBody.userId = resolvedUserId;
+      if (resolvedGuestEmail) purchaseBody.guestEmail = resolvedGuestEmail;
 
       const res = await salesService.createPurchase(purchaseBody);
 
       if (res?.id) {
         try {
           const confirmed = await salesService.confirmPurchase(res.id);
-          if (guestEmail.trim()) {
+          if (resolvedGuestEmail) {
             if (confirmed?.emailSent === false) {
               toast('Compra confirmada, pero el email no se pudo enviar. Revisa la configuración SMTP del servidor.', 'warning');
             } else {
-              toast(`Ticket enviado por email a ${guestEmail.trim()}`, 'success');
+              toast(`Ticket enviado por email a ${resolvedGuestEmail}`, 'success');
             }
           }
         } catch (confirmErr) {
           console.warn('[purchase] confirmPurchase error:', confirmErr?.message);
-          if (guestEmail.trim()) {
+          if (resolvedGuestEmail) {
             toast('Compra confirmada, pero el email no se pudo enviar. Verifica el correo del cliente.', 'warning');
           }
         }
@@ -842,21 +789,27 @@ export default function TaquillaPage() {
 
   const handleTimeClick = (session) => {
     setPendingSession(session);
-    setClientForm({ nombre: '', apellidos: '', email: '', telefono: '' });
-    setClientFormErrors({});
+    setIsMember(null);
+    setSelectedClient(null);
+    setGuestEmail('');
+    setClientQuery('');
+    setClientResults([]);
     setShowClientModal(true);
   };
 
   const handleClientSubmit = () => {
     setShowClientModal(false);
-    if (clientForm.email.trim() && /\S+@\S+\.\S+/.test(clientForm.email.trim())) {
-      setGuestEmail(clientForm.email.trim());
+    if (guestEmail.trim() && /\S+@\S+\.\S+/.test(guestEmail.trim())) {
+      setGuestEmail(guestEmail.trim());
     }
     selectSession(pendingSession);
   };
 
   const handleClientDiscard = () => {
     setShowClientModal(false);
+    setIsMember(null);
+    setSelectedClient(null);
+    setGuestEmail('');
     selectSession(pendingSession);
   };
 
@@ -874,6 +827,7 @@ export default function TaquillaPage() {
     setClientResults([]);
     setSelectedClient(null);
     setGuestEmail('');
+    setIsMember(null);
   }, []);
 
   // Atajos POS: F2=buscar sesión, F4=cobrar, F5=nueva venta, Esc=paso anterior
@@ -1082,57 +1036,27 @@ export default function TaquillaPage() {
               </button>
             </div>
 
-            {/* Client search */}
+            {/* Client identity — selected in pre-seat modal */}
             <div className={styles.paySection}>
               <p className={styles.paySectionLabel}>{t('box_office.client')}</p>
-              {selectedClient ? (
+
+              {selectedClient && isMember ? (
                 <div className={styles.clientChip}>
                   <div className={styles.clientChipInfo}>
                     <span className={styles.clientChipName}>{selectedClient.name ?? selectedClient.username}</span>
                     <span className={styles.clientChipEmail}>{selectedClient.email ?? ''}</span>
                   </div>
-                  {selectedClient.fidelityDiscountEligible && (
-                    <span className={styles.fidelityBadge}><Star size={10} /> Socio</span>
-                  )}
-                  <button className={styles.clientChipRemove} aria-label={t('box_office.removeClient')} onClick={() => { setSelectedClient(null); setClientQuery(''); setClientResults([]); }}>
-                    <UserX size={13} aria-hidden="true" />
-                  </button>
+                  <span className={styles.fidelityBadge}><Star size={10} /> Socio</span>
+                </div>
+              ) : guestEmail ? (
+                <div className={styles.clientChip}>
+                  <div className={styles.clientChipInfo}>
+                    <span className={styles.clientChipName}>Visita</span>
+                    <span className={styles.clientChipEmail}>{guestEmail}</span>
+                  </div>
                 </div>
               ) : (
-                <>
-                  <div className={styles.clientSearchWrap}>
-                    <Search size={12} className={styles.searchIcon} />
-                    <input
-                      className={styles.clientSearchInput}
-                      aria-label={t('box_office.clientSearch')}
-                      placeholder={t('box_office.clientSearch')}
-                      value={clientQuery}
-                      onChange={e => setClientQuery(e.target.value)}
-                    />
-                    {clientSearching && <Loader size={12} className={styles.clientLoader} />}
-                  </div>
-                  {clientResults.length > 0 && (
-                    <div className={styles.clientDropdown}>
-                      {clientResults.slice(0, 6).map(c => (
-                        <button key={c.id} className={styles.clientDropdownItem}
-                          onClick={() => { setSelectedClient(c); setClientQuery(''); setClientResults([]); }}>
-                          <span className={styles.clientDropdownName}>{c.name ?? c.username}</span>
-                          <span className={styles.clientDropdownEmail}>{c.email ?? ''}</span>
-                          {c.fidelityDiscountEligible && <Star size={10} style={{ color: 'var(--accent)', flexShrink: 0 }} />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <input
-                    type="email"
-                    className={styles.guestEmailInput}
-                    placeholder="Email del cliente (necesario si no está en la lista)"
-                    value={guestEmail}
-                    onChange={e => setGuestEmail(e.target.value)}
-                    aria-label="Email del comprador"
-                  />
-                  <p className={styles.guestEmailHint}>El sistema buscará al cliente por email. Si tiene cuenta, el ticket se enviará a ese correo.</p>
-                </>
+                <p className={styles.payMuted}>—</p>
               )}
             </div>
 
@@ -1290,7 +1214,7 @@ export default function TaquillaPage() {
         </div>
       </div>
 
-      {/* ── Modal datos cliente ──────────────────── */}
+      {/* ── Modal socio / visita ────────────────── */}
       {showClientModal && pendingSession && (
         <div
           className={styles.modalBackdrop}
@@ -1302,12 +1226,11 @@ export default function TaquillaPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="client-modal-title"
-            onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') handleClientSubmit(); }}
           >
             <div className={styles.modalHeader}>
               <div className={styles.modalTitle}>
                 <User size={15} aria-hidden="true" />
-                <span id="client-modal-title">Datos del cliente</span>
+                <span id="client-modal-title">Cliente</span>
               </div>
               <button className={styles.modalClose} onClick={handleClientDiscard} aria-label="Cerrar">
                 <X size={16} />
@@ -1323,53 +1246,94 @@ export default function TaquillaPage() {
                   ].filter(Boolean).join(' · ')}
                 </p>
               )}
-              <p className={styles.guestEmailHint} style={{ marginBottom: 12 }}>Todos los campos son opcionales. Si introduces un email, el ticket se enviará por correo.</p>
-              <div className={styles.modalRow}>
-                <div className={styles.modalField}>
-                  <label className={styles.modalLabel}>Nombre</label>
-                  <input
-                    autoFocus
-                    className={styles.modalInput}
-                    value={clientForm.nombre}
-                    placeholder="Nombre"
-                    onChange={e => setClientForm(p => ({ ...p, nombre: e.target.value }))}
-                  />
+
+              {/* Ask socio / visit */}
+              {isMember === null && (
+                <div className={styles.memberToggle}>
+                  <p className={styles.memberToggleLabel}>¿El cliente es socio?</p>
+                  <div className={styles.memberToggleBtns}>
+                    <button className={`${styles.memberToggleBtn} ${styles.memberToggleYes}`}
+                      autoFocus
+                      onClick={() => setIsMember(true)}>
+                      <User size={16} /> Sí, es socio
+                    </button>
+                    <button className={`${styles.memberToggleBtn} ${styles.memberToggleNo}`}
+                      onClick={() => setIsMember(false)}>
+                      <UserPlus size={16} /> No, es visita
+                    </button>
+                  </div>
                 </div>
-                <div className={styles.modalField}>
-                  <label className={styles.modalLabel}>Apellidos</label>
-                  <input
-                    className={styles.modalInput}
-                    value={clientForm.apellidos}
-                    placeholder="Apellidos"
-                    onChange={e => setClientForm(p => ({ ...p, apellidos: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <div className={styles.modalField}>
-                <label className={styles.modalLabel}>Email</label>
-                <input
-                  type="email"
-                  className={styles.modalInput}
-                  value={clientForm.email}
-                  placeholder="correo@ejemplo.com"
-                  onChange={e => setClientForm(p => ({ ...p, email: e.target.value }))}
-                />
-              </div>
-              <div className={styles.modalField}>
-                <label className={styles.modalLabel}>Teléfono</label>
-                <input
-                  type="tel"
-                  className={styles.modalInput}
-                  value={clientForm.telefono}
-                  placeholder="+34 600 000 000"
-                  onChange={e => setClientForm(p => ({ ...p, telefono: e.target.value }))}
-                />
-              </div>
+              )}
+
+              {/* Socio flow — search clients */}
+              {isMember === true && (
+                <>
+                  <div className={styles.memberLookup}>
+                    <div className={styles.clientSearchWrap}>
+                      <Search size={12} className={styles.searchIcon} />
+                      <input className={styles.clientSearchInput}
+                        placeholder="Buscar socio por nombre o email"
+                        value={clientQuery}
+                        onChange={e => { setClientQuery(e.target.value); setSelectedClient(null); }}
+                        autoFocus
+                      />
+                      {clientSearching && <Loader size={12} className={styles.clientLoader} />}
+                    </div>
+                    {clientResults.length > 0 && !selectedClient && (
+                      <div className={styles.clientDropdown}>
+                        {clientResults.map(c => (
+                          <button key={c.id} className={styles.clientDropdownItem}
+                            onClick={() => { setSelectedClient(c); setClientQuery(''); setClientResults([]); }}>
+                            <span className={styles.clientDropdownName}>{c.name ?? c.username}</span>
+                            <span className={styles.clientDropdownEmail}>{c.email}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {selectedClient && (
+                    <div className={styles.clientChip}>
+                      <div className={styles.clientChipInfo}>
+                        <span className={styles.clientChipName}>{selectedClient.name ?? selectedClient.username}</span>
+                        <span className={styles.clientChipEmail}>{selectedClient.email ?? ''}</span>
+                      </div>
+                      <button className={styles.clientChipRemove} aria-label="Quitar socio"
+                        onClick={() => { setSelectedClient(null); setClientQuery(''); }}>
+                        <UserX size={13} />
+                      </button>
+                    </div>
+                  )}
+                  <button className={styles.memberToggleBack}
+                    onClick={() => { setIsMember(null); setSelectedClient(null); setClientQuery(''); setClientResults([]); }}>
+                    ← Atrás
+                  </button>
+                </>
+              )}
+
+              {/* Visit flow — email only (optional) */}
+              {isMember === false && (
+                <>
+                  <div className={styles.guestFlow}>
+                    <input className={styles.guestEmailInput}
+                      type="email"
+                      placeholder="Email para enviar el ticket (opcional)"
+                      value={guestEmail}
+                      onChange={e => setGuestEmail(e.target.value)}
+                      autoFocus
+                    />
+                    <p className={styles.guestEmailHint}>Si introduces un email, el ticket se enviará por correo.</p>
+                  </div>
+                  <button className={styles.memberToggleBack}
+                    onClick={() => { setIsMember(null); setGuestEmail(''); }}>
+                    ← Atrás
+                  </button>
+                </>
+              )}
             </div>
 
             <div className={styles.modalFooter}>
-              <button className={styles.modalCancel} onClick={handleClientDiscard}>Omitir</button>
-              <button className={styles.modalSave} onClick={handleClientSubmit}>
+              <button className={styles.modalCancel} onClick={handleClientDiscard}>Saltar</button>
+              <button className={styles.modalSave} disabled={isMember === true && !selectedClient} onClick={handleClientSubmit}>
                 <ChevronRight size={14} aria-hidden="true" /> Continuar
               </button>
             </div>

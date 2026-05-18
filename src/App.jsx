@@ -62,7 +62,11 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/" element={<RoleRoute><MainLayout /></RoleRoute>}>
-              <Route index element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
+              <Route index element={
+                <RoleRoute allowedRoles={['GERENCIA']}>
+                  <Suspense fallback={<PageLoader />}><Dashboard /></Suspense>
+                </RoleRoute>
+              } />
               <Route path="box-office" element={
                 <RoleRoute allowedRoles={['GERENCIA','CAJERO']}>
                   <Suspense fallback={<PageLoader />}><BoxOfficePage /></Suspense>
@@ -99,7 +103,7 @@ export default function App() {
                 </RoleRoute>
               } />
               <Route path="incidents" element={
-                <RoleRoute allowedRoles={['GERENCIA']}>
+                <RoleRoute allowedRoles={['GERENCIA', 'MANTENIMIENTO']}>
                   <Suspense fallback={<PageLoader />}><IncidentsPage /></Suspense>
                 </RoleRoute>
               } />

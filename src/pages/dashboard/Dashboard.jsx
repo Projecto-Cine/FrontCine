@@ -117,8 +117,6 @@ export default function Dashboard() {
         .map(i => ({ ...i, priority: SEVERITY_MAP[i.severity] ?? SEVERITY_MAP[i.priority] ?? 'low', status: 'open' }));
       setIncidents(mapped);
 
-      console.log('📊 Dashboard API raw:', { purchases, merchSales, allScreenings: allScreenings?.length });
-
       const confirmed   = s => ['CONFIRMED','PAID','COMPLETED','confirmed','paid','completed'].includes(s?.status);
       const normTotal   = p => Number(p?.totalAmount ?? p?.total ?? p?.amount ?? p?.price ?? 0);
       const normQty     = s => Number(s?.quantity ?? s?.qty ?? 1);
@@ -143,8 +141,6 @@ export default function Dashboard() {
         .slice(0, 3)
         .map(([title, revenue]) => ({ title, revenue }));
 
-      console.log('📊 Movie revenue map:', movieRevMap, 'top3:', top3Movies);
-
       const merchList = Array.isArray(merchSales) ? merchSales : [];
       const productRevMap = {};
       merchList.forEach(sale => {
@@ -157,8 +153,6 @@ export default function Dashboard() {
         .slice(0, 3)
         .map(([name, revenue]) => ({ name, revenue }));
       const merchandiseRevenue = Object.values(productRevMap).reduce((s, v) => s + v, 0);
-
-      console.log('📊 Product revenue map:', productRevMap, 'top3:', top3Products);
 
       setRevenueSplit({ tickets: ticketRevenue, merch: merchandiseRevenue });
       setTopMovies(top3Movies);

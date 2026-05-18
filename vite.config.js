@@ -4,6 +4,10 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
+  test: {
+    environment: 'node',
+    globals: true,
+  },
   plugins: [react()],
   test: {
     globals: true,
@@ -31,6 +35,7 @@ export default defineConfig({
     },
   },
   server: {
+    open: '/login',
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

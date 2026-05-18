@@ -32,6 +32,8 @@ export default {
     hidePassword:     'Ocultar contraseña',
     roleAdmin:        'Administrador',
     roleClient:       'Cliente',
+    modeEmployee:     'Acceso empleados',
+    modeAdmin:        'Administración',
   },
 
   header: {
@@ -44,12 +46,16 @@ export default {
     shortcutsTitle:   'Atajos de teclado (?)',
     notifications:    'Notificaciones',
     roles: {
-      admin:       'Administrador',
-      supervisor:  'Supervisor',
-      operator:    'Operador',
-      ticket:      'Taquilla',
-      maintenance: 'Mantenimiento',
-      readonly:    'Consulta',
+      admin:         'Administrador',
+      supervisor:    'Supervisor',
+      operator:      'Operador',
+      ticket:        'Taquilla',
+      maintenance:   'Mantenimiento',
+      readonly:      'Consulta',
+      GERENCIA:      'Gerencia',
+      CAJERO:        'Cajero/a',
+      LIMPIEZA:      'Limpieza',
+      MANTENIMIENTO: 'Mantenimiento',
     },
     routes: {
       '/':             'Dashboard',
@@ -457,11 +463,9 @@ export default {
       ok:   'OK',
     },
     categories: {
-      Técnico:   'Técnico',
-      Concesión: 'Concesión',
-      Oficina:   'Oficina',
-      Limpieza:  'Limpieza',
-      Comercial: 'Comercial',
+      Bebida:      'Bebida',
+      Comida:      'Comida',
+      Merchandise: 'Merchandise',
     },
     form: {
       name:      'Nombre *',
@@ -605,6 +609,8 @@ export default {
       daysOff:      'Libres semana',
     },
     weekPrefix: 'Sem',
+    loading:        'Cargando turnos...',
+    loadError:      'Error al cargar los turnos.',
     weekGenerated:  'Cuadrante semanal generado',
     monthGenerated: 'Cuadrante mensual generado: {count} semanas',
     col: {
@@ -626,10 +632,10 @@ export default {
     },
     day: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
     role: {
-      CAJERO:    'Cajero/a',
-      GERENCIA:  'Gerencia',
-      SEGURIDAD: 'Seguridad',
-      LIMPIEZA:  'Limpieza',
+      CAJERO:        'Cajero/a',
+      GERENCIA:      'Gerencia',
+      LIMPIEZA:      'Limpieza',
+      MANTENIMIENTO: 'Mantenimiento',
     },
   },
 
@@ -679,7 +685,7 @@ export default {
     },
     type: {
       adult:   'Adulto',
-      senior:  'Reducida',
+      senior:  'Senior',
       student: 'Estudiante',
       child:   'Infantil',
       imax:    'IMAX',

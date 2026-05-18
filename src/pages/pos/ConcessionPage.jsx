@@ -21,11 +21,11 @@ const getEmoji = (p) => p.emoji ?? CAT_EMOJI[p.category] ?? '🔲';
 const getPrice = (p) => p.price ?? p.price_unit ?? 0;
 
 const EMPTY_PRODUCT = { name: '', category: 'FOOD', price: '', description: '', emoji: '', imageUrl: '', stock: '' };
-const MANAGE_ROLES  = ['admin', 'supervisor', 'operator'];
+
 
 const IMG_KEY = 'lumen_product_images';
 const getStoredImgs = () => { try { return JSON.parse(localStorage.getItem(IMG_KEY) ?? '{}'); } catch { return {}; } };
-const saveStoredImg = (id, url) => { try { const s = getStoredImgs(); if (url) s[String(id)] = url; else delete s[String(id)]; localStorage.setItem(IMG_KEY, JSON.stringify(s)); } catch {} };
+const saveStoredImg = (id, url) => { try { const s = getStoredImgs(); if (url) s[String(id)] = url; else delete s[String(id)]; localStorage.setItem(IMG_KEY, JSON.stringify(s)); } catch { /* storage unavailable */ } };
 const mergeImgs = (prods) => { const s = getStoredImgs(); return prods.map(p => ({ ...p, imageUrl: s[String(p.id)] || p.imageUrl || '' })); };
 
 
@@ -33,7 +33,7 @@ function generateReceiptId() {
   return 'RCP-' + Date.now().toString(36).toUpperCase();
 }
 
-export default function ConcessionPage() {
+export default function CajaPage() {
   const { toast } = useApp();
   const { user }  = useAuth();
   const { t }     = useLanguage();
@@ -50,10 +50,9 @@ export default function ConcessionPage() {
   const [paying, setPaying]           = useState(false);
   const searchRef = useRef(null);
 
-  // Product management is limited to admin, supervisor, and operator roles.
-  const canManage    = MANAGE_ROLES.includes((user?.role ?? '').toLowerCase());
+  const canManage = ['GERENCIA', 'CAJERO'].includes(user?.role);
   const [showManager,     setShowManager]     = useState(false);
-  const [productForm,     setProductForm]     = useState(null); // null = list, object = form
+  const [productForm,     setProductForm]     = useState(null); // null = lista, objeto = formulario
   const [editingProduct,  setEditingProduct]  = useState(null);
   const [savingProduct,   setSavingProduct]   = useState(false);
   const [deletingId,      setDeletingId]      = useState(null);
@@ -76,22 +75,22 @@ export default function ConcessionPage() {
     setUploadingImg(false);
   };
 
-  // Normalize fields that the backend may return with different names.
+  // Normaliza campos que el backend puede devolver con distintos nombres
   const normalizeProduct = (p) => ({
     ...p,
     imageUrl: p.imageUrl ?? p.image_url ?? p.poster ?? '',
     description: p.description ?? p.desc ?? '',
   });
 
-  // Load concession products from the backend.
+  // Cargar productos de concesión desde el backend
   useEffect(() => {
     inventoryService.getAll()
       .then(data => {
         const items = (Array.isArray(data) ? data : []).map(normalizeProduct);
-        // Show only concession products with available stock.
+        // Mostrar solo productos de concesión con stock disponible
         const concession = items.filter(p => p.quantity === undefined || p.quantity > 0);
         setProducts(mergeImgs(concession));
-        // Default category: first available category.
+        // Categoría por defecto: la primera disponible
         const cats = [...new Set(concession.map(p => p.category))];
         if (cats.length > 0 && !cats.includes('Todo')) setCategory('Todo');
       })
@@ -101,7 +100,7 @@ export default function ConcessionPage() {
 
   const CATEGORIES = FIXED_CATS;
 
-  // POS shortcuts: F2=search, F4=pay, F5=new sale, Esc=clear cart.
+  // Atajos POS: F2=buscar, F4=cobrar, F5=nueva venta, Esc=vaciar carrito
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'F2') { e.preventDefault(); searchRef.current?.focus(); }
@@ -149,21 +148,17 @@ export default function ConcessionPage() {
     }
     setPaying(true);
     try {
-      await salesService.createConcessionSale({
-        items: cart.map(({ product, qty }) => ({
-          product_id: product.id,
-          name:       product.name,
-          qty,
-          unit_price: getPrice(product),
-        })),
-        total,
-        payment_method: payMethod.toUpperCase(),
-        cash_given:     payMethod === 'cash' ? parseFloat(cashGiven) : null,
-        change:         change ? parseFloat(change) : null,
-        cashier_id:     user?.id ?? null,
-      });
+      await Promise.all(
+        cart.map(({ product, qty }) =>
+          salesService.createMerchandiseSale({
+            userId:        user?.id,
+            merchandiseId: product.id,
+            quantity:      qty,
+          })
+        )
+      );
     } catch {
-      // If the endpoint is not available yet, continue with the local receipt.
+      // Si el endpoint aún no existe, continuamos igualmente con el recibo local
     } finally {
       setPaying(false);
     }
@@ -255,7 +250,7 @@ export default function ConcessionPage() {
 
   return (
     <div className={styles.shell}>
-      {/* Products */}
+      {/* ── LEFT — productos ─────────────────────────────── */}
       <div className={styles.left}>
         <div className={styles.topBar}>
           <div className={styles.searchWrap}>
@@ -332,7 +327,7 @@ export default function ConcessionPage() {
         )}
       </div>
 
-      {/* Cart */}
+      {/* ── RIGHT — carrito ─────────────────────────────── */}
       <div className={styles.right}>
         <div className={styles.cartHeader}>
           <ShoppingCart size={15} />
@@ -437,7 +432,7 @@ export default function ConcessionPage() {
         </div>
       </div>
 
-      {/* Payment confirmation modal */}
+      {/* ── Modal confirmación ─────────────────── */}
       {showPayModal && (
         <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && setShowPayModal(false)}>
           <div className={styles.payModal} role="dialog" aria-modal="true" aria-labelledby="pay-modal-title">
@@ -470,7 +465,7 @@ export default function ConcessionPage() {
         </div>
       )}
 
-      {/* Receipt */}
+      {/* ── Recibo ─────────────────────────────── */}
       {receipt && (
         <div className={styles.modalOverlay}>
           <div className={styles.receiptModal} role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
@@ -517,7 +512,7 @@ export default function ConcessionPage() {
           </div>
         </div>
       )}
-      {/* Product management modal */}
+      {/* ── Modal gestión de productos ────────────── */}
       {showManager && (
         <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && setShowManager(false)}>
           <div className={styles.managerModal} role="dialog" aria-modal="true" aria-labelledby="manager-modal-title">
@@ -527,7 +522,7 @@ export default function ConcessionPage() {
             </div>
 
             {productForm === null ? (
-              /* Product list */
+              /* ── Lista ── */
               <div className={styles.managerBody}>
                 <button className={styles.managerNewBtn} onClick={openNewProduct}>
                   <Plus size={14} /> {t('concession.newProduct')}
@@ -563,7 +558,7 @@ export default function ConcessionPage() {
                 </div>
               </div>
             ) : (
-              /* Product form */
+              /* ── Formulario ── */
               <div className={styles.managerBody}>
                 <button className={styles.managerBackBtn} onClick={() => { setProductForm(null); setEditingProduct(null); }}>
                   {t('concession.backToList')}

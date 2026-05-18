@@ -81,7 +81,7 @@ export default function Dashboard() {
       incidentsService.getAll().catch(() => []),
       dashboardService.getPurchases().catch(() => []),
       merchandiseSalesService.getAll().catch(() => []),
-      sessionsService.getAll().catch(() => []),
+      sessionsService.getAll({ date: new Date().toISOString().split('T')[0] }).catch(() => []),
     ]).then(([dash, sw, occ, scr, inc, purchases, merchSales, allScreenings]) => {
 
       setKpis(dash ? {

@@ -4,15 +4,16 @@ import {
   Film, ChevronRight,
   CreditCard, Banknote, Printer,
   CheckCircle, X, Ticket, ArrowLeft, Search,
-  Loader, Star, UserX
+  Loader, Star, UserX, Plus, Edit2, Trash2, RotateCcw, User
 } from 'lucide-react';
 import { sessionsService }    from '../../services/sessionsService';
 import { seatsService }       from '../../services/seatsService';
 import { salesService }       from '../../services/salesService';
 import { clientsService }     from '../../services/clientsService';
 import { roomsService }       from '../../services/roomsService';
+import { moviesService }      from '../../services/moviesService';
 import { useApp }  from '../../contexts/AppContext';
-import { useAuth } from '../../contexts/AuthContext';
+
 import { useLanguage } from '../../i18n/LanguageContext';
 import Badge      from '../../components/ui/Badge';
 import SeatMap    from '../../components/shared/SeatMap';
@@ -20,14 +21,13 @@ import EmptyState from '../../components/shared/EmptyState';
 import styles     from './BoxOfficePage.module.css';
 
 const TICKET_TYPES = [
-  { id: 'adult',    price: 13.50, backendType: 'ADULT'   },
-  { id: 'senior',   price: 9.00,  backendType: 'SENIOR'  },
+  { id: 'adult',    price: 9.00, backendType: 'ADULT'   },
+  { id: 'senior',   price: 2.00,  backendType: 'SENIOR'  },
   { id: 'student',  price: 6.00,  backendType: 'STUDENT' },
   { id: 'child',    price: 6.00,  backendType: 'CHILD'   },
-  { id: 'imax',     price: 5.00,  extra: true },
-  { id: '4dx',      price: 6.50,  extra: true },
-  { id: 'vip',      price: 8.00,  extra: true },
 ];
+
+const VIP_SEAT_SUPPLEMENT = 1.00;
 
 const PAY_METHOD_MAP = { card: 'CARD', cash: 'CASH' };
 
@@ -64,10 +64,29 @@ function generateTicketId() {
   return 'TKT-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
 }
 
-export default function BoxOfficePage() {
+function generateOfflineSeats(sessionId, capacity = 100, roomName = '') {
+  const isVipRoom = roomName.toUpperCase().includes('VIP');
+  const COLS = capacity <= 80 ? 8 : capacity <= 150 ? 12 : 16;
+  const ROWS = Math.ceil(capacity / COLS);
+  const VIP_ROW_COUNT = isVipRoom ? 2 : 0;
+  const seats = [];
+  let fakeId = 900000 + ((sessionId ?? 0) * 100);
+  for (let r = 0; r < ROWS; r++) {
+    const row = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[r] ?? `R${r + 1}`;
+    const rowLetter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[r] ?? '';
+    const seatType  = rowLetter === 'E' || rowLetter === 'F' ? 'VIP' : 'NORMAL';
+    for (let c = 0; c < COLS; c++) {
+      if (r * COLS + c >= capacity) break;
+      seats.push({ id: `${row}${String(c + 1).padStart(2, '0')}`, row, number: c + 1, status: 'available', screeningSeatId: fakeId++, seatType });
+    }
+  }
+  return seats;
+}
+
+export default function TaquillaPage() {
   const { toast } = useApp();
-  const { user }  = useAuth();
   const { t } = useLanguage();
+
 
   const [step, setStep]                   = useState('sessions');
   const [sessions, setSessions]           = useState([]);
@@ -77,32 +96,334 @@ export default function BoxOfficePage() {
   const [loadingSeats, setLoadingSeats]   = useState(false);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [ticketType, setTicketType]       = useState('adult');
+  const [seatTypes, setSeatTypes]         = useState({}); // seatId → ticketType id
   const [payMethod, setPayMethod]         = useState('card');
   const [cashGiven, setCashGiven]         = useState('');
   const [tickets, setTickets]             = useState([]);
   const [paying, setPaying]               = useState(false);
   const [searchQuery, setSearchQuery]     = useState('');
+  const [selectedDate, setSelectedDate]   = useState(() => new Date().toISOString().split('T')[0]);
   const [renderError, setRenderError]     = useState(false);
   const [clientQuery, setClientQuery]     = useState('');
   const [clientResults, setClientResults] = useState([]);
   const [clientSearching, setClientSearching] = useState(false);
   const [selectedClient, setSelectedClient]   = useState(null);
-  const clientDebounce = useRef(null);
-  const searchRef = useRef(null);
+  const [guestEmail, setGuestEmail]           = useState('');
+  const clientDebounce   = useRef(null);
+  const searchRef        = useRef(null);
+  const activeSessionRef = useRef(null); // race-condition guard
+
+  // ── Modal datos cliente ─────────────────────────
+  const [showClientModal, setShowClientModal]   = useState(false);
+  const [pendingSession,  setPendingSession]    = useState(null);
+  const [clientForm,      setClientForm]        = useState({ nombre: '', apellidos: '', email: '', telefono: '' });
+  const [clientFormErrors,setClientFormErrors]  = useState({});
+
+  // ── Devolución modal ────────────────────────────
+  const [showRefund, setShowRefund]             = useState(false);
+  const [refundInput, setRefundInput]           = useState('');
+  const [refundProcessing, setRefundProcessing] = useState(false);
+  const [refundReceipt, setRefundReceipt]       = useState(null);
+
+  // Accepts: "30-56", "30", or full QR "LUMEN:30-56|movie|..."
+  const parseRefundInput = (raw) => {
+    const s = raw.trim();
+    if (s.startsWith('LUMEN:')) {
+      const body = s.slice(6);
+      const [idPart, movie = '', theater = '', date = '', time = '', seat = '', ticketType = ''] = body.split('|');
+      const purchaseId = Number(idPart.split('-')[0]);
+      return isNaN(purchaseId) || purchaseId <= 0 ? null : { purchaseId, movie, theater, date, time, seat, ticketType };
+    }
+    const purchaseId = Number(s.split('-')[0]);
+    return isNaN(purchaseId) || purchaseId <= 0 ? null : { purchaseId, movie: '', theater: '', date: '', time: '', seat: '', ticketType: '' };
+  };
+
+  const handleRefundSubmit = async () => {
+    const data = parseRefundInput(refundInput);
+    if (!data?.purchaseId) { toast('Introduce un número de ticket válido (ej: 30-56).', 'error'); return; }
+    setRefundProcessing(true);
+    try {
+      let amount = null;
+      let purchaseTickets = [];
+      let purchaseMovie = '';
+      let purchaseTheater = '';
+      let purchaseDate = '';
+      let purchaseTime = '';
+      try {
+        const purchase = await salesService.getById(data.purchaseId);
+        purchaseTickets = purchase?.tickets ?? [];
+        purchaseMovie   = purchase?.movieTitle  ?? '';
+        purchaseTheater = purchase?.theaterName ?? '';
+        if (purchase?.startTime) {
+          const dt = new Date(purchase.startTime);
+          purchaseDate = dt.toLocaleDateString('es-ES');
+          purchaseTime = dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        }
+        if (typeof purchase?.totalAmount === 'number') {
+          amount = purchase.totalAmount;
+        } else if (typeof purchase?.totalAmount === 'string') {
+          amount = parseFloat(purchase.totalAmount);
+        } else if (purchaseTickets.length > 0) {
+          const TYPE_PRICE = { ADULT: 9.00, SENIOR: 2.00, STUDENT: 6.00, CHILD: 6.00 };
+          amount = purchaseTickets.reduce((s, tk) => s + (TYPE_PRICE[tk.ticketType] ?? 9.00), 0);
+        }
+      } catch {}
+
+      await salesService.cancelPurchase(data.purchaseId);
+
+      const seats = purchaseTickets.length > 0
+        ? purchaseTickets.map(tk => `${tk.row}${String(tk.number).padStart(2,'0')}`).join(', ')
+        : (data.seat || '—');
+      const types = purchaseTickets.length > 0
+        ? [...new Set(purchaseTickets.map(tk => tk.ticketType))].join(', ')
+        : (data.ticketType || '—');
+
+      setRefundReceipt({
+        refundId:   `RF-${data.purchaseId}-${Date.now().toString(36).toUpperCase()}`,
+        refundedAt: new Date().toISOString(),
+        movie:      data.movie   || purchaseMovie   || '—',
+        theater:    data.theater || purchaseTheater || '—',
+        date:       data.date    || purchaseDate    || '—',
+        time:       data.time    || purchaseTime    || '—',
+        seat:       seats,
+        ticketType: types,
+        purchaseId: data.purchaseId,
+        amount,
+        numTickets: purchaseTickets.length || 1,
+      });
+      setShowRefund(false);
+      setRefundInput('');
+      toast('Devolución procesada correctamente.', 'success');
+    } catch (err) {
+      const status = err?.status ?? err?.response?.status;
+      const msg =
+        status === 404 ? 'Ticket no encontrado. Verifica el número.' :
+        status === 409 ? 'Esta entrada ya fue devuelta anteriormente.' :
+        status === 400 ? 'No se pueden devolver entradas de sesiones que ya han comenzado.' :
+        'Error al procesar la devolución. Inténtalo de nuevo.';
+      toast(msg, 'error');
+    } finally {
+      setRefundProcessing(false);
+    }
+  };
+
+  // ── Nueva sesión modal ───────────────────────────
+  const [showNewSession, setShowNewSession] = useState(false);
+  const [newMovies, setNewMovies]           = useState([]);
+  const [newRooms, setNewRooms]             = useState([]);
+  const [newSaving, setNewSaving]           = useState(false);
+  const [newForm, setNewForm]               = useState({ movieId: '', theaterId: '', date: '', time: '', basePrice: '' });
+  const setNF = (k, v) => setNewForm(prev => ({ ...prev, [k]: v }));
+
+  // ── Editar sesión modal ──────────────────────────
+  const [editSession, setEditSession]       = useState(null);
+  const [editForm, setEditForm]             = useState({ movieId: '', theaterId: '', date: '', time: '', basePrice: '' });
+  const [editSaving, setEditSaving]         = useState(false);
+  const [syncing, setSyncing]               = useState(false);
+  const [deleteSession, setDeleteSession]   = useState(null);
+  const [showResetConfirm, setShowResetConfirm]         = useState(false);
+  const [resetting, setResetting]                       = useState(false);
+  const [showFullResetConfirm, setShowFullResetConfirm] = useState(false);
+  const [fullResetting, setFullResetting]               = useState(false);
+  const [fullResetProgress, setFullResetProgress]       = useState('');
+  const setEF = (k, v) => setEditForm(prev => ({ ...prev, [k]: v }));
+
+  const openEditSession = (s, e) => {
+    e.stopPropagation();
+    const dt = s.startTime ?? s.dateTime ?? '';
+    setEditForm({
+      movieId:   s.movie?.id   ?? '',
+      theaterId: s.theater?.id ?? s.room?.id ?? '',
+      date:      dt.split('T')[0] ?? '',
+      time:      dt.split('T')[1]?.substring(0, 5) ?? '',
+      basePrice: s.basePrice ?? s.price ?? '',
+    });
+    setEditSession(s);
+  };
+
+  const handleEditSession = async () => {
+    if (!editForm.movieId || !editForm.theaterId || !editForm.date || !editForm.time || !editForm.basePrice) {
+      toast('Todos los campos son obligatorios.', 'error'); return;
+    }
+    setEditSaving(true);
+    try {
+      const saved = await sessionsService.update(editSession.id, {
+        movieId:   Number(editForm.movieId),
+        theaterId: Number(editForm.theaterId),
+        startTime: `${editForm.date}T${editForm.time}`,
+        basePrice: Number(editForm.basePrice),
+      });
+      setSessions(prev => mergeSessionPosters(prev.map(s => s.id === editSession.id ? (saved ?? { ...s, ...editForm }) : s)));
+      setEditSession(null);
+      toast('Sesión actualizada.', 'success');
+    } catch {
+      toast('Error al actualizar la sesión.', 'error');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleSyncSeats = async () => {
+    setSyncing(true);
+    try {
+      const screeningSeats = await sessionsService.syncSeats(editSession.id);
+      // If this session is currently open in the seat map, refresh realSeats
+      if (selectedSession?.id === editSession.id && Array.isArray(screeningSeats)) {
+        const seen = new Set();
+        const normalized = [];
+        for (const ss of screeningSeats) {
+          const seat = ss.seat ?? ss;
+          if (!seat?.row || seat.number == null || ss.id == null) continue;
+          const displayId = `${seat.row}${String(seat.number).padStart(2, '0')}`;
+          if (seen.has(displayId)) continue;
+          seen.add(displayId);
+          normalized.push({
+            id: displayId, row: seat.row, number: seat.number,
+            status: ss.status === 'available' ? 'available' : 'occupied',
+            screeningSeatId: ss.id,
+          });
+        }
+        setRealSeats(normalized.length ? normalized : null);
+      }
+      toast('Butacas sincronizadas correctamente.', 'success');
+    } catch {
+      toast('Error al sincronizar butacas.', 'error');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleDeleteSession = async () => {
+    try {
+      await sessionsService.remove(deleteSession.id);
+      setSessions(prev => prev.filter(s => s.id !== deleteSession.id));
+      toast('Sesión eliminada.', 'warning');
+    } catch {
+      toast('Error al eliminar la sesión.', 'error');
+    } finally {
+      setDeleteSession(null);
+    }
+  };
+
+  const handleFullReset = async () => {
+    setFullResetting(true);
+    setFullResetProgress('Buscando sesiones…');
+    try {
+      // Backend requires date param — fetch a range of dates in parallel
+      const today = new Date();
+      const dates = Array.from({ length: 60 }, (_, i) => {
+        const d = new Date(today);
+        d.setDate(today.getDate() - 14 + i); // -14 days to +45 days
+        return d.toISOString().split('T')[0];
+      });
+
+      const results = await Promise.all(
+        dates.map(date => sessionsService.getAll({ date }).catch(() => []))
+      );
+
+      // Deduplicate by session ID
+      const seen = new Set();
+      const list = [];
+      for (const arr of results) {
+        for (const s of (Array.isArray(arr) ? arr : [])) {
+          if (!seen.has(s.id)) { seen.add(s.id); list.push(s); }
+        }
+      }
+
+      let deleted = 0; let failed = 0;
+      for (let i = 0; i < list.length; i++) {
+        setFullResetProgress(`Eliminando ${i + 1} de ${list.length}…`);
+        try {
+          await sessionsService.remove(list[i].id);
+          deleted++;
+        } catch { failed++; }
+      }
+
+      setSessions([]);
+      setShowFullResetConfirm(false);
+      setFullResetProgress('');
+      if (failed === 0) {
+        toast(`Reset completado: ${deleted} sesión${deleted !== 1 ? 'es' : ''} eliminada${deleted !== 1 ? 's' : ''}.`, 'success');
+      } else {
+        toast(`${deleted} eliminadas, ${failed} no se pudieron borrar.`, 'warning');
+      }
+    } catch {
+      toast('Error durante el reset total.', 'error');
+      setFullResetProgress('');
+    } finally {
+      setFullResetting(false);
+    }
+  };
+
+  const handleResetSessions = async () => {
+    setResetting(true);
+    const toDelete = [...filteredSessions];
+    let deleted = 0;
+    let failed  = 0;
+    for (const s of toDelete) {
+      try {
+        await sessionsService.remove(s.id);
+        setSessions(prev => prev.filter(x => x.id !== s.id));
+        deleted++;
+      } catch {
+        failed++;
+      }
+    }
+    setShowResetConfirm(false);
+    setResetting(false);
+    if (failed === 0) {
+      toast(`${deleted} sesión${deleted !== 1 ? 'es' : ''} eliminada${deleted !== 1 ? 's' : ''}. Ahora puedes crear las nuevas.`, 'success');
+    } else {
+      toast(`${deleted} eliminada${deleted !== 1 ? 's' : ''}, ${failed} no se pudo${failed !== 1 ? 'n' : ''} borrar (tienen entradas vendidas).`, 'warning');
+    }
+  };
+
+  useEffect(() => {
+    if (!showNewSession && !editSession) return;
+    if (showNewSession) setNewForm(prev => ({ ...prev, date: selectedDate, time: '' }));
+    Promise.all([moviesService.getActive(), roomsService.getAll()])
+      .then(([mv, rm]) => {
+        setNewMovies(Array.isArray(mv) ? mv : []);
+        setNewRooms(Array.isArray(rm) ? rm : []);
+      })
+      .catch(() => {});
+  }, [showNewSession, editSession, selectedDate]);
+
+  const handleCreateSession = async () => {
+    if (!newForm.movieId || !newForm.theaterId || !newForm.date || !newForm.time) {
+      toast('Película, sala, fecha y hora son obligatorios.', 'error'); return;
+    }
+    setNewSaving(true);
+    try {
+      const saved = await sessionsService.create({
+        movieId:   Number(newForm.movieId),
+        theaterId: Number(newForm.theaterId),
+        startTime: `${newForm.date}T${newForm.time}`,
+        basePrice: TICKET_TYPES[0].price,
+      });
+      setSessions(prev => mergeSessionPosters([...prev, saved]));
+      setShowNewSession(false);
+      toast('Sesión creada correctamente.', 'success');
+    } catch {
+      toast('Error al crear la sesión.', 'error');
+    } finally {
+      setNewSaving(false);
+    }
+  };
 
   // Translated ticket types (computed in render so they react to language changes)
   const ticketTypes = TICKET_TYPES.map(tt => ({ ...tt, label: t(`box_office.type.${tt.id}`) }));
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    sessionsService.getAll({ date: today })
+    setLoadingSessions(true);
+    sessionsService.getAll({ date: selectedDate })
       .then(data => {
         const arr = Array.isArray(data) ? data : [];
         setSessions(mergeSessionPosters(arr));
       })
       .catch(() => toast('Error al cargar sesiones.', 'error'))
       .finally(() => setLoadingSessions(false));
-  }, []);
+  }, [selectedDate]);
 
   useEffect(() => {
     clearTimeout(clientDebounce.current);
@@ -119,6 +440,14 @@ export default function BoxOfficePage() {
   }, [clientQuery]);
 
   const filteredSessions = sessions.filter(s => {
+    // For today: hide sessions that ended more than 3 h ago (backend may return past ones)
+    if (selectedDate === new Date().toISOString().split('T')[0]) {
+      const dt = s.startTime ?? s.dateTime ?? null;
+      if (dt) {
+        const started = new Date(dt);
+        if (Date.now() - started.getTime() > 3 * 60 * 60 * 1000) return false;
+      }
+    }
     if (!searchQuery) return true;
     return s.movie?.title?.toLowerCase().includes(searchQuery.toLowerCase());
   });
@@ -140,54 +469,78 @@ export default function BoxOfficePage() {
     return Object.values(groups);
   }, [filteredSessions]);
 
-  const selectSession = (session) => {
+  const selectSession = async (session) => {
     if (!session) return;
     setSelectedSession(session);
     setSelectedSeats([]);
+    setSeatTypes({});
     setRealSeats(null);
     setStep('seats');
     setLoadingSeats(true);
 
     if (!session.theater && !session.room && session.room_id) {
       roomsService.getById(session.room_id).then(room => {
-        if (room) {
-          setSelectedSession(prev => prev ? { ...prev, theater: room, room } : prev);
-        }
+        if (room) setSelectedSession(prev => prev ? { ...prev, theater: room, room } : prev);
       }).catch(() => {});
     }
 
-    const theaterId = session.theater?.id ?? session.room?.id ?? null;
+    activeSessionRef.current = session.id;
 
-    Promise.all([
-      seatsService.getByScreening(session.id),
-      theaterId ? seatsService.getByTheater(theaterId) : Promise.resolve([]),
-    ])
-      .then(([screeningData, theaterData]) => {
-        const screeningSeats = Array.isArray(screeningData) ? screeningData : [];
-        const theaterSeats   = Array.isArray(theaterData)   ? theaterData   : [];
+    const normalizeSeats = (raw) => {
+      const list = Array.isArray(raw) ? raw
+        : Array.isArray(raw?.content) ? raw.content
+        : Array.isArray(raw?.data)    ? raw.data
+        : Array.isArray(raw?.seats)   ? raw.seats
+        : Array.isArray(raw?.items)   ? raw.items
+        : [];
+      const now  = Date.now();
+      const seen = new Set();
+      const out  = [];
+      for (const ss of list) {
+        if (ss?.id == null) continue;
+        const seatObj = ss.seat ?? ss;
+        const row     = ss.row    ?? seatObj.row;
+        const number  = ss.number ?? seatObj.number ?? seatObj.seatNumber ?? seatObj.col;
+        if (!row || number == null) continue;
+        const displayId = `${String(row).toUpperCase()}${String(number).padStart(2, '0')}`;
+        if (seen.has(displayId)) continue;
+        seen.add(displayId);
+        const statusLow = (ss.status ?? '').toLowerCase();
+        const isOccupied =
+          ss.occupied === true ||
+          (ss.reservedUntil && new Date(ss.reservedUntil).getTime() > now) ||
+          (statusLow !== '' && statusLow !== 'available');
+        const rawType  = (seatObj.seatType ?? seatObj.seat_type ?? ss.seatType ?? '').toUpperCase();
+        const seatType = rawType === 'VIP' || row === 'E' || row === 'F' ? 'VIP' : 'NORMAL';
+        out.push({
+          id: displayId, row: String(row).toUpperCase(), number,
+          status:          isOccupied ? 'occupied' : 'available',
+          screeningSeatId: ss.id,
+          seatId:          seatObj.id ?? ss.seatId ?? ss.id,
+          seatType,
+        });
+      }
+      return out;
+    };
 
-        const occupancyMap = new Map(
-          screeningSeats.map(ss => [ss.seat.id, ss.occupied])
-        );
+    const sessionRoom     = session.theater ?? session.room;
+    const sessionCapacity = sessionRoom?.capacity ?? 100;
+    const sessionRoomName = sessionRoom?.name ?? '';
 
-        const source = theaterSeats.length > 0
-          ? theaterSeats
-          : screeningSeats.map(ss => ss.seat);
-
-        const normalized = source.map(seat => ({
-          id:     `${seat.row}${String(seat.number).padStart(2, '0')}`,
-          row:    seat.row,
-          number: seat.number,
-          status: occupancyMap.has(seat.id)
-            ? (occupancyMap.get(seat.id) ? 'occupied' : 'available')
-            : 'unavailable',
-          seatId: seat.id,
-        }));
-
-        setRealSeats(normalized.length ? normalized : null);
+    sessionsService.syncSeats(session.id)
+      .catch(() => seatsService.getByScreening(session.id))
+      .then(data => {
+        if (activeSessionRef.current !== session.id) return;
+        const normalized = normalizeSeats(data);
+        setRealSeats(normalized.length ? normalized : generateOfflineSeats(session.id, sessionCapacity, sessionRoomName));
       })
-      .catch(() => setRealSeats(null))
-      .finally(() => setLoadingSeats(false));
+      .catch(() => {
+        if (activeSessionRef.current !== session.id) return;
+        setRealSeats(generateOfflineSeats(session.id, sessionCapacity, sessionRoomName));
+      })
+      .finally(() => {
+        if (activeSessionRef.current === session.id) setLoadingSeats(false);
+      });
   };
 
   const movie   = selectedSession?.movie ?? selectedSession?.film ?? null;
@@ -197,7 +550,12 @@ export default function BoxOfficePage() {
     id:   selectedSession.id,
     sold: realSeats
       ? realSeats.filter(s => s.status === 'occupied' || s.status === 'reserved').length
-      : 0,
+      : (() => {
+          const cap = theater?.capacity ?? 100;
+          const avail = selectedSession.availableSeats;
+          if (avail != null) return Math.max(0, cap - avail);
+          return selectedSession.sold ?? 0;
+        })(),
   } : null;
   const seatMapRoom = theater ? {
     capacity: theater.capacity ?? 100,
@@ -207,39 +565,201 @@ export default function BoxOfficePage() {
 
   const baseType       = ticketTypes.find(t => t.id === ticketType) || ticketTypes[0];
   const basePrice      = baseType.price;
-  const extra          = ticketTypes.filter(t => t.extra).find(t => {
-    if (!theater) return false;
-    const fmt = (movie?.format ?? theater?.name ?? '').toUpperCase();
-    if (t.id === 'imax') return fmt.includes('IMAX');
-    if (t.id === '4dx')  return fmt.includes('4DX');
-    if (t.id === 'vip')  return (theater?.name ?? '').toLowerCase().includes('vip');
-    return false;
-  });
+  // +€3 solo para salas 4D/4DX
+  const is4D  = /4D|4DX/i.test(theater?.name ?? movie?.format ?? '');
+  const extra = is4D ? { price: 3.00, label: '4D' } : null;
   const fidelityEligible = !!(selectedClient?.fidelityDiscountEligible && ticketType === 'adult');
   const discountedBase   = fidelityEligible ? +(basePrice * 0.9).toFixed(2) : basePrice;
-  const totalPerTicket   = discountedBase + (extra?.price ?? 0);
-  const total            = totalPerTicket * selectedSeats.length;
+  // Per-seat total: tipo por butaca + VIP automático si el asiento es VIP + suplemento 4D
+  const total = selectedSeats.reduce((sum, seatId) => {
+    const typeId = seatTypes[seatId] || ticketType;
+    const type   = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
+    const isFidelity = !!(selectedClient?.fidelityDiscountEligible && typeId === 'adult');
+    const price  = isFidelity ? +(type.price * 0.9).toFixed(2) : type.price;
+    const seat   = realSeats?.find(s => s.id === seatId);
+    const isVip  = (seat?.seatType ?? '').toUpperCase() === 'VIP';
+    return sum + price + (isVip ? VIP_SEAT_SUPPLEMENT : 0) + (extra?.price ?? 0);
+  }, 0);
   const change           = cashGiven && payMethod === 'cash' ? (parseFloat(cashGiven) - total).toFixed(2) : null;
+
+  const handleSeatToggle = useCallback((newSeats) => {
+    setSeatTypes(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(s => { if (!newSeats.includes(s)) delete next[s]; });
+      newSeats.forEach(s => { if (!(s in next)) next[s] = ticketType; });
+      return next;
+    });
+    setSelectedSeats(newSeats);
+  }, [ticketType]);
 
   const handlePay = useCallback(async () => {
     if (!selectedSeats.length) { toast('Selecciona al menos una butaca.', 'error'); return; }
+
     setPaying(true);
     try {
-      const seatIds = selectedSeats
-        .map(seatStr => realSeats?.find(s => s.id === seatStr)?.seatId)
+      let screeningSeatIds = selectedSeats
+        .map(seatStr => realSeats?.find(s => s.id === seatStr)?.screeningSeatId)
         .filter(Boolean);
 
-      const res = await salesService.createPurchase({
-        userId:      selectedClient?.id ?? user?.id,
-        screeningId: selectedSession.id,
-        tickets:     seatIds.map(seatId => ({
-          seatId,
-          ticketType: baseType.backendType ?? 'ADULT',
-        })),
-      });
+      if (!screeningSeatIds.length && selectedSeats.length > 0) {
+        try {
+          const freshData = await sessionsService.syncSeats(selectedSession.id);
+          const raw = Array.isArray(freshData) ? freshData
+            : Array.isArray(freshData?.content) ? freshData.content
+            : Array.isArray(freshData?.data)    ? freshData.data
+            : Array.isArray(freshData?.seats)   ? freshData.seats
+            : [];
+          const seen = new Set();
+          const normalized = [];
+          for (const ss of raw) {
+            if (ss?.id == null) continue;
+            const seatObj = ss.seat ?? ss;
+            const row     = ss.row    ?? seatObj.row;
+            const number  = ss.number ?? seatObj.number ?? seatObj.seatNumber ?? seatObj.col;
+            if (!row || number == null) continue;
+            const displayId = `${String(row).toUpperCase()}${String(number).padStart(2, '0')}`;
+            if (seen.has(displayId)) continue;
+            seen.add(displayId);
+            const statusLow = (ss.status ?? '').toLowerCase();
+            normalized.push({
+              id: displayId, row: String(row).toUpperCase(), number,
+              status: (statusLow !== '' && statusLow !== 'available') ? 'occupied' : 'available',
+              screeningSeatId: ss.id,
+            });
+          }
+          if (normalized.length) {
+            setRealSeats(normalized);
+            screeningSeatIds = selectedSeats
+              .map(seatStr => normalized.find(s => s.id === seatStr)?.screeningSeatId)
+              .filter(Boolean);
+            if (!screeningSeatIds.length) {
+              const available = normalized.filter(s => s.status === 'available');
+              screeningSeatIds = available
+                .slice(0, selectedSeats.length)
+                .map(s => s.screeningSeatId)
+                .filter(Boolean);
+            }
+          }
+        } catch (syncErr) { }
+      }
+
+      if (!screeningSeatIds.length) {
+        toast('Butaca no encontrada. Vuelve al mapa y selecciona las butacas de nuevo.', 'error');
+        setPaying(false);
+        return;
+      }
+
+      // Backend rule: CHILD requires at least 1 ADULT in same purchase
+      const seatTypeIds = selectedSeats.map(s => seatTypes[s] || ticketType);
+      const hasChild = seatTypeIds.includes('child');
+      const hasAdult = seatTypeIds.includes('adult');
+      if (hasChild && !hasAdult) {
+        toast('Una entrada infantil requiere al menos una entrada adulto en la misma compra.', 'error');
+        setPaying(false);
+        return;
+      }
+
+      // Resolve a valid client userId — always succeeds or falls back gracefully.
+      const ANON_KEY   = 'lumen_walkin_uid';
+      const ANON_EMAIL = 'walkincustomer@lumencinema.es';
+      const emailQuery = guestEmail.trim();
+
+      const uid = (u) => u?.id ?? u?.userId ?? u?.clientId ?? null;
+
+      const searchFirst = async (q) => {
+        try {
+          const r = await clientsService.search(q);
+          const first = (Array.isArray(r) ? r : r?.content ?? [])[0] ?? null;
+          return first ? { ...first, id: uid(first) } : null;
+        } catch { return null; }
+      };
+
+      let resolvedUserId = uid(selectedClient) ?? null;
+
+      if (!resolvedUserId && emailQuery) {
+        const found = await searchFirst(emailQuery);
+        resolvedUserId = found?.id ?? null;
+      }
+
+      if (!resolvedUserId) {
+        const cached = Number(localStorage.getItem(ANON_KEY) || '0');
+        if (cached > 0) {
+          const stillValid = await searchFirst(ANON_EMAIL);
+          if (stillValid?.id) {
+            if (stillValid.id !== cached) localStorage.setItem(ANON_KEY, String(stillValid.id));
+            resolvedUserId = stillValid.id;
+          } else {
+            localStorage.removeItem(ANON_KEY);
+          }
+        }
+        if (!resolvedUserId) {
+          const found = await searchFirst(ANON_EMAIL);
+          if (found?.id) {
+            localStorage.setItem(ANON_KEY, String(found.id));
+            resolvedUserId = found.id;
+          } else {
+            try {
+              const res = await clientsService.create({
+                name: 'Cliente', lastName: 'Taquilla', email: ANON_EMAIL,
+                password: 'WalkIn2024Lumen', birthDate: '1990-01-01', student: false, role: 'CLIENT',
+              });
+              const id = uid(res);
+              if (id) {
+                localStorage.setItem(ANON_KEY, String(id));
+                resolvedUserId = id;
+              }
+            } catch (e) {
+              if (e?.status === 409) {
+                const retry = await searchFirst(ANON_EMAIL);
+                if (retry?.id) {
+                  localStorage.setItem(ANON_KEY, String(retry.id));
+                  resolvedUserId = retry.id;
+                }
+              } else {
+                console.error('[pos] walk-in client setup error:', e.message);
+              }
+            }
+          }
+        }
+      }
+
+      if (!resolvedUserId) {
+        toast('No se pudo crear el cliente. Selecciona uno de la lista o inténtalo de nuevo.', 'error');
+        setPaying(false);
+        return;
+      }
+
+      const purchaseBody = {
+        userId:        resolvedUserId,
+        screeningId:   selectedSession.id,
+        paymentMethod: PAY_METHOD_MAP[payMethod],
+        tickets: screeningSeatIds.map(screeningSeatId => {
+          const seat   = realSeats?.find(s => s.screeningSeatId === screeningSeatId);
+          const typeId = seat ? (seatTypes[seat.id] || ticketType) : ticketType;
+          const type   = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
+          return { screeningSeatId, seatId: screeningSeatId, ticketType: type.backendType ?? 'ADULT' };
+        }),
+      };
+      if (guestEmail.trim()) purchaseBody.guestEmail = guestEmail.trim();
+
+      const res = await salesService.createPurchase(purchaseBody);
 
       if (res?.id) {
-        await salesService.confirmPurchase(res.id);
+        try {
+          const confirmed = await salesService.confirmPurchase(res.id);
+          if (guestEmail.trim()) {
+            if (confirmed?.emailSent === false) {
+              toast('Compra confirmada, pero el email no se pudo enviar. Revisa la configuración SMTP del servidor.', 'warning');
+            } else {
+              toast(`Ticket enviado por email a ${guestEmail.trim()}`, 'success');
+            }
+          }
+        } catch (confirmErr) {
+          console.warn('[purchase] confirmPurchase error:', confirmErr?.message);
+          if (guestEmail.trim()) {
+            toast('Compra confirmada, pero el email no se pudo enviar. Verifica el correo del cliente.', 'warning');
+          }
+        }
       }
 
       const time = selectedSession.startTime?.split('T')[1]?.substring(0, 5) ?? selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
@@ -270,18 +790,82 @@ export default function BoxOfficePage() {
 
       setTickets(generated);
       setStep('done');
-    } catch {
-      toast('Error al procesar el cobro. Inténtalo de nuevo.', 'error');
+    } catch (err) {
+      console.error('[handlePay] error:', err);
+      const status = err?.status ?? (err?.response?.status ?? (err?.message?.match(/API (\d+)/) ? Number(err.message.match(/API (\d+)/)[1]) : null));
+
+      if (!status) {
+        const time = selectedSession.startTime?.split('T')[1]?.substring(0, 5) ?? selectedSession.dateTime?.split('T')[1]?.substring(0, 5) ?? '';
+        const date = selectedSession.startTime?.split('T')[0] ?? selectedSession.dateTime?.split('T')[0] ?? '';
+        const localTickets = selectedSeats.map(seat => {
+          const localId = generateTicketId();
+          const typeId  = seatTypes[seat] || ticketType;
+          const type    = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
+          return {
+            id: localId,
+            movie: movie?.title,
+            room: theater?.name,
+            date, time, seat,
+            format: movie?.format,
+            language: movie?.language,
+            qrValue: `LUMEN:${localId}|${movie?.title}|${theater?.name}|${date}|${time}|${seat}|${type.backendType ?? 'ADULT'}`,
+          };
+        });
+        setTickets(localTickets);
+        setStep('done');
+        toast('Servidor no disponible — ticket generado en modo offline.', 'warning');
+        return;
+      }
+
+      const rawBody = err?.message ?? '';
+      const jsonText = rawBody.replace(/^API \d+ [^:]+:\s*/, '').trim();
+      let backendMsg = '';
+      try {
+        const parsed = JSON.parse(jsonText);
+        backendMsg = (parsed?.message ?? parsed?.error ?? parsed?.detail ?? parsed?.title ?? parsed?.msg ?? '').slice(0, 150);
+      } catch {
+        backendMsg = jsonText.slice(0, 150);
+      }
+      const msg =
+        status === 404 && (rawBody.toLowerCase().includes('seat') || rawBody.toLowerCase().includes('butaca'))
+          ? 'Butaca no encontrada, recarga el mapa.' :
+        status === 404 ? 'Recurso no encontrado. Recarga la página e inténtalo de nuevo.' :
+        status === 409 ? 'Esa butaca ya no está disponible.' :
+        status === 422 && rawBody.toLowerCase().includes('minor') ? 'Un menor debe ir acompañado de un adulto.' :
+        status === 422 ? 'Esta compra ya fue procesada.' :
+        backendMsg ? `Error ${status}: ${backendMsg}` : `Error ${status ?? '?'}: no se pudo procesar el cobro.`;
+      toast(msg, 'error');
     } finally {
       setPaying(false);
     }
-  }, [selectedSeats, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, user, selectedClient, movie, theater, toast]);
+  }, [selectedSeats, seatTypes, ticketType, ticketTypes, realSeats, selectedSession, extra, baseType, discountedBase, total, payMethod, selectedClient, guestEmail, movie, theater, toast]);
+
+  const handleTimeClick = (session) => {
+    setPendingSession(session);
+    setClientForm({ nombre: '', apellidos: '', email: '', telefono: '' });
+    setClientFormErrors({});
+    setShowClientModal(true);
+  };
+
+  const handleClientSubmit = () => {
+    setShowClientModal(false);
+    if (clientForm.email.trim() && /\S+@\S+\.\S+/.test(clientForm.email.trim())) {
+      setGuestEmail(clientForm.email.trim());
+    }
+    selectSession(pendingSession);
+  };
+
+  const handleClientDiscard = () => {
+    setShowClientModal(false);
+    selectSession(pendingSession);
+  };
 
   const reset = useCallback(() => {
     setStep('sessions');
     setSelectedSession(null);
     setRealSeats(null);
     setSelectedSeats([]);
+    setSeatTypes({});
     setPayMethod('card');
     setCashGiven('');
     setTickets([]);
@@ -289,9 +873,10 @@ export default function BoxOfficePage() {
     setClientQuery('');
     setClientResults([]);
     setSelectedClient(null);
+    setGuestEmail('');
   }, []);
 
-  // POS shortcuts: F2=search session, F4=pay, F5=new sale, Esc=previous step.
+  // Atajos POS: F2=buscar sesión, F4=cobrar, F5=nueva venta, Esc=paso anterior
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'F2' && step === 'sessions') {
@@ -317,16 +902,27 @@ export default function BoxOfficePage() {
     return <TicketSuccess tickets={tickets} total={total} payMethod={payMethod} onReset={reset} t={t} />;
   }
 
+  if (refundReceipt) {
+    return <RefundReceipt receipt={refundReceipt} onClose={() => setRefundReceipt(null)} t={t} />;
+  }
+
   return (
     <div className={styles.shell}>
-      {/* Main flow */}
+      {/* ── LEFT ─────────────────────────────────── */}
       <div className={styles.left}>
 
-        {/* Sessions step */}
+        {/* STEP: sessions */}
         {step === 'sessions' && (
           <>
             <div className={styles.leftHeader}>
               <h2 className={styles.leftTitle}>{t('box_office.title')}</h2>
+              <input
+                type="date"
+                className={styles.datePicker}
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+                aria-label="Fecha de sesiones"
+              />
               <div className={styles.searchBox}>
                 <Search size={12} className={styles.searchIcon} aria-hidden="true" />
                 <input className={styles.searchInput}
@@ -335,6 +931,18 @@ export default function BoxOfficePage() {
                   placeholder={t('box_office.search')}
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
               </div>
+              <button className={styles.newSessionBtn} onClick={() => setShowNewSession(true)} title="Nueva sesión">
+                <Plus size={14} />
+                <span>Nueva sesión</span>
+              </button>
+              <button className={styles.refundHeaderBtn} onClick={() => { setShowRefund(true); setRefundInput(''); }} title="Devolución de entrada">
+                <RotateCcw size={14} />
+                <span>Devolución</span>
+              </button>
+              <button className={styles.fullResetBtn} onClick={() => setShowFullResetConfirm(true)} title="Reset total — borrar TODAS las sesiones">
+                <Trash2 size={12} />
+                <span>Reset total</span>
+              </button>
             </div>
 
             {loadingSessions ? (
@@ -374,18 +982,27 @@ export default function BoxOfficePage() {
                               || '--:--';
 
                             return (
-                              <button
-                                key={s.id}
-                                className={`${styles.timeBtn} ${isFull ? styles.timeBtnFull : ''}`}
-                                onClick={() => selectSession(s)}
-                                disabled={isFull}
-                              >
-                                <span className={styles.timeBtnHour}>{time}</span>
-                                <span className={styles.timeBtnRoom}>{rm.name?.split('—')[0]?.trim() ?? `Sala ${s.room_id ?? ''}`}</span>
-                                <span className={styles.timeBtnOcc} style={{ color: OCC_COLOR(occPct) }}>
-                                  {isFull ? t('box_office.full') : `${soldCnt}/${cap}`}
-                                </span>
-                              </button>
+                              <div key={s.id} className={styles.timeBtnWrap}>
+                                <button
+                                  className={`${styles.timeBtn} ${isFull ? styles.timeBtnFull : ''}`}
+                                  onClick={() => handleTimeClick(s)}
+                                  disabled={isFull}
+                                >
+                                  <span className={styles.timeBtnHour}>{time}</span>
+                                  <span className={styles.timeBtnRoom}>{rm.name?.split('—')[0]?.trim() ?? `Sala ${s.room_id ?? ''}`}</span>
+                                  <span className={styles.timeBtnOcc} style={{ color: OCC_COLOR(occPct) }}>
+                                    {isFull ? t('box_office.full') : `${soldCnt}/${cap}`}
+                                  </span>
+                                </button>
+                                <div className={styles.timeBtnActions}>
+                                  <button className={styles.timeBtnEdit} onClick={e => openEditSession(s, e)} title="Editar sesión">
+                                    <Edit2 size={11} />
+                                  </button>
+                                  <button className={styles.timeBtnDelete} onClick={e => { e.stopPropagation(); setDeleteSession(s); }} title="Eliminar sesión">
+                                    <Trash2 size={11} />
+                                  </button>
+                                </div>
+                              </div>
                             );
                           })}
                         </div>
@@ -400,7 +1017,7 @@ export default function BoxOfficePage() {
           </>
         )}
 
-        {/* Seats step */}
+        {/* STEP: seats */}
         {step === 'seats' && selectedSession && selectedSession.id && (
           <>
             <div className={styles.leftHeader}>
@@ -417,7 +1034,7 @@ export default function BoxOfficePage() {
             <div className={styles.typeSelector}>
               <span className={styles.typeSelectorLabel}>{t('box_office.ticketType')}</span>
               <div className={styles.typeButtons}>
-                {ticketTypes.filter(tt => !tt.extra).map(tt => (
+                {ticketTypes.map(tt => (
                   <button key={tt.id}
                     className={`${styles.typeBtn} ${ticketType === tt.id ? styles.typeBtnActive : ''}`}
                     aria-pressed={ticketType === tt.id}
@@ -427,7 +1044,6 @@ export default function BoxOfficePage() {
                   </button>
                 ))}
               </div>
-              {extra && <p className={styles.extraNote}>+ suplemento {extra.label}: €{extra.price.toFixed(2)} / entrada</p>}
             </div>
 
             <div className={styles.seatMapWrap}>
@@ -441,7 +1057,7 @@ export default function BoxOfficePage() {
                   room={seatMapRoom}
                   seats={realSeats}
                   selectedSeats={selectedSeats}
-                  onToggle={setSelectedSeats}
+                  onToggle={handleSeatToggle}
                   maxSelect={20}
                 />
               )}
@@ -457,7 +1073,7 @@ export default function BoxOfficePage() {
           </>
         )}
 
-        {/* Payment step */}
+        {/* STEP: payment */}
         {step === 'payment' && (
           <>
             <div className={styles.leftHeader}>
@@ -507,6 +1123,15 @@ export default function BoxOfficePage() {
                       ))}
                     </div>
                   )}
+                  <input
+                    type="email"
+                    className={styles.guestEmailInput}
+                    placeholder="Email del cliente (necesario si no está en la lista)"
+                    value={guestEmail}
+                    onChange={e => setGuestEmail(e.target.value)}
+                    aria-label="Email del comprador"
+                  />
+                  <p className={styles.guestEmailHint}>El sistema buscará al cliente por email. Si tiene cuenta, el ticket se enviará a ese correo.</p>
                 </>
               )}
             </div>
@@ -553,13 +1178,13 @@ export default function BoxOfficePage() {
         )}
       </div>
 
-      {/* Summary */}
+      {/* ── RIGHT — summary ──────────────────────── */}
       <div className={styles.right}>
         <div className={styles.cartHeader}>
           <Ticket size={14} />
           <span>{t('box_office.summary')}</span>
           {selectedSeats.length > 0 && (
-            <button className={styles.clearCart} aria-label={t('box_office.clearSelection')} onClick={() => setSelectedSeats([])}>
+            <button className={styles.clearCart} aria-label={t('box_office.clearSelection')} onClick={() => { setSelectedSeats([]); setSeatTypes({}); }}>
               <X size={12} aria-hidden="true" />
             </button>
           )}
@@ -598,22 +1223,43 @@ export default function BoxOfficePage() {
               )}
               {extra && (
                 <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(201,168,76,0.2)' }}>
-                  <span className={styles.cartTypeLabel} style={{ color: 'var(--accent)' }}>+ {extra.label}</span>
+                  <span className={styles.cartTypeLabel} style={{ color: 'var(--accent)' }}>+ Suplemento {extra.label}</span>
                   <span className={styles.cartTypePrice}>€{extra.price.toFixed(2)} / ud.</span>
                 </div>
               )}
               <div className={styles.cartSeatsList}>
-                {selectedSeats.map(s => (
-                  <div key={s} className={styles.cartSeat}>
-                    <span className={styles.cartSeatId}>{s}</span>
-                    <span className={styles.cartSeatPrice}>€{totalPerTicket.toFixed(2)}</span>
-                    <button className={styles.cartSeatRemove}
-                      aria-label={`${t('box_office.removeSeat')} ${s}`}
-                      onClick={() => setSelectedSeats(prev => prev.filter(x => x !== s))}>
-                      <X size={10} aria-hidden="true" />
-                    </button>
-                  </div>
-                ))}
+                {selectedSeats.map(s => {
+                  const typeId    = seatTypes[s] || ticketType;
+                  const type      = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
+                  const isFid     = !!(selectedClient?.fidelityDiscountEligible && typeId === 'adult');
+                  const seat      = realSeats?.find(r => r.id === s);
+                  const isVip     = (seat?.seatType ?? '').toUpperCase() === 'VIP';
+                  const seatPrice = (isFid ? +(type.price * 0.9).toFixed(2) : type.price) + (isVip ? VIP_SEAT_SUPPLEMENT : 0) + (extra?.price ?? 0);
+                  return (
+                    <div key={s} className={styles.cartSeat}>
+                      <span className={styles.cartSeatId}>{s}{isVip && <span className={styles.vipBadge}>VIP</span>}</span>
+                      <select
+                        className={styles.cartSeatTypeSelect}
+                        value={typeId}
+                        onChange={e => setSeatTypes(prev => ({ ...prev, [s]: e.target.value }))}
+                        aria-label={`Tipo de entrada butaca ${s}`}
+                      >
+                        {ticketTypes.map(tt => (
+                          <option key={tt.id} value={tt.id}>{tt.label}</option>
+                        ))}
+                      </select>
+                      <span className={styles.cartSeatPrice}>€{seatPrice.toFixed(2)}</span>
+                      <button className={styles.cartSeatRemove}
+                        aria-label={`${t('box_office.removeSeat')} ${s}`}
+                        onClick={() => {
+                          setSelectedSeats(prev => prev.filter(x => x !== s));
+                          setSeatTypes(prev => { const n = { ...prev }; delete n[s]; return n; });
+                        }}>
+                        <X size={10} aria-hidden="true" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
@@ -643,12 +1289,396 @@ export default function BoxOfficePage() {
           )}
         </div>
       </div>
+
+      {/* ── Modal datos cliente ──────────────────── */}
+      {showClientModal && pendingSession && (
+        <div
+          className={styles.modalBackdrop}
+          onClick={e => e.target === e.currentTarget && handleClientDiscard()}
+          onKeyDown={e => e.key === 'Escape' && handleClientDiscard()}
+        >
+          <div
+            className={styles.modalBox}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="client-modal-title"
+            onKeyDown={e => { if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') handleClientSubmit(); }}
+          >
+            <div className={styles.modalHeader}>
+              <div className={styles.modalTitle}>
+                <User size={15} aria-hidden="true" />
+                <span id="client-modal-title">Datos del cliente</span>
+              </div>
+              <button className={styles.modalClose} onClick={handleClientDiscard} aria-label="Cerrar">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              {(pendingSession.movie?.title || pendingSession.startTime || pendingSession.dateTime) && (
+                <p className={styles.modalSubtitle}>
+                  {[
+                    pendingSession.movie?.title,
+                    pendingSession.startTime?.split('T')[1]?.substring(0, 5) || pendingSession.dateTime?.split('T')[1]?.substring(0, 5),
+                  ].filter(Boolean).join(' · ')}
+                </p>
+              )}
+              <p className={styles.guestEmailHint} style={{ marginBottom: 12 }}>Todos los campos son opcionales. Si introduces un email, el ticket se enviará por correo.</p>
+              <div className={styles.modalRow}>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Nombre</label>
+                  <input
+                    autoFocus
+                    className={styles.modalInput}
+                    value={clientForm.nombre}
+                    placeholder="Nombre"
+                    onChange={e => setClientForm(p => ({ ...p, nombre: e.target.value }))}
+                  />
+                </div>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Apellidos</label>
+                  <input
+                    className={styles.modalInput}
+                    value={clientForm.apellidos}
+                    placeholder="Apellidos"
+                    onChange={e => setClientForm(p => ({ ...p, apellidos: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className={styles.modalField}>
+                <label className={styles.modalLabel}>Email</label>
+                <input
+                  type="email"
+                  className={styles.modalInput}
+                  value={clientForm.email}
+                  placeholder="correo@ejemplo.com"
+                  onChange={e => setClientForm(p => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+              <div className={styles.modalField}>
+                <label className={styles.modalLabel}>Teléfono</label>
+                <input
+                  type="tel"
+                  className={styles.modalInput}
+                  value={clientForm.telefono}
+                  placeholder="+34 600 000 000"
+                  onChange={e => setClientForm(p => ({ ...p, telefono: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.modalCancel} onClick={handleClientDiscard}>Omitir</button>
+              <button className={styles.modalSave} onClick={handleClientSubmit}>
+                <ChevronRight size={14} aria-hidden="true" /> Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal devolución ─────────────────────── */}
+      {showRefund && (
+        <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-label="Devolución de entrada">
+          <div className={styles.modalBox} style={{ maxWidth: 400 }}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}><RotateCcw size={15} /> Devolución de entrada</h3>
+              <button className={styles.modalClose} onClick={() => setShowRefund(false)}><X size={15} /></button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <label className={styles.modalLabel}>Nº de ticket (ej: 30-56)</label>
+              <input
+                className={styles.modalInput}
+                placeholder="Escanea el QR o escribe el número"
+                value={refundInput}
+                onChange={e => setRefundInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleRefundSubmit()}
+                autoFocus
+              />
+              <p className={styles.modalSyncHint}>
+                El número aparece en el ticket impreso bajo el QR. También puedes pegar el contenido del QR directamente.
+              </p>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.modalCancel} onClick={() => setShowRefund(false)} disabled={refundProcessing}>Cancelar</button>
+              <button className={styles.modalSave} style={{ background: 'var(--red)' }}
+                onClick={handleRefundSubmit} disabled={refundProcessing || !refundInput.trim()}>
+                {refundProcessing ? <Loader size={14} /> : <RotateCcw size={14} />}
+                {refundProcessing ? 'Procesando…' : 'Confirmar devolución'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* ── Modal nueva sesión ────────────────────── */}
+      {showNewSession && (
+        <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-label="Nueva sesión">
+          <div className={styles.modalBox}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}><Film size={15} /> Nueva sesión</h3>
+              <button className={styles.modalClose} onClick={() => setShowNewSession(false)} aria-label="Cerrar"><X size={15} /></button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <label className={styles.modalLabel}>Película *</label>
+              <select className={styles.modalSelect} value={newForm.movieId} onChange={e => setNF('movieId', e.target.value)}>
+                <option value="">— Selecciona película —</option>
+                {newMovies.map(m => (
+                  <option key={m.id} value={m.id}>{m.title}</option>
+                ))}
+              </select>
+
+              <label className={styles.modalLabel}>Sala *</label>
+              <select className={styles.modalSelect} value={newForm.theaterId} onChange={e => setNF('theaterId', e.target.value)}>
+                <option value="">— Selecciona sala —</option>
+                {newRooms.map(r => (
+                  <option key={r.id} value={r.id}>{r.name} ({r.capacity} butacas)</option>
+                ))}
+              </select>
+
+              <div className={styles.modalRow}>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Fecha *</label>
+                  <input type="date" className={styles.modalInput} value={newForm.date} onChange={e => setNF('date', e.target.value)} />
+                </div>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Hora *</label>
+                  <input type="time" className={styles.modalInput} value={newForm.time} onChange={e => setNF('time', e.target.value)} />
+                </div>
+              </div>
+
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.modalCancel} onClick={() => setShowNewSession(false)}>Cancelar</button>
+              <button className={styles.modalSave} onClick={handleCreateSession} disabled={newSaving}>
+                {newSaving ? <Loader size={14} /> : <CheckCircle size={14} />}
+                Crear sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal editar sesión ───────────────────────── */}
+      {editSession && (
+        <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-label="Editar sesión">
+          <div className={styles.modalBox}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}><Edit2 size={15} /> Editar sesión</h3>
+              <button className={styles.modalClose} onClick={() => setEditSession(null)} aria-label="Cerrar"><X size={15} /></button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <label className={styles.modalLabel}>Película *</label>
+              <select className={styles.modalSelect} value={editForm.movieId} onChange={e => setEF('movieId', e.target.value)}>
+                <option value="">— Selecciona película —</option>
+                {newMovies.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+              </select>
+
+              <label className={styles.modalLabel}>Sala *</label>
+              <select className={styles.modalSelect} value={editForm.theaterId} onChange={e => setEF('theaterId', e.target.value)}>
+                <option value="">— Selecciona sala —</option>
+                {newRooms.map(r => <option key={r.id} value={r.id}>{r.name} ({r.capacity} but.)</option>)}
+              </select>
+
+              <div className={styles.modalRow}>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Fecha *</label>
+                  <input type="date" className={styles.modalInput} value={editForm.date} onChange={e => setEF('date', e.target.value)} />
+                </div>
+                <div className={styles.modalField}>
+                  <label className={styles.modalLabel}>Hora *</label>
+                  <input type="time" className={styles.modalInput} value={editForm.time} onChange={e => setEF('time', e.target.value)} />
+                </div>
+              </div>
+
+              <label className={styles.modalLabel}>Precio base (€) *</label>
+              <input type="number" className={styles.modalInput} min="0.01" step="0.50"
+                placeholder="Ej: 9.00" required
+                value={editForm.basePrice} onChange={e => setEF('basePrice', e.target.value)} />
+            </div>
+
+            <div className={styles.modalSync}>
+              <button className={styles.modalSyncBtn} onClick={handleSyncSeats} disabled={syncing}>
+                {syncing ? <Loader size={13} /> : <Film size={13} />}
+                {syncing ? 'Sincronizando…' : 'Resincronizar butacas con la sala'}
+              </button>
+              <span className={styles.modalSyncHint}>Actualiza las butacas de esta sesión si la sala cambió de capacidad</span>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.modalCancel} onClick={() => setEditSession(null)}>Cancelar</button>
+              <button className={styles.modalSave} onClick={handleEditSession} disabled={editSaving}>
+                {editSaving ? <Loader size={14} /> : <CheckCircle size={14} />}
+                Guardar cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reset total (todos los días) ─────────────── */}
+      {showFullResetConfirm && (
+        <div className={styles.modalBackdrop} role="dialog" aria-modal="true">
+          <div className={styles.modalBox} style={{ maxWidth: 420 }}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle} style={{ color: 'var(--red)' }}><Trash2 size={15} /> Reset total</h3>
+              <button className={styles.modalClose} onClick={() => !fullResetting && setShowFullResetConfirm(false)}><X size={15} /></button>
+            </div>
+            <div className={styles.modalBody}>
+              {fullResetting ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-2)', padding: '8px 0' }}>
+                  <Loader size={16} />
+                  <span>{fullResetProgress}</span>
+                </div>
+              ) : (
+                <>
+                  <p style={{ color: 'var(--text-1)', fontWeight: 700, fontSize: 'var(--fs-md)', marginBottom: 8 }}>
+                    Se eliminarán TODAS las sesiones de todos los días.
+                  </p>
+                  <p style={{ color: 'var(--text-3)', fontSize: 'var(--fs-sm)', lineHeight: 1.6 }}>
+                    Las entradas vendidas se cancelarán automáticamente antes de borrar cada sesión. Esta acción no se puede deshacer.
+                  </p>
+                </>
+              )}
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.modalCancel} onClick={() => setShowFullResetConfirm(false)} disabled={fullResetting}>Cancelar</button>
+              <button className={styles.modalSave} style={{ background: 'var(--red)' }} onClick={handleFullReset} disabled={fullResetting}>
+                {fullResetting ? <Loader size={14} /> : <Trash2 size={14} />}
+                {fullResetting ? fullResetProgress : 'Borrar todo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm reset todas las sesiones del día ──── */}
+      {showResetConfirm && (
+        <div className={styles.modalBackdrop} role="dialog" aria-modal="true">
+          <div className={styles.modalBox} style={{ maxWidth: 400 }}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}><Trash2 size={15} /> Borrar sesiones del día</h3>
+              <button className={styles.modalClose} onClick={() => setShowResetConfirm(false)}><X size={15} /></button>
+            </div>
+            <div className={styles.modalBody}>
+              <p style={{ color: 'var(--text-2)', fontSize: 'var(--fs-md)', lineHeight: 1.6 }}>
+                Se eliminarán <strong>{filteredSessions.length} sesión{filteredSessions.length !== 1 ? 'es' : ''}</strong> del {selectedDate}.
+              </p>
+              <p style={{ color: 'var(--text-3)', fontSize: 'var(--fs-sm)', marginTop: 8, lineHeight: 1.5 }}>
+                Las sesiones con entradas vendidas no se podrán borrar y se te avisará. El resto se eliminarán permanentemente.
+              </p>
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.modalCancel} onClick={() => setShowResetConfirm(false)} disabled={resetting}>Cancelar</button>
+              <button className={styles.modalSave} style={{ background: 'var(--red)' }} onClick={handleResetSessions} disabled={resetting}>
+                {resetting ? <Loader size={14} /> : <Trash2 size={14} />}
+                {resetting ? 'Borrando…' : 'Sí, borrar todas'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm delete sesión ─────────────────────── */}
+      {deleteSession && (
+        <div className={styles.modalBackdrop} role="dialog" aria-modal="true">
+          <div className={styles.modalBox} style={{ maxWidth: 380 }}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}><Trash2 size={15} /> Eliminar sesión</h3>
+              <button className={styles.modalClose} onClick={() => setDeleteSession(null)}><X size={15} /></button>
+            </div>
+            <div className={styles.modalBody}>
+              <p style={{ color: 'var(--text-2)', fontSize: 'var(--fs-md)', lineHeight: 1.5 }}>
+                ¿Eliminar la sesión de <strong>{deleteSession.movie?.title}</strong> a las{' '}
+                <strong>{(deleteSession.startTime ?? deleteSession.dateTime ?? '').split('T')[1]?.substring(0, 5)}</strong>?
+                Esta acción no se puede deshacer.
+              </p>
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.modalCancel} onClick={() => setDeleteSession(null)}>Cancelar</button>
+              <button className={styles.modalSave} style={{ background: 'var(--red)' }} onClick={handleDeleteSession}>
+                <Trash2 size={14} /> Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* Ticket success screen */
-export function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
+/* ── Refund receipt ──────────────────────────────── */
+const TYPE_LABEL = { ADULT: 'Adulto', SENIOR: 'Reducida', STUDENT: 'Estudiante', CHILD: 'Infantil' };
+
+function RefundReceipt({ receipt, onClose, t }) {
+  useEffect(() => {
+    const id = setTimeout(() => window.print(), 200);
+    return () => clearTimeout(id);
+  }, []);
+
+  const typeLabel = receipt.ticketType
+    ? receipt.ticketType.split(', ').map(tp => TYPE_LABEL[tp] || tp).join(', ')
+    : '—';
+  const amountStr = receipt.amount != null ? `€${Number(receipt.amount).toFixed(2)}` : '—';
+
+  return (
+    <div className={styles.successShell}>
+      <div className={styles.ticketCard} style={{ borderColor: 'rgba(220,40,74,.3)' }}>
+        <div className={styles.ticketCardHeader} style={{ background: 'rgba(220,40,74,.15)', color: '#c0293a' }}>
+          <RotateCcw size={15} className={styles.ticketCardLogo} />
+          <span>LUMEN CINEMA — REEMBOLSO</span>
+        </div>
+        <div className={styles.ticketCardDivider} />
+        <h3 className={styles.ticketCardMovie}>{receipt.movie}</h3>
+        <p className={styles.ticketCardFormat}>{typeLabel} · {receipt.numTickets ?? 1} entrada{(receipt.numTickets ?? 1) !== 1 ? 's' : ''}</p>
+        <div className={styles.ticketCardDivider} />
+        <div className={styles.ticketCardInfo}>
+          <div><span className={styles.tcLabel}>FECHA</span><span className={styles.tcVal}>{receipt.date}</span></div>
+          <div><span className={styles.tcLabel}>HORA</span><span className={styles.tcVal}>{receipt.time}</span></div>
+          <div><span className={styles.tcLabel}>SALA</span><span className={styles.tcVal}>{receipt.theater}</span></div>
+          <div><span className={styles.tcLabel}>BUTACA(S)</span><span className={styles.tcVal}>{receipt.seat}</span></div>
+        </div>
+        <div className={styles.ticketCardDivider} />
+        <div className={styles.ticketCardTotal}>
+          <span className={styles.tcLabel}>IMPORTE REEMBOLSADO</span>
+          <span className={styles.tcTotalVal} style={{ color: '#c0293a' }}>{amountStr}</span>
+        </div>
+        <div className={styles.ticketCardDivider} />
+        <div className={styles.ticketQRWrap}>
+          <div role="img" aria-label="QR de comprobante de reembolso">
+            <QRCodeSVG value={`REFUND:${receipt.refundId}`} size={110} bgColor="transparent" fgColor="#111111" level="M" />
+          </div>
+          <div className={styles.ticketQRInfo}>
+            <span className={styles.ticketQRLabel}>Comprobante reembolso</span>
+            <span className={styles.ticketId}>{receipt.refundId}</span>
+            <span className={styles.ticketIdSeat}>Compra #{receipt.purchaseId}</span>
+            <span className={styles.ticketIdSeat}>{new Date(receipt.refundedAt).toLocaleString('es-ES')}</span>
+          </div>
+        </div>
+        <div className={styles.ticketCardDivider} />
+        <p className={styles.ticketFooter}>Conserve este comprobante. El importe se abonará en 1-3 días hábiles si el pago fue con tarjeta.</p>
+      </div>
+
+      <div className={styles.ticketActions}>
+        <button className={styles.printBtn} onClick={() => window.print()}>
+          <Printer size={14} /> Imprimir comprobante
+        </button>
+        <button className={styles.newSaleBtn} onClick={onClose}>
+          <X size={14} /> Cerrar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Ticket success screen ───────────────────────── */
+function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
   const [current, setCurrent] = useState(0);
   const ticket    = tickets[current];
 
@@ -670,7 +1700,22 @@ export function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
   return (
     <div className={styles.successShell}>
       <div className={styles.successLeft}>
-        <div className={styles.successIcon}><CheckCircle size={30} /></div>
+        <div className={styles.successIconWrap}>
+          <div className={styles.successIcon}><CheckCircle size={30} /></div>
+          {[
+            { tx: '-60px', ty: '-50px', bg: '#C49A6C', delay: '0ms' },
+            { tx: '60px',  ty: '-50px', bg: '#EDD8A5', delay: '60ms' },
+            { tx: '-80px', ty: '-20px', bg: '#C49A6C', delay: '120ms' },
+            { tx: '80px',  ty: '-20px', bg: '#EDD8A5', delay: '40ms' },
+            { tx: '-50px', ty: '50px',  bg: '#C49A6C', delay: '80ms' },
+            { tx: '50px',  ty: '50px',  bg: '#EDD8A5', delay: '100ms' },
+            { tx: '0px',   ty: '-70px', bg: '#B8966A', delay: '20ms' },
+            { tx: '0px',   ty: '70px',  bg: '#D4B890', delay: '140ms' },
+          ].map((p, i) => (
+            <span key={i} className={styles.confetti}
+              style={{ '--tx': p.tx, '--ty': p.ty, background: p.bg, animationDelay: p.delay }} />
+          ))}
+        </div>
         <h2 className={styles.successTitle}>{t('box_office.success.title')}</h2>
         <p className={styles.successSub}>{tickets.length} entrada{tickets.length !== 1 ? 's' : ''} · €{total.toFixed(2)} · {PAY_LABEL[payMethod]}</p>
         {tickets.length > 1 && (
@@ -726,6 +1771,7 @@ export function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
         <div className={styles.ticketCardDivider} />
         <p className={styles.ticketFooter}>{t('box_office.ticket.footer')}</p>
       </div>
+
     </div>
   );
 }

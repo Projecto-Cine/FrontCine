@@ -1,10 +1,10 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Film, Building2, CalendarDays, Ticket,
   AlertTriangle, Package, Users, UserSearch,
   ChevronDown, ChevronRight, LogOut, ShoppingCart, TicketCheck, ClipboardList
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -54,7 +54,7 @@ function NavItem({ item, collapsed, t }) {
       to={item.to}
       end={item.exact}
       className={({ isActive }) =>
-        `${styles.navItem} ${isActive ? styles.active : ''} ${item.highlight ? styles.highlight : ''}`
+        `${styles.navItem} ${isActive ? styles.active + ' nav-active' : ''} ${item.highlight ? styles.highlight : ''}`
       }
       aria-label={collapsed ? label : undefined}
     >
@@ -71,9 +71,20 @@ function NavItem({ item, collapsed, t }) {
 
 export default function Sidebar() {
   const { sidebarCollapsed } = useApp();
-  const { user, logout }     = useAuth();
+  const { user, logout, canAccess } = useAuth();
   const { t }                = useLanguage();
+  const location             = useLocation();
   const [collapsed, setCollapsed] = useState({});
+  const navRef  = useRef(null);
+  const pillRef = useRef(null);
+
+  useEffect(() => {
+    const active = navRef.current?.querySelector('.nav-active');
+    if (!active || !pillRef.current) { if (pillRef.current) pillRef.current.style.opacity = '0'; return; }
+    pillRef.current.style.transform = `translateY(${active.offsetTop}px)`;
+    pillRef.current.style.height    = `${active.offsetHeight}px`;
+    pillRef.current.style.opacity   = '1';
+  }, [location.pathname, sidebarCollapsed]);
 
   const toggleSection = (s) => setCollapsed(prev => ({ ...prev, [s]: !prev[s] }));
 
@@ -96,9 +107,16 @@ export default function Sidebar() {
         </picture>
       </div>
 
-      <nav aria-label="Menú principal">
+      <nav ref={navRef} className={styles.nav} aria-label="Menú principal">
+        <div ref={pillRef} className={styles.slidingPill} aria-hidden="true" />
         {NAV.map((item, i) => {
-          if (item.to) return <NavItem key={item.to} item={item} collapsed={sidebarCollapsed} t={t} />;
+          if (item.to) {
+            if (!canAccess(item.to === '/' ? '/' : item.to)) return null;
+            return <NavItem key={item.to} item={item} collapsed={sidebarCollapsed} t={t} />;
+          }
+
+          const visibleItems = item.items.filter(sub => canAccess(sub.to));
+          if (visibleItems.length === 0) return null;
 
           const isCollapsedSection = !!collapsed[item.sectionKey];
           const sectionId = `nav-section-${i}`;
@@ -126,7 +144,7 @@ export default function Sidebar() {
                 role="group"
                 aria-labelledby={!sidebarCollapsed ? sectionId : undefined}
               >
-                {!isCollapsedSection && item.items.map(sub => (
+                {!isCollapsedSection && visibleItems.map(sub => (
                   <NavItem key={sub.to} item={sub} collapsed={sidebarCollapsed} t={t} />
                 ))}
               </div>

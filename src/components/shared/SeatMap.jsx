@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import styles from './SeatMap.module.css';
 
 const ROW_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -37,6 +37,7 @@ function RealSeatMap({ seats, selectedSeats, onToggle, maxSelect }) {
     () => new Set(seats.filter(s => s.status === 'unavailable').map(s => `${s.row}${String(s.number).padStart(2, '0')}`)),
     [seats]
   );
+  const hasVip = seats.some(s => (s.seatType ?? '').toUpperCase() === 'VIP');
 
   const available = seats.filter(s => s.status === 'available').length;
   const total     = seats.length;
@@ -44,15 +45,20 @@ function RealSeatMap({ seats, selectedSeats, onToggle, maxSelect }) {
   const maxCols   = Math.max(...rows.map(r => r.seats.length), 1);
   const AISLE     = maxCols > 10 ? Math.floor(maxCols / 2) : -1;
 
-  const handleSeat = (id, isOcc, isUnavail) => {
+  const [rippling, setRippling] = useState(null);
+
+  const handleSeat = useCallback((id, isOcc, isUnavail) => {
     if (isOcc || isUnavail) return;
-    if (selectedSeats.includes(id)) {
-      onToggle(selectedSeats.filter(s => s !== id));
-    } else {
+    if (!selectedSeats.includes(id)) {
       if (selectedSeats.length >= maxSelect) return;
-      onToggle([...selectedSeats, id]);
+      setRippling(id);
+      setTimeout(() => setRippling(null), 420);
     }
-  };
+    onToggle(selectedSeats.includes(id)
+      ? selectedSeats.filter(s => s !== id)
+      : [...selectedSeats, id]
+    );
+  }, [selectedSeats, onToggle, maxSelect]);
 
   return (
     <div className={styles.cinema}>
@@ -64,6 +70,7 @@ function RealSeatMap({ seats, selectedSeats, onToggle, maxSelect }) {
         <span className={styles.legendItem}><span className={`${styles.legendSeat} ${styles.lFree}`} />Libre</span>
         <span className={styles.legendItem}><span className={`${styles.legendSeat} ${styles.lOcc}`} />Ocupada</span>
         <span className={styles.legendItem}><span className={`${styles.legendSeat} ${styles.lSel}`} />Seleccionada</span>
+        {hasVip && <span className={styles.legendItem}><span className={`${styles.legendSeat} ${styles.lVip}`} />VIP +€1</span>}
         {unavailable.size > 0 && <span className={styles.legendItem}><span className={`${styles.legendSeat} ${styles.lUnavail}`} />No disponible</span>}
         <span className={styles.legendSep} />
         <span className={styles.legendInfo}>{available} libres · {occPct}% ocupación</span>
@@ -79,15 +86,21 @@ function RealSeatMap({ seats, selectedSeats, onToggle, maxSelect }) {
                   const isOcc     = occupied.has(id);
                   const isUnavail = unavailable.has(id);
                   const isSel     = selectedSeats.includes(id);
+                  const isVip     = (seat.seatType ?? '').toUpperCase() === 'VIP';
+                  const seatClass = isUnavail ? styles.unavail
+                    : isOcc  ? styles.occ
+                    : isSel  ? (isVip ? styles.vipSel : styles.sel)
+                    : isVip  ? styles.vipFree
+                    : styles.free;
                   return (
-                    <div key={seat.id} className={styles.seatWrap}>
+                    <div key={seat.id} className={`${styles.seatWrap}${rippling === id ? ` ${styles.rippling}` : ''}`}>
                       {c === AISLE && <span className={styles.aisle} />}
                       <button
-                        className={`${styles.seat} ${isUnavail ? styles.unavail : isOcc ? styles.occ : isSel ? styles.sel : styles.free}`}
+                        className={`${styles.seat} ${seatClass}`}
                         onClick={() => handleSeat(id, isOcc, isUnavail)}
                         disabled={isOcc || isUnavail}
-                        title={isUnavail ? `${id} — no disponible en esta sesión` : isOcc ? `${id} — ocupada` : isSel ? `${id} — seleccionada` : `${id} — libre`}
-                        aria-label={`Butaca ${id}${isUnavail ? ' no disponible' : isOcc ? ' ocupada' : isSel ? ' seleccionada' : ' libre'}`}
+                        title={isUnavail ? `${id} — no disponible` : isOcc ? `${id} — ocupada` : isSel ? `${id} — seleccionada${isVip ? ' (VIP +€1)' : ''}` : `${id}${isVip ? ' — VIP +€1' : ' — libre'}`}
+                        aria-label={`Butaca ${id}${isVip ? ' VIP' : ''}${isUnavail ? ' no disponible' : isOcc ? ' ocupada' : isSel ? ' seleccionada' : ' libre'}`}
                       />
                     </div>
                   );

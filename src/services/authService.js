@@ -1,7 +1,6 @@
 import { api } from './api';
 
 export const authService = {
-  // POST /api/auth/login — respuesta plana: { token, user }
-  login: (email, password) =>
-    api.post('/auth/login', { email, password }),
+  login:         (email, password) => api.post('/auth/login',          { email, password }),
+  employeeLogin: (email, password) => api.post('/auth/employee-login', { email, password }),
 };

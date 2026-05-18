@@ -2,8 +2,8 @@
  * Smoke test for MainLayout: mounts the full layout with a fake Outlet.
  * This covers the keyboard handlers (Ctrl+K, Ctrl+B, Alt+1..9).
  */
-import { describe, it, vi } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { LanguageProvider } from '../i18n/LanguageContext';
 import { AppProvider } from '../contexts/AppContext';
@@ -40,5 +40,32 @@ describe('MainLayout', () => {
     fireEvent.keyDown(document, { key: '5', altKey: true });
     // Irrelevant key: covers the "no-op" branch.
     fireEvent.keyDown(document, { key: 'z' });
+  });
+
+  it('opens and closes the command palette from the header trigger', async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+
+    const { default: MainLayout } = await import('./MainLayout');
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <LanguageProvider>
+          <AppProvider>
+            <Routes>
+              <Route path="/" element={<MainLayout />}>
+                <Route index element={<div>Página fake</div>} />
+              </Route>
+            </Routes>
+          </AppProvider>
+        </LanguageProvider>
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /búsqueda rápida|quick search/i }));
+    const palette = screen.getByRole('dialog', { name: /paleta de comandos/i });
+    expect(palette).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: /paleta de comandos/i })).not.toBeInTheDocument();
   });
 });

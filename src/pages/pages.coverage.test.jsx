@@ -24,9 +24,15 @@ const ROOMS = [
   { id: 1, name: 'Sala 1 — IMAX', capacity: 100, type: 'IMAX', status: 'active' },
   { id: 2, name: 'Sala 2 — VIP', capacity: 50, type: 'VIP', status: 'maintenance' },
 ];
+// Use future times today so BoxOfficePage's "hide past sessions" filter keeps them visible
+const TODAY = new Date().toISOString().split('T')[0];
+const FUTURE_HOUR = (() => {
+  const d = new Date(); d.setHours(d.getHours() + 4);
+  return `${String(d.getHours()).padStart(2, '0')}:00:00`;
+})();
 const SCREENINGS = [
-  { id: 1, startTime: '2026-05-15T20:00:00', dateTime: '2026-05-15T20:00:00', price: 13.5, basePrice: 13.5, status: 'SCHEDULED', availableSeats: 70, capacity: 100, movie: MOVIES[0], theater: ROOMS[0], full: false },
-  { id: 2, startTime: '2026-05-15T22:30:00', dateTime: '2026-05-15T22:30:00', price: 9, basePrice: 9, status: 'ACTIVE', availableSeats: 0, capacity: 50, movie: MOVIES[1], theater: ROOMS[1], full: true },
+  { id: 1, startTime: `${TODAY}T${FUTURE_HOUR}`, dateTime: `${TODAY}T${FUTURE_HOUR}`, price: 13.5, basePrice: 13.5, status: 'SCHEDULED', availableSeats: 70, capacity: 100, movie: MOVIES[0], theater: ROOMS[0], full: false },
+  { id: 2, startTime: `${TODAY}T${FUTURE_HOUR}`, dateTime: `${TODAY}T${FUTURE_HOUR}`, price: 9, basePrice: 9, status: 'ACTIVE', availableSeats: 0, capacity: 50, movie: MOVIES[1], theater: ROOMS[1], full: true },
 ];
 const PRODUCTS = [
   { id: 1, name: 'Palomitas grandes', category: 'FOOD', price: 6.5, price_unit: 6.5, quantity: 50, description: 'Saladas', imageUrl: '', emoji: '🍿' },
@@ -90,8 +96,21 @@ vi.mock('../services/roomsService', () => ({
   theatersService: mkSvc({ getAll: vi.fn().mockResolvedValue(ROOMS), getSeats: vi.fn().mockResolvedValue([]) }),
 }));
 vi.mock('../services/sessionsService', () => ({
-  sessionsService:    mkSvc({ getAll: vi.fn().mockResolvedValue(SCREENINGS), getUpcoming: vi.fn().mockResolvedValue(SCREENINGS), getByMovie: vi.fn().mockResolvedValue(SCREENINGS) }),
-  screeningsService:  mkSvc({ getAll: vi.fn().mockResolvedValue(SCREENINGS), getUpcoming: vi.fn().mockResolvedValue(SCREENINGS), getByMovie: vi.fn().mockResolvedValue(SCREENINGS) }),
+  sessionsService:    mkSvc({
+    getAll: vi.fn().mockResolvedValue(SCREENINGS),
+    getUpcoming: vi.fn().mockResolvedValue(SCREENINGS),
+    getByMovie: vi.fn().mockResolvedValue(SCREENINGS),
+    syncSeats: vi.fn().mockResolvedValue([
+      { id: 1, seat: { id: 1, row: 'A', number: 1 }, occupied: false },
+      { id: 2, seat: { id: 2, row: 'A', number: 2 }, occupied: false },
+    ]),
+  }),
+  screeningsService:  mkSvc({
+    getAll: vi.fn().mockResolvedValue(SCREENINGS),
+    getUpcoming: vi.fn().mockResolvedValue(SCREENINGS),
+    getByMovie: vi.fn().mockResolvedValue(SCREENINGS),
+    syncSeats: vi.fn().mockResolvedValue([]),
+  }),
 }));
 vi.mock('../services/seatsService', () => ({
   seatsService: {

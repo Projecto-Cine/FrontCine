@@ -1678,7 +1678,7 @@ function RefundReceipt({ receipt, onClose, t }) {
 }
 
 /* ── Ticket success screen ───────────────────────── */
-function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
+export function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
   const [current, setCurrent] = useState(0);
   const ticket    = tickets[current];
 

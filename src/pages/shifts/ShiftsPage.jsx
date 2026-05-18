@@ -48,11 +48,6 @@ function generateWeekSchedule(employees, weekStartDate, genKey = 0) {
   const wn = weekNum(weekStartDate) + weekStartDate.getFullYear() * 100;
   let seed = ((wn * 31337 + 7 + genKey * 999983) >>> 0);
 
-  const rand = () => {
-    seed = ((seed * 1664525 + 1013904223) >>> 0);
-    return seed / 0xffffffff;
-  };
-
   const weights = [2, 1, 1, 1, 1, 3, 3];
   const totalW = weights.reduce((a, b) => a + b, 0);
 
@@ -199,7 +194,7 @@ function WeekTable({ rows, weekStart, editCell, onEditCell, onShiftChange, onClo
 }
 
 // ── Main page ──────────────────────────────────────────
-export default function CuadrantePage() {
+export default function ShiftsPage() {
   const { toast } = useApp();
   const { t, language } = useLanguage();
   const [mode, setMode] = useState('week');

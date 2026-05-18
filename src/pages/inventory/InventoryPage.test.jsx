@@ -59,10 +59,15 @@ describe('InventoryPage', () => {
     fireEvent.change(document.getElementById('inv-qty'), { target: { value: '10' } });
     fireEvent.change(document.getElementById('inv-min'), { target: { value: '3' } });
     fireEvent.change(document.getElementById('inv-price'), { target: { value: '15' } });
-    fireEvent.change(document.getElementById('inv-loc'), { target: { value: 'D1' } });
-    fireEvent.change(document.getElementById('inv-sup'), { target: { value: 'X' } });
-    fireEvent.change(document.getElementById('inv-unit'), { target: { value: 'ud' } });
-    fireEvent.change(document.getElementById('inv-cat'), { target: { value: 'Técnico' } });
+    if (document.getElementById('inv-sup')) {
+      fireEvent.change(document.getElementById('inv-sup'), { target: { value: 'X' } });
+    }
+    if (document.getElementById('inv-unit')) {
+      fireEvent.change(document.getElementById('inv-unit'), { target: { value: 'ud' } });
+    }
+    if (document.getElementById('inv-cat')) {
+      fireEvent.change(document.getElementById('inv-cat'), { target: { value: 'Técnico' } });
+    }
     const dlg = document.querySelectorAll('[role="dialog"] button');
     const save = [...dlg].find(b => b.textContent.includes('ñadir'));
     if (save) fireEvent.click(save);

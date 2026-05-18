@@ -37,7 +37,7 @@ vi.mock('../../services/cloudinaryService', () => ({
 }));
 
 vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 1, name: 'Admin', role: 'admin' } }),
+  useAuth: () => ({ user: { id: 1, name: 'Admin', role: 'GERENCIA' } }),
 }));
 
 import ConcessionPage from './ConcessionPage';

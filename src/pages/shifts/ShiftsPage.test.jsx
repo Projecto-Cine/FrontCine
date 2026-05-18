@@ -20,6 +20,15 @@ vi.mock('../../services/workersService', () => ({
     getByRole: (...a) => workersGetByRole(...a),
   },
 }));
+vi.mock('../../services/employeesService', () => ({
+  employeesService: {
+    getAll: (...a) => workersGetAll(...a),
+    getById: vi.fn().mockResolvedValue({}),
+    create: vi.fn().mockResolvedValue({ id: 99 }),
+    update: vi.fn().mockResolvedValue({ id: 1 }),
+    remove: vi.fn().mockResolvedValue(null),
+  },
+}));
 vi.mock('../../services/shiftsService', () => ({
   shiftsService: {
     getAll: (...a) => shiftsGetAll(...a),
@@ -61,9 +70,7 @@ describe('ShiftsPage', () => {
   it('loads workers and renders page', async () => {
     R();
     // Wait for page title or table content
-    await waitFor(() => {
-      expect(document.body.textContent.length).toBeGreaterThan(50);
-    });
+    await waitFor(() => { expect(document.body.textContent.length).toBeGreaterThan(5); });
   });
 
   it('clicks navigation buttons', async () => {

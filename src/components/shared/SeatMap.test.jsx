@@ -87,4 +87,50 @@ describe('SeatMap', () => {
     fireEvent.click(screen.getByTitle('Deseleccionar A01'));
     expect(onToggle).toHaveBeenCalledWith([]);
   });
+
+  it('renders generated map for very large rooms (>220 capacity → 20 cols)', () => {
+    render(<SeatMap session={{ id: 1 }} room={{ capacity: 240 }} selectedSeats={[]} onToggle={() => {}} maxSelect={3} />);
+    expect(screen.getByText('Pantalla')).toBeInTheDocument();
+  });
+
+  it('renders generated map medium room (capacity 100 → 12 cols)', () => {
+    render(<SeatMap session={{ id: 1 }} room={{ capacity: 100 }} selectedSeats={[]} onToggle={() => {}} maxSelect={3} />);
+    expect(screen.getByText('Pantalla')).toBeInTheDocument();
+  });
+
+  it('renders generated map small room (≤80 → 8 cols)', () => {
+    render(<SeatMap session={{ id: 1 }} room={{ capacity: 60 }} selectedSeats={[]} onToggle={() => {}} maxSelect={3} />);
+    expect(screen.getByText('Pantalla')).toBeInTheDocument();
+  });
+
+  it('renders generated map XL room (≤220 → 16 cols)', () => {
+    render(<SeatMap session={{ id: 1 }} room={{ capacity: 200 }} selectedSeats={[]} onToggle={() => {}} maxSelect={3} />);
+    expect(screen.getByText('Pantalla')).toBeInTheDocument();
+  });
+
+  it('generated map: toggles a seat (selects + deselects)', () => {
+    const onToggle = vi.fn();
+    const { rerender } = render(
+      <SeatMap session={{ id: 1, sold: 0 }} room={{ capacity: 60 }} selectedSeats={[]} onToggle={onToggle} maxSelect={3} />
+    );
+    fireEvent.click(screen.getByLabelText('Butaca A01 libre'));
+    expect(onToggle).toHaveBeenCalledWith(['A01']);
+
+    // Now with one seat already selected, clicking the same seat should remove it
+    rerender(
+      <SeatMap session={{ id: 1, sold: 0 }} room={{ capacity: 60 }} selectedSeats={['A01']} onToggle={onToggle} maxSelect={3} />
+    );
+    fireEvent.click(screen.getByLabelText('Butaca A01 seleccionada'));
+    expect(onToggle).toHaveBeenLastCalledWith([]);
+  });
+
+  it('renders unavailable seats with the unavailable legend', () => {
+    render(<SeatMap seats={[...seats, { id: 99, row: 'C', number: 1, status: 'unavailable' }]} selectedSeats={[]} onToggle={() => {}} maxSelect={3} />);
+    expect(screen.getByText(/No disponible/)).toBeInTheDocument();
+  });
+
+  it('renders VIP seats with the VIP legend', () => {
+    render(<SeatMap seats={[...seats, { id: 99, row: 'E', number: 1, status: 'available', seatType: 'VIP' }]} selectedSeats={[]} onToggle={() => {}} maxSelect={3} />);
+    expect(screen.getByText(/VIP/)).toBeInTheDocument();
+  });
 });

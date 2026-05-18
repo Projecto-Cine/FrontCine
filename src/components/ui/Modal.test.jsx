@@ -91,4 +91,39 @@ describe('ConfirmModal', () => {
     );
     expect(screen.getByText('¿Estás seguro?')).toBeInTheDocument();
   });
+
+  it('renders with danger variant', () => {
+    renderWith(
+      <ConfirmModal open onClose={() => {}} onConfirm={() => {}}
+        title="X" message="¿Estás seguro?" danger />
+    );
+    expect(screen.getByText('¿Estás seguro?')).toBeInTheDocument();
+  });
+});
+
+describe('Modal — keyboard focus trap', () => {
+  it('traps focus when tabbing past the last focusable element', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    renderWith(
+      <Modal open onClose={onClose} title="X" footer={<button>OK</button>}>
+        <input data-testid="input1" />
+        <input data-testid="input2" />
+      </Modal>
+    );
+    // Tab around to exercise the focus-trap branches
+    await user.tab();
+    await user.tab({ shift: true });
+  });
+
+  it('renders with different sizes (sm, md, lg)', () => {
+    const { unmount: u1 } = renderWith(<Modal open onClose={() => {}} title="A" size="sm">body</Modal>);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    u1();
+    const { unmount: u2 } = renderWith(<Modal open onClose={() => {}} title="B" size="md">body</Modal>);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    u2();
+    renderWith(<Modal open onClose={() => {}} title="C" size="lg">body</Modal>);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
 });

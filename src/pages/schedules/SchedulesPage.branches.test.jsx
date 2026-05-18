@@ -205,4 +205,50 @@ describe('SchedulesPage — branch coverage', () => {
     const cancel = [...document.querySelectorAll('[role="dialog"] button')].find(b => /ancelar/i.test(b.textContent ?? ''));
     if (cancel) fireEvent.click(cancel);
   });
+
+  it('handles null screenings/movies/theaters via fallback', async () => {
+    scrGetAll.mockResolvedValueOnce(null);
+    moviesGetAll.mockResolvedValueOnce(null);
+    theatersGetAll.mockResolvedValueOnce(null);
+    renderPage();
+    await waitFor(() => expect(scrGetAll).toHaveBeenCalled());
+  });
+
+  it('creates with empty price (sends undefined basePrice)', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Dune').length).toBeGreaterThan(0));
+    const createBtn = screen.getAllByRole('button').find(b => /ueva|rogramar/i.test(b.textContent ?? ''));
+    fireEvent.click(createBtn);
+
+    const selects = document.querySelectorAll('[role="dialog"] select');
+    if (selects[0]) fireEvent.change(selects[0], { target: { value: '10' } });
+    if (selects[1]) fireEvent.change(selects[1], { target: { value: '20' } });
+    const dtl = document.querySelector('[role="dialog"] input[type="datetime-local"]');
+    if (dtl) fireEvent.change(dtl, { target: { value: `${TODAY}T20:00` } });
+    // price stays empty
+    const saveBtn = [...document.querySelectorAll('[role="dialog"] button')].find(b => /rogramar|rear/i.test(b.textContent ?? ''));
+    if (saveBtn) {
+      fireEvent.click(saveBtn);
+      await waitFor(() => expect(scrCreate).toHaveBeenCalled());
+    }
+  });
+
+  it('edits existing screening with various status options', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Dune').length).toBeGreaterThan(0));
+
+    const rowButtons = screen.getAllByRole('button').filter(b => b.closest('td'));
+    if (rowButtons[0]) {
+      fireEvent.click(rowButtons[0]);
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeInTheDocument());
+      // Change status to CANCELLED
+      const statusSel = document.querySelector('[role="dialog"] select#scr-status');
+      if (statusSel) fireEvent.change(statusSel, { target: { value: 'CANCELLED' } });
+      const save = [...document.querySelectorAll('[role="dialog"] button')].find(b => /uardar/i.test(b.textContent ?? ''));
+      if (save) {
+        fireEvent.click(save);
+        await waitFor(() => expect(scrUpdate).toHaveBeenCalled());
+      }
+    }
+  });
 });

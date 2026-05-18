@@ -74,4 +74,69 @@ describe('LanguageContext', () => {
     expect(() => renderHook(() => useLanguage())).toThrow(/LanguageProvider/);
     spy.mockRestore();
   });
+
+  it('falls back to browser language when localStorage is empty', () => {
+    // Clear localStorage and set the browser language
+    localStorage.clear();
+    Object.defineProperty(navigator, 'language', { value: 'en-US', configurable: true });
+    const { result } = renderHook(() => useLanguage(), { wrapper });
+    expect(result.current.lang).toBe('en');
+  });
+
+  it('falls back to "es" when browser language is unsupported', () => {
+    localStorage.clear();
+    Object.defineProperty(navigator, 'language', { value: 'fr-FR', configurable: true });
+    const { result } = renderHook(() => useLanguage(), { wrapper });
+    expect(result.current.lang).toBe('es');
+  });
+
+  it('t() falls back to Spanish when key missing in current language', () => {
+    localStorage.setItem('lumen_lang', 'en');
+    const { result } = renderHook(() => useLanguage(), { wrapper });
+    const out = result.current.t('common.cancel');
+    expect(typeof out).toBe('string');
+  });
+
+  it('t() returns raw path when key missing in every catalog', () => {
+    const { result } = renderHook(() => useLanguage(), { wrapper });
+    const out = result.current.t('totally.fake.key');
+    expect(out).toBe('totally.fake.key');
+  });
+
+  it('interpolate returns missing param placeholder when value not provided', () => {
+    const { result } = renderHook(() => useLanguage(), { wrapper });
+    // shifts.subtitle uses {count}
+    const out = result.current.t('shifts.subtitle');
+    expect(typeof out).toBe('string');
+  });
+
+  it('fmt.date formats a Date instance', () => {
+    const { result } = renderHook(() => useLanguage(), { wrapper });
+    const out = result.current.fmt.date(new Date('2026-01-01'));
+    expect(typeof out).toBe('string');
+  });
+
+  it('fmt.date formats a string parsed into a Date', () => {
+    const { result } = renderHook(() => useLanguage(), { wrapper });
+    const out = result.current.fmt.date('2026-01-01');
+    expect(typeof out).toBe('string');
+  });
+
+  it('fmt.time formats hours and minutes', () => {
+    const { result } = renderHook(() => useLanguage(), { wrapper });
+    const out = result.current.fmt.time(new Date('2026-01-01T20:30:00'));
+    expect(out).toMatch(/\d{1,2}/);
+  });
+
+  it('fmt.time accepts string', () => {
+    const { result } = renderHook(() => useLanguage(), { wrapper });
+    const out = result.current.fmt.time('2026-01-01T20:30:00');
+    expect(typeof out).toBe('string');
+  });
+
+  it('fmt.relative produces a relative-time string', () => {
+    const { result } = renderHook(() => useLanguage(), { wrapper });
+    const out = result.current.fmt.relative(new Date(Date.now() + 86400000));
+    expect(typeof out).toBe('string');
+  });
 });

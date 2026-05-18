@@ -89,4 +89,16 @@ describe('useMovies', () => {
     // 1 initial load + 1 reload = at least 2 calls.
     expect(moviesService.getAll).toHaveBeenCalledTimes(2);
   });
+
+  it('update keeps other movies unchanged (the "m" branch in the map)', async () => {
+    moviesService.getAll.mockResolvedValue([{ id: 1, title: 'A' }, { id: 2, title: 'B' }]);
+    moviesService.update.mockResolvedValue({ id: 1, title: 'A2' });
+
+    const { result } = renderHook(() => useMovies());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => { await result.current.update(1, { title: 'A2' }); });
+
+    expect(result.current.data).toEqual([{ id: 1, title: 'A2' }, { id: 2, title: 'B' }]);
+  });
 });

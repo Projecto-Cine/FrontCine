@@ -53,4 +53,24 @@ describe('cloudinaryService.uploadImage', () => {
 
     await expect(uploadImage(new Blob(['x']))).rejects.toThrow(/Boom/);
   });
+
+  it('throws fallback message when response body has no error.message', async () => {
+    vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', 'mi-cloud');
+    vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', 'mi-preset');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 502,
+      json: vi.fn().mockRejectedValue(new Error('no body')),
+    });
+    const { uploadImage } = await import('./cloudinaryService');
+    await expect(uploadImage(new Blob(['x']))).rejects.toThrow(/502/);
+  });
+
+  it('throws when CLOUD env var is missing', async () => {
+    // Stub PRESET only; CLOUD remains undefined
+    vi.stubEnv('VITE_CLOUDINARY_UPLOAD_PRESET', 'mi-preset');
+    vi.stubEnv('VITE_CLOUDINARY_CLOUD_NAME', '');
+    const { uploadImage } = await import('./cloudinaryService');
+    await expect(uploadImage(new Blob(['x']))).rejects.toThrow(/Cloudinary no configurado/);
+  });
 });

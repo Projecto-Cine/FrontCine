@@ -4,10 +4,6 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  test: {
-    environment: 'node',
-    globals: true,
-  },
   plugins: [react()],
   test: {
     globals: true,
@@ -21,6 +17,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
+      clean: true,
+      cleanOnRerun: true,
       include: ['src/**/*.{js,jsx}'],
       exclude: [
         'src/**/*.test.{js,jsx}',

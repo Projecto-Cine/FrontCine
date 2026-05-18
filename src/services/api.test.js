@@ -148,4 +148,38 @@ describe('api (HTTP transport layer)', () => {
 
     window.removeEventListener('auth:expired', listener);
   });
+
+  it('unwrap returns data.data when "data" key exists (non-array)', async () => {
+    fetchSpy.mockResolvedValue(mockFetchResponse({
+      body: { data: { id: 1, title: 'X' } },
+    }));
+    const result = await api.get('/movies/1');
+    expect(result).toEqual({ id: 1, title: 'X' });
+  });
+
+  it('unwrap returns data.payload when "payload" key exists', async () => {
+    fetchSpy.mockResolvedValue(mockFetchResponse({
+      body: { payload: { id: 2 } },
+    }));
+    const result = await api.get('/movies/2');
+    expect(result).toEqual({ id: 2 });
+  });
+
+  it('unwrap returns raw value for non-object responses', async () => {
+    fetchSpy.mockResolvedValue(mockFetchResponse({
+      body: 'plain-string',
+    }));
+    const result = await api.get('/raw');
+    expect(result).toBe('plain-string');
+  });
+
+  it('error response without body still throws with status', async () => {
+    fetchSpy.mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: vi.fn().mockResolvedValue({}),
+      text: vi.fn().mockRejectedValue(new Error('no body')),
+    });
+    await expect(api.get('/health')).rejects.toMatchObject({ status: 503 });
+  });
 });

@@ -264,4 +264,16 @@ describe('AuthContext — full coverage', () => {
     expect(auth.canAccess('/shifts')).toBe(true);
     expect(auth.canAccess('/inventory')).toBe(false);
   });
+
+  it('cleans storage on first dev-mode mount (no _auth_init flag)', async () => {
+    // import.meta.env.DEV is true in vitest by default → the dev-clean branch runs
+    sessionStorage.removeItem('_auth_init');
+    localStorage.setItem('lumen_token', 'stale-token');
+    localStorage.setItem('lumen_user', JSON.stringify({ id: 99, name: 'Stale', role: 'admin' }));
+
+    renderProvider();
+    await waitFor(() => expect(sessionStorage.getItem('_auth_init')).toBe('1'));
+    expect(localStorage.getItem('lumen_token')).toBeNull();
+    expect(localStorage.getItem('lumen_user')).toBeNull();
+  });
 });

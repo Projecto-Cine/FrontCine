@@ -120,6 +120,10 @@ export default function MoviesPage() {
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
   const columns = [
+    { key: 'imageUrl', label: '', width: 44, sortable: false, render: (v, row) => (
+      v ? <img src={v} alt={row.title} className={styles.posterThumb} onError={e => { e.currentTarget.style.display = 'none'; }} />
+        : <div className={styles.posterThumbEmpty} />
+    )},
     { key: 'title',     label: t('movies.col.title'),    render: (v) => <span className={styles.title}>{v}</span> },
     { key: 'genre',     label: t('movies.col.genre') },
     { key: 'durationMin', label: t('movies.col.duration'), render: v => <span className={styles.mono}>{v} min</span>, width: 90 },
@@ -237,19 +241,27 @@ export default function MoviesPage() {
           <div>
             <label className={styles.label}>{t('movies.form.poster')}</label>
             <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageUpload} />
-            {form.imageUrl ? (
+            {form.imageUrl && (
               <div className={styles.posterPreviewWrap}>
                 <img src={form.imageUrl} alt="Vista previa" className={styles.imagePreview} onError={e => { e.currentTarget.style.display = 'none'; }} />
-                <button type="button" className={styles.imgRemoveBtn} onClick={() => set('imageUrl', '')}>
-                  <X size={11} /> {t('movies.poster.remove')}
-                </button>
               </div>
-            ) : (
-              <button type="button" className={styles.imgUploadBtn} onClick={() => fileInputRef.current?.click()} disabled={uploadingImg}>
-                {uploadingImg ? <Loader size={14} className={styles.spin} /> : <Upload size={14} />}
-                {uploadingImg ? t('movies.poster.uploading') : t('movies.poster.select')}
-              </button>
             )}
+            <div className={styles.posterInputRow}>
+              <input
+                className={styles.input}
+                placeholder={t('movies.poster.urlPh')}
+                value={form.imageUrl}
+                onChange={e => set('imageUrl', e.target.value)}
+              />
+              <button type="button" className={styles.imgUploadBtn} onClick={() => fileInputRef.current?.click()} disabled={uploadingImg} title={t('movies.poster.select')}>
+                {uploadingImg ? <Loader size={14} className={styles.spin} /> : <Upload size={14} />}
+              </button>
+              {form.imageUrl && (
+                <button type="button" className={styles.imgRemoveBtn} onClick={() => set('imageUrl', '')} title={t('movies.poster.remove')}>
+                  <X size={11} />
+                </button>
+              )}
+            </div>
           </div>
           <div className={styles.fieldFull}>
             <label className={styles.label} htmlFor="mov-desc">{t('movies.form.description')}</label>

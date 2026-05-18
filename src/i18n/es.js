@@ -208,6 +208,7 @@ export default {
       remove:    'Quitar',
       select:    'Seleccionar póster',
       uploading: 'Subiendo...',
+      urlPh:     'O pega aquí la URL del póster...',
     },
     detail: {
       genre:    'Género',

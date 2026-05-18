@@ -63,6 +63,25 @@ vi.mock('@stripe/react-stripe-js', () => ({
 }));
 vi.mock('qrcode.react', () => ({ QRCodeSVG: () => <div data-testid="qr" /> }));
 
+// Recharts' ResponsiveContainer uses ResizeObserver which jsdom lacks — stub all chart components.
+vi.mock('recharts', () => ({
+  BarChart: ({ children }) => <div data-testid="bar-chart">{children}</div>,
+  Bar: () => null,
+  LineChart: ({ children }) => <div data-testid="line-chart">{children}</div>,
+  Line: () => null,
+  XAxis: () => null,
+  YAxis: () => null,
+  Tooltip: () => null,
+  ResponsiveContainer: ({ children }) => <div>{children}</div>,
+  Cell: () => null,
+  PieChart: ({ children }) => <div>{children}</div>,
+  Pie: () => null,
+  Legend: () => null,
+  CartesianGrid: () => null,
+  Area: () => null,
+  AreaChart: ({ children }) => <div>{children}</div>,
+}));
+
 beforeEach(() => vi.clearAllMocks());
 
 // ───── Helpers ─────

@@ -71,6 +71,26 @@ vi.mock('@stripe/react-stripe-js', () => ({
 // QR is not relevant in tests.
 vi.mock('qrcode.react', () => ({ QRCodeSVG: () => <div data-testid="qr" /> }));
 
+// Recharts' ResponsiveContainer relies on ResizeObserver which jsdom lacks.
+// Stub the heavy components to avoid infinite hangs.
+vi.mock('recharts', () => ({
+  BarChart: ({ children }) => <div data-testid="bar-chart">{children}</div>,
+  Bar: () => null,
+  LineChart: ({ children }) => <div data-testid="line-chart">{children}</div>,
+  Line: () => null,
+  XAxis: () => null,
+  YAxis: () => null,
+  Tooltip: () => null,
+  ResponsiveContainer: ({ children }) => <div>{children}</div>,
+  Cell: () => null,
+  PieChart: ({ children }) => <div>{children}</div>,
+  Pie: () => null,
+  Legend: () => null,
+  CartesianGrid: () => null,
+  Area: () => null,
+  AreaChart: ({ children }) => <div>{children}</div>,
+}));
+
 beforeEach(() => vi.clearAllMocks());
 
 // ───── Helper: renders a page and waits for its useEffect to finish ─────
@@ -86,7 +106,7 @@ describe('Smoke tests — every page mounts without error', () => {
   it('Dashboard', async () => {
     const { default: Dashboard } = await import('./dashboard/Dashboard');
     await smokeRender(Dashboard);
-  });
+  }, 30_000);
 
   it('AuditPage', async () => {
     const { default: AuditPage } = await import('./audit/AuditPage');

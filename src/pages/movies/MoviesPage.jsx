@@ -12,9 +12,17 @@ import { uploadImage } from '../../services/cloudinaryService';
 import styles from './MoviesPage.module.css';
 
 const FORMAT_COLOR = { IMAX: 'purple', '4DX': 'red', '3D': 'cyan', '2D': 'default', 'IMAX 3D': 'purple', '2D/3D': 'cyan' };
-const RATING_COLOR = { 'PG': 'green', 'PG-13': 'yellow', 'R': 'red' };
+const RATING_OPTIONS = [
+  { value: 'ALL',      label: 'TP — Todos los públicos' },
+  { value: 'SEVEN',    label: '+7' },
+  { value: 'TWELVE',   label: '+12' },
+  { value: 'SIXTEEN',  label: '+16' },
+  { value: 'EIGHTEEN', label: '+18' },
+];
+const RATING_COLOR = { ALL: 'green', SEVEN: 'green', TWELVE: 'yellow', SIXTEEN: 'yellow', EIGHTEEN: 'red' };
+const RATING_LABEL = Object.fromEntries(RATING_OPTIONS.map(r => [r.value, r.label]));
 
-const EMPTY_MOVIE = { title: '', durationMin: '', genre: '', language: 'ES', format: '2D', ageRating: 'PG-13', active: true, director: '', year: new Date().getFullYear(), description: '', imageUrl: '' };
+const EMPTY_MOVIE = { title: '', durationMin: '', genre: '', language: 'ES', format: '2D', ageRating: 'ALL', active: true, director: '', year: new Date().getFullYear(), description: '', imageUrl: '' };
 
 const MOV_IMG_KEY = 'lumen_movie_posters';
 const getStoredPosters = () => { try { return JSON.parse(localStorage.getItem(MOV_IMG_KEY) ?? '{}'); } catch { return {}; } };
@@ -117,7 +125,7 @@ export default function MoviesPage() {
     { key: 'durationMin', label: t('movies.col.duration'), render: v => <span className={styles.mono}>{v} min</span>, width: 90 },
     { key: 'language',  label: t('movies.col.language'), width: 80, render: v => <Badge variant="default">{v}</Badge> },
     { key: 'format',    label: t('movies.col.format'),   width: 90, render: v => <Badge variant={FORMAT_COLOR[v] || 'default'}>{v}</Badge> },
-    { key: 'ageRating', label: t('movies.col.rating'),   width: 100, render: v => <Badge variant={RATING_COLOR[v] || 'default'}>{v}</Badge> },
+    { key: 'ageRating', label: t('movies.col.rating'),   width: 100, render: v => <Badge variant={RATING_COLOR[v] || 'default'}>{RATING_LABEL[v] || v}</Badge> },
     { key: 'active',    label: t('movies.col.status'),   width: 120, render: v => <Badge variant={v ? STATUS_MAP.active.v : STATUS_MAP.inactive.v} dot>{v ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</Badge> },
   ];
 
@@ -216,7 +224,7 @@ export default function MoviesPage() {
           <div>
             <label className={styles.label} htmlFor="mov-rating">{t('movies.form.rating')}</label>
             <select id="mov-rating" className={styles.input} value={form.ageRating} onChange={e => set('ageRating', e.target.value)}>
-              {['G', 'PG', 'PG-13', 'R', 'NC-17'].map(r => <option key={r}>{r}</option>)}
+              {RATING_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
           <div>
@@ -257,7 +265,7 @@ export default function MoviesPage() {
             <p className={styles.detailDir}>{editing.director} · {editing.year}</p>
             <div className={styles.detailBadges}>
               <Badge variant={FORMAT_COLOR[editing.format] || 'default'}>{editing.format}</Badge>
-              <Badge variant={RATING_COLOR[editing.ageRating] || 'default'}>{editing.ageRating}</Badge>
+              <Badge variant={RATING_COLOR[editing.ageRating] || 'default'}>{RATING_LABEL[editing.ageRating] || editing.ageRating}</Badge>
               <Badge variant={editing.active ? STATUS_MAP.active.v : STATUS_MAP.inactive.v} dot>{editing.active ? STATUS_MAP.active.label : STATUS_MAP.inactive.label}</Badge>
             </div>
             <div className={styles.detailGrid}>

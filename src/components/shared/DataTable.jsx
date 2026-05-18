@@ -176,9 +176,6 @@ export default function DataTable({
       </div>
 
       <div className={styles.pagination} role="navigation" aria-label={t('common.pagination')}>
-        <span id={statusId} className={styles.pgInfo} aria-live="polite" aria-atomic="true">
-          {t('common.records', { count: filtered.length })}
-        </span>
         <div className={styles.pgControls}>
           <button
             className={styles.pgBtn}
@@ -200,6 +197,9 @@ export default function DataTable({
             <ChevronRight size={14} aria-hidden="true" />
           </button>
         </div>
+        <span id={statusId} className={styles.pgInfo} aria-live="polite" aria-atomic="true">
+          {t('common.records', { count: filtered.length })}
+        </span>
       </div>
     </div>
   );

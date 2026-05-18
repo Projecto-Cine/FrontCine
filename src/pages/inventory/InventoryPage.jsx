@@ -12,9 +12,9 @@ import { inventoryService } from '../../services/inventoryService';
 import SkeletonPage from '../../components/shared/Skeleton';
 import styles from './InventoryPage.module.css';
 
-const CAT_COLOR = { Técnico: 'accent', Concesión: 'yellow', Oficina: 'default', Limpieza: 'green', Comercial: 'purple' };
-const EMPTY = { name: '', category: 'Técnico', quantity: '', min_stock: '', unit: 'ud', location: '', supplier: '', price_unit: '' };
-const CATEGORY_KEYS = ['Técnico', 'Concesión', 'Oficina', 'Limpieza', 'Comercial'];
+const CAT_COLOR = { Bebida: 'cyan', Comida: 'yellow', Merchandise: 'purple' };
+const EMPTY = { name: '', category: 'Bebida', quantity: '', min_stock: '', unit: 'ud', supplier: '', price_unit: '' };
+const CATEGORY_KEYS = ['Bebida', 'Comida', 'Merchandise'];
 
 export default function InventoryPage() {
   const [items, setItems] = useState([]);
@@ -78,7 +78,6 @@ export default function InventoryPage() {
       <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: v <= row.min_stock ? 'var(--yellow)' : 'var(--text-1)' }}>{v} {row.unit}</span>
     )},
     { key: 'min_stock', label: t('inventory.col.min'), width: 70, render: (v, row) => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{v} {row.unit}</span> },
-    { key: 'location', label: t('inventory.col.location'), render: v => <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v}</span> },
     { key: 'supplier', label: t('inventory.col.supplier'), render: v => <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{v}</span> },
     { key: 'price_unit', label: t('inventory.col.priceUnit'), width: 80, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>€{Number(v).toFixed(2)}</span> },
     { key: 'stock_status', label: t('inventory.col.status'), width: 100, sortable: false, render: (_, row) => {
@@ -125,7 +124,7 @@ export default function InventoryPage() {
       <DataTable
         columns={columns}
         data={filtered}
-        searchKeys={['name', 'category', 'location', 'supplier']}
+        searchKeys={['name', 'category', 'supplier']}
         rowActions={(row) => <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)} />}
       />
 
@@ -161,10 +160,6 @@ export default function InventoryPage() {
           <div>
             <label className={styles.label} htmlFor="inv-price">{t('inventory.form.priceUnit')}</label>
             <input id="inv-price" className={styles.input} type="number" step="0.01" value={form.price_unit} onChange={e => set('price_unit', e.target.value)} />
-          </div>
-          <div>
-            <label className={styles.label} htmlFor="inv-loc">{t('inventory.form.location')}</label>
-            <input id="inv-loc" className={styles.input} value={form.location} onChange={e => set('location', e.target.value)} />
           </div>
           <div>
             <label className={styles.label} htmlFor="inv-sup">{t('inventory.form.supplier')}</label>

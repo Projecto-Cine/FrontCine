@@ -65,6 +65,11 @@
 .cartSeatPrice { font-family: var(--mono); font-size: var(--fs-md); color: var(--text-2); }
 .cartSeatRemove { display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 3px; color: var(--text-3); }
 .cartSeatRemove:hover { background: var(--red-dim); color: var(--red); }
+.vipBadge {
+  display: inline-block; font-size: 0.55rem; font-weight: 700; padding: 1px 4px;
+  border-radius: 3px; background: rgba(240,192,64,0.18); border: 1px solid rgba(240,192,64,0.5);
+  color: #f0c040; letter-spacing: 0.06em; margin-left: 4px; vertical-align: middle;
+}
 
 /* ── Session pill ───────────────────────────────────── */
 .sessionPill {

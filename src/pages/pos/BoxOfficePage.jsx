@@ -21,14 +21,13 @@ import EmptyState from '../../components/shared/EmptyState';
 import styles     from './BoxOfficePage.module.css';
 
 const TICKET_TYPES = [
-  { id: 'adult',    price: 13.50, backendType: 'ADULT'   },
+  { id: 'adult',    price: 9.00, backendType: 'ADULT'   },
   { id: 'senior',   price: 2.00,  backendType: 'SENIOR'  },
   { id: 'student',  price: 6.00,  backendType: 'STUDENT' },
   { id: 'child',    price: 6.00,  backendType: 'CHILD'   },
-  { id: 'imax',     price: 5.00,  extra: true },
-  { id: '4dx',      price: 6.50,  extra: true },
-  { id: 'vip',      price: 8.00,  extra: true },
 ];
+
+const VIP_SEAT_SUPPLEMENT = 1.00;
 
 const PAY_METHOD_MAP = { card: 'CARD', cash: 'CASH' };
 
@@ -65,16 +64,20 @@ function generateTicketId() {
   return 'TKT-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase();
 }
 
-function generateOfflineSeats(sessionId, capacity = 100) {
+function generateOfflineSeats(sessionId, capacity = 100, roomName = '') {
+  const isVipRoom = roomName.toUpperCase().includes('VIP');
   const COLS = capacity <= 80 ? 8 : capacity <= 150 ? 12 : 16;
   const ROWS = Math.ceil(capacity / COLS);
+  const VIP_ROW_COUNT = isVipRoom ? 2 : 0;
   const seats = [];
   let fakeId = 900000 + ((sessionId ?? 0) * 100);
   for (let r = 0; r < ROWS; r++) {
     const row = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[r] ?? `R${r + 1}`;
+    const rowLetter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[r] ?? '';
+    const seatType  = rowLetter === 'E' || rowLetter === 'F' ? 'VIP' : 'NORMAL';
     for (let c = 0; c < COLS; c++) {
       if (r * COLS + c >= capacity) break;
-      seats.push({ id: `${row}${String(c + 1).padStart(2, '0')}`, row, number: c + 1, status: 'available', screeningSeatId: fakeId++ });
+      seats.push({ id: `${row}${String(c + 1).padStart(2, '0')}`, row, number: c + 1, status: 'available', screeningSeatId: fakeId++, seatType });
     }
   }
   return seats;
@@ -140,17 +143,29 @@ export default function TaquillaPage() {
     if (!data?.purchaseId) { toast('Introduce un número de ticket válido (ej: 30-56).', 'error'); return; }
     setRefundProcessing(true);
     try {
-      // Fetch purchase details first to get the amount
       let amount = null;
       let purchaseTickets = [];
+      let purchaseMovie = '';
+      let purchaseTheater = '';
+      let purchaseDate = '';
+      let purchaseTime = '';
       try {
         const purchase = await salesService.getById(data.purchaseId);
         purchaseTickets = purchase?.tickets ?? [];
+        purchaseMovie   = purchase?.movieTitle  ?? '';
+        purchaseTheater = purchase?.theaterName ?? '';
+        if (purchase?.startTime) {
+          const dt = new Date(purchase.startTime);
+          purchaseDate = dt.toLocaleDateString('es-ES');
+          purchaseTime = dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        }
         if (typeof purchase?.totalAmount === 'number') {
           amount = purchase.totalAmount;
+        } else if (typeof purchase?.totalAmount === 'string') {
+          amount = parseFloat(purchase.totalAmount);
         } else if (purchaseTickets.length > 0) {
-          const TYPE_PRICE = { ADULT: 13.50, SENIOR: 9.00, STUDENT: 6.00, CHILD: 6.00 };
-          amount = purchaseTickets.reduce((s, tk) => s + (TYPE_PRICE[tk.ticketType] ?? 13.50), 0);
+          const TYPE_PRICE = { ADULT: 9.00, SENIOR: 2.00, STUDENT: 6.00, CHILD: 6.00 };
+          amount = purchaseTickets.reduce((s, tk) => s + (TYPE_PRICE[tk.ticketType] ?? 9.00), 0);
         }
       } catch {}
 
@@ -166,10 +181,10 @@ export default function TaquillaPage() {
       setRefundReceipt({
         refundId:   `RF-${data.purchaseId}-${Date.now().toString(36).toUpperCase()}`,
         refundedAt: new Date().toISOString(),
-        movie:      data.movie    || '—',
-        theater:    data.theater  || '—',
-        date:       data.date     || '—',
-        time:       data.time     || '—',
+        movie:      data.movie   || purchaseMovie   || '—',
+        theater:    data.theater || purchaseTheater || '—',
+        date:       data.date    || purchaseDate    || '—',
+        time:       data.time    || purchaseTime    || '—',
         seat:       seats,
         ticketType: types,
         purchaseId: data.purchaseId,
@@ -375,8 +390,8 @@ export default function TaquillaPage() {
   }, [showNewSession, editSession, selectedDate]);
 
   const handleCreateSession = async () => {
-    if (!newForm.movieId || !newForm.theaterId || !newForm.date || !newForm.time || !newForm.basePrice) {
-      toast('Película, sala, fecha, hora y precio son obligatorios.', 'error'); return;
+    if (!newForm.movieId || !newForm.theaterId || !newForm.date || !newForm.time) {
+      toast('Película, sala, fecha y hora son obligatorios.', 'error'); return;
     }
     setNewSaving(true);
     try {
@@ -384,7 +399,7 @@ export default function TaquillaPage() {
         movieId:   Number(newForm.movieId),
         theaterId: Number(newForm.theaterId),
         startTime: `${newForm.date}T${newForm.time}`,
-        basePrice: Number(newForm.basePrice),
+        basePrice: TICKET_TYPES[0].price,
       });
       setSessions(prev => mergeSessionPosters([...prev, saved]));
       setShowNewSession(false);
@@ -495,28 +510,33 @@ export default function TaquillaPage() {
           ss.occupied === true ||
           (ss.reservedUntil && new Date(ss.reservedUntil).getTime() > now) ||
           (statusLow !== '' && statusLow !== 'available');
+        const rawType  = (seatObj.seatType ?? seatObj.seat_type ?? ss.seatType ?? '').toUpperCase();
+        const seatType = rawType === 'VIP' || row === 'E' || row === 'F' ? 'VIP' : 'NORMAL';
         out.push({
           id: displayId, row: String(row).toUpperCase(), number,
           status:          isOccupied ? 'occupied' : 'available',
           screeningSeatId: ss.id,
           seatId:          seatObj.id ?? ss.seatId ?? ss.id,
+          seatType,
         });
       }
       return out;
     };
 
-    const sessionCapacity = (session.theater ?? session.room)?.capacity ?? 100;
+    const sessionRoom     = session.theater ?? session.room;
+    const sessionCapacity = sessionRoom?.capacity ?? 100;
+    const sessionRoomName = sessionRoom?.name ?? '';
 
     sessionsService.syncSeats(session.id)
       .catch(() => seatsService.getByScreening(session.id))
       .then(data => {
         if (activeSessionRef.current !== session.id) return;
         const normalized = normalizeSeats(data);
-        setRealSeats(normalized.length ? normalized : generateOfflineSeats(session.id, sessionCapacity));
+        setRealSeats(normalized.length ? normalized : generateOfflineSeats(session.id, sessionCapacity, sessionRoomName));
       })
       .catch(() => {
         if (activeSessionRef.current !== session.id) return;
-        setRealSeats(generateOfflineSeats(session.id, sessionCapacity));
+        setRealSeats(generateOfflineSeats(session.id, sessionCapacity, sessionRoomName));
       })
       .finally(() => {
         if (activeSessionRef.current === session.id) setLoadingSeats(false);
@@ -545,24 +565,20 @@ export default function TaquillaPage() {
 
   const baseType       = ticketTypes.find(t => t.id === ticketType) || ticketTypes[0];
   const basePrice      = baseType.price;
-  const extra          = ticketTypes.filter(t => t.extra).find(t => {
-    if (!theater) return false;
-    const fmt = (movie?.format ?? theater?.name ?? '').toUpperCase();
-    if (t.id === 'imax') return fmt.includes('IMAX');
-    if (t.id === '4dx')  return fmt.includes('4DX');
-    if (t.id === 'vip')  return (theater?.name ?? '').toLowerCase().includes('vip');
-    return false;
-  });
+  // +€3 solo para salas 4D/4DX
+  const is4D  = /4D|4DX/i.test(theater?.name ?? movie?.format ?? '');
+  const extra = is4D ? { price: 3.00, label: '4D' } : null;
   const fidelityEligible = !!(selectedClient?.fidelityDiscountEligible && ticketType === 'adult');
   const discountedBase   = fidelityEligible ? +(basePrice * 0.9).toFixed(2) : basePrice;
-  const totalPerTicket   = discountedBase + (extra?.price ?? 0);
-  // Per-seat total: each seat can have its own type
+  // Per-seat total: tipo por butaca + VIP automático si el asiento es VIP + suplemento 4D
   const total = selectedSeats.reduce((sum, seatId) => {
     const typeId = seatTypes[seatId] || ticketType;
     const type   = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
     const isFidelity = !!(selectedClient?.fidelityDiscountEligible && typeId === 'adult');
     const price  = isFidelity ? +(type.price * 0.9).toFixed(2) : type.price;
-    return sum + price + (extra?.price ?? 0);
+    const seat   = realSeats?.find(s => s.id === seatId);
+    const isVip  = (seat?.seatType ?? '').toUpperCase() === 'VIP';
+    return sum + price + (isVip ? VIP_SEAT_SUPPLEMENT : 0) + (extra?.price ?? 0);
   }, 0);
   const change           = cashGiven && payMethod === 'cash' ? (parseFloat(cashGiven) - total).toFixed(2) : null;
 
@@ -730,10 +746,19 @@ export default function TaquillaPage() {
 
       if (res?.id) {
         try {
-          await salesService.confirmPurchase(res.id);
+          const confirmed = await salesService.confirmPurchase(res.id);
+          if (guestEmail.trim()) {
+            if (confirmed?.emailSent === false) {
+              toast('Compra confirmada, pero el email no se pudo enviar. Revisa la configuración SMTP del servidor.', 'warning');
+            } else {
+              toast(`Ticket enviado por email a ${guestEmail.trim()}`, 'success');
+            }
+          }
         } catch (confirmErr) {
-          // Non-fatal: purchase exists; backend may auto-confirm or email still goes out
-          console.warn('[purchase] confirmPurchase non-fatal:', confirmErr?.message);
+          console.warn('[purchase] confirmPurchase error:', confirmErr?.message);
+          if (guestEmail.trim()) {
+            toast('Compra confirmada, pero el email no se pudo enviar. Verifica el correo del cliente.', 'warning');
+          }
         }
       }
 
@@ -813,7 +838,7 @@ export default function TaquillaPage() {
     } finally {
       setPaying(false);
     }
-  }, [selectedSeats, seatTypes, ticketType, ticketTypes, realSeats, selectedSession, baseType, extra, discountedBase, total, payMethod, selectedClient, guestEmail, movie, theater, toast]);
+  }, [selectedSeats, seatTypes, ticketType, ticketTypes, realSeats, selectedSession, extra, baseType, discountedBase, total, payMethod, selectedClient, guestEmail, movie, theater, toast]);
 
   const handleTimeClick = (session) => {
     setPendingSession(session);
@@ -1009,7 +1034,7 @@ export default function TaquillaPage() {
             <div className={styles.typeSelector}>
               <span className={styles.typeSelectorLabel}>{t('box_office.ticketType')}</span>
               <div className={styles.typeButtons}>
-                {ticketTypes.filter(tt => !tt.extra).map(tt => (
+                {ticketTypes.map(tt => (
                   <button key={tt.id}
                     className={`${styles.typeBtn} ${ticketType === tt.id ? styles.typeBtnActive : ''}`}
                     aria-pressed={ticketType === tt.id}
@@ -1019,7 +1044,6 @@ export default function TaquillaPage() {
                   </button>
                 ))}
               </div>
-              {extra && <p className={styles.extraNote}>+ suplemento {extra.label}: €{extra.price.toFixed(2)} / entrada</p>}
             </div>
 
             <div className={styles.seatMapWrap}>
@@ -1199,26 +1223,28 @@ export default function TaquillaPage() {
               )}
               {extra && (
                 <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(201,168,76,0.2)' }}>
-                  <span className={styles.cartTypeLabel} style={{ color: 'var(--accent)' }}>+ {extra.label}</span>
+                  <span className={styles.cartTypeLabel} style={{ color: 'var(--accent)' }}>+ Suplemento {extra.label}</span>
                   <span className={styles.cartTypePrice}>€{extra.price.toFixed(2)} / ud.</span>
                 </div>
               )}
               <div className={styles.cartSeatsList}>
                 {selectedSeats.map(s => {
-                  const typeId   = seatTypes[s] || ticketType;
-                  const type     = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
-                  const isFid    = !!(selectedClient?.fidelityDiscountEligible && typeId === 'adult');
-                  const seatPrice = (isFid ? +(type.price * 0.9).toFixed(2) : type.price) + (extra?.price ?? 0);
+                  const typeId    = seatTypes[s] || ticketType;
+                  const type      = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
+                  const isFid     = !!(selectedClient?.fidelityDiscountEligible && typeId === 'adult');
+                  const seat      = realSeats?.find(r => r.id === s);
+                  const isVip     = (seat?.seatType ?? '').toUpperCase() === 'VIP';
+                  const seatPrice = (isFid ? +(type.price * 0.9).toFixed(2) : type.price) + (isVip ? VIP_SEAT_SUPPLEMENT : 0) + (extra?.price ?? 0);
                   return (
                     <div key={s} className={styles.cartSeat}>
-                      <span className={styles.cartSeatId}>{s}</span>
+                      <span className={styles.cartSeatId}>{s}{isVip && <span className={styles.vipBadge}>VIP</span>}</span>
                       <select
                         className={styles.cartSeatTypeSelect}
                         value={typeId}
                         onChange={e => setSeatTypes(prev => ({ ...prev, [s]: e.target.value }))}
                         aria-label={`Tipo de entrada butaca ${s}`}
                       >
-                        {ticketTypes.filter(tt => !tt.extra).map(tt => (
+                        {ticketTypes.map(tt => (
                           <option key={tt.id} value={tt.id}>{tt.label}</option>
                         ))}
                       </select>
@@ -1425,10 +1451,6 @@ export default function TaquillaPage() {
                 </div>
               </div>
 
-              <label className={styles.modalLabel}>Precio base (€) *</label>
-              <input type="number" className={styles.modalInput} min="0.01" step="0.50"
-                placeholder="Ej: 9.00" required
-                value={newForm.basePrice} onChange={e => setNF('basePrice', e.target.value)} />
             </div>
 
             <div className={styles.modalFooter}>

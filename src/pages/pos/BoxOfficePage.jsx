@@ -596,51 +596,36 @@ export default function TaquillaPage() {
 
     setPaying(true);
     try {
-      let screeningSeatIds = selectedSeats
-        .map(seatStr => realSeats?.find(s => s.id === seatStr)?.screeningSeatId)
-        .filter(Boolean);
-
-      if (!screeningSeatIds.length && selectedSeats.length > 0) {
-        try {
-          const freshData = await sessionsService.syncSeats(selectedSession.id);
-          const raw = Array.isArray(freshData) ? freshData
-            : Array.isArray(freshData?.content) ? freshData.content
-            : Array.isArray(freshData?.data)    ? freshData.data
-            : Array.isArray(freshData?.seats)   ? freshData.seats
-            : [];
-          const seen = new Set();
-          const normalized = [];
-          for (const ss of raw) {
-            if (ss?.id == null) continue;
-            const seatObj = ss.seat ?? ss;
-            const row     = ss.row    ?? seatObj.row;
-            const number  = ss.number ?? seatObj.number ?? seatObj.seatNumber ?? seatObj.col;
-            if (!row || number == null) continue;
-            const displayId = `${String(row).toUpperCase()}${String(number).padStart(2, '0')}`;
-            if (seen.has(displayId)) continue;
-            seen.add(displayId);
-            const statusLow = (ss.status ?? '').toLowerCase();
-            normalized.push({
-              id: displayId, row: String(row).toUpperCase(), number,
-              status: (statusLow !== '' && statusLow !== 'available') ? 'occupied' : 'available',
-              screeningSeatId: ss.id,
-            });
-          }
-          if (normalized.length) {
-            setRealSeats(normalized);
-            screeningSeatIds = selectedSeats
-              .map(seatStr => normalized.find(s => s.id === seatStr)?.screeningSeatId)
-              .filter(Boolean);
-            if (!screeningSeatIds.length) {
-              const available = normalized.filter(s => s.status === 'available');
-              screeningSeatIds = available
-                .slice(0, selectedSeats.length)
-                .map(s => s.screeningSeatId)
-                .filter(Boolean);
-            }
-          }
-        } catch (syncErr) { }
+      // Always fetch fresh screening seats from the API to avoid stale IDs
+      const freshData = await sessionsService.syncSeats(selectedSession.id);
+      const raw = Array.isArray(freshData) ? freshData
+        : Array.isArray(freshData?.content) ? freshData.content
+        : Array.isArray(freshData?.data)    ? freshData.data
+        : Array.isArray(freshData?.seats)   ? freshData.seats
+        : [];
+      const seen = new Set();
+      const normalized = [];
+      for (const ss of raw) {
+        if (ss?.id == null) continue;
+        const seatObj = ss.seat ?? ss;
+        const row     = ss.row    ?? seatObj.row;
+        const number  = ss.number ?? seatObj.number ?? seatObj.seatNumber ?? seatObj.col;
+        if (!row || number == null) continue;
+        const displayId = `${String(row).toUpperCase()}${String(number).padStart(2, '0')}`;
+        if (seen.has(displayId)) continue;
+        seen.add(displayId);
+        const statusLow = (ss.status ?? '').toLowerCase();
+        normalized.push({
+          id: displayId, row: String(row).toUpperCase(), number,
+          status: (statusLow !== '' && statusLow !== 'available') ? 'occupied' : 'available',
+          screeningSeatId: ss.id,
+        });
       }
+      if (normalized.length) setRealSeats(normalized);
+
+      let screeningSeatIds = selectedSeats
+        .map(seatStr => normalized.find(s => s.id === seatStr)?.screeningSeatId)
+        .filter(Boolean);
 
       if (!screeningSeatIds.length) {
         toast('Butaca no encontrada. Vuelve al mapa y selecciona las butacas de nuevo.', 'error');
@@ -774,42 +759,8 @@ export default function TaquillaPage() {
         backendMsg = jsonText.slice(0, 150);
       }
       const msg =
-        status === 404 && rawBody.includes('ScreeningSeat')
-          ? (() => {
-              toast('Las butacas cambiaron en la BD. Recargando mapa...', 'warning');
-              sessionsService.syncSeats(selectedSession.id).then(fresh => {
-                const raw = Array.isArray(fresh) ? fresh
-                  : Array.isArray(fresh?.content) ? fresh.content
-                  : Array.isArray(fresh?.data)    ? fresh.data
-                  : Array.isArray(fresh?.seats)   ? fresh.seats
-                  : [];
-                if (raw.length) {
-                  const seen = new Set();
-                  const normalized = [];
-                  for (const ss of raw) {
-                    if (ss?.id == null) continue;
-                    const seatObj = ss.seat ?? ss;
-                    const row     = ss.row    ?? seatObj.row;
-                    const number  = ss.number ?? seatObj.number ?? seatObj.seatNumber ?? seatObj.col;
-                    if (!row || number == null) continue;
-                    const displayId = `${String(row).toUpperCase()}${String(number).padStart(2, '0')}`;
-                    if (seen.has(displayId)) continue;
-                    seen.add(displayId);
-                    const statusLow = (ss.status ?? '').toLowerCase();
-                    normalized.push({
-                      id: displayId, row: String(row).toUpperCase(), number,
-                      status: (statusLow !== '' && statusLow !== 'available') ? 'occupied' : 'available',
-                      screeningSeatId: ss.id,
-                    });
-                  }
-                  if (normalized.length) setRealSeats(normalized);
-                }
-              }).catch(() => {});
-              setStep('seats');
-              return 'Butacas desincronizadas. Selecciónalas de nuevo.';
-            })() :
         status === 404 && (rawBody.toLowerCase().includes('seat') || rawBody.toLowerCase().includes('butaca'))
-          ? 'Butaca no encontrada, recarga el mapa.' :
+          ? 'Butaca no encontrada. Vuelve al mapa y selecciona las butacas de nuevo.' :
         status === 404 ? 'Recurso no encontrado. Recarga la página e inténtalo de nuevo.' :
         status === 409 ? 'Esa butaca ya no está disponible.' :
         status === 422 && rawBody.toLowerCase().includes('minor') ? 'Un menor debe ir acompañado de un adulto.' :

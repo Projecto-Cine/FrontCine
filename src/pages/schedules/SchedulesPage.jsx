@@ -13,7 +13,7 @@ import { screeningsService } from '../../services/sessionsService';
 import styles from './SchedulesPage.module.css';
 
 const STATUS_BADGE = { SCHEDULED: 'cyan', ACTIVE: 'green', CANCELLED: 'default', FULL: 'red' };
-const EMPTY = { movieId: '', theaterId: '', dateTime: '', price: '', status: 'SCHEDULED' };
+const EMPTY = { movieId: '', theaterId: '', dateTime: '', status: 'SCHEDULED' };
 
 const getDate    = (s) => (s.dateTime ?? '').slice(0, 10);
 const getTime    = (s) => (s.dateTime ?? '').slice(11, 16);
@@ -81,7 +81,7 @@ export default function SchedulesPage() {
       movieId:   Number(form.movieId),
       theaterId: Number(form.theaterId),
       startTime: form.dateTime,
-      basePrice: form.price === '' ? undefined : Number(form.price),
+      basePrice: 9.00,
     };
     if (editing) {
       const saved = await screeningsService.update(editing.id, payload);
@@ -172,10 +172,6 @@ export default function SchedulesPage() {
           <div>
             <label className={styles.label} htmlFor="scr-dt">{t('schedules.form.datetime')}</label>
             <input id="scr-dt" className={styles.input} type="datetime-local" value={form.dateTime} onChange={e => set('dateTime', e.target.value)} />
-          </div>
-          <div>
-            <label className={styles.label} htmlFor="scr-price">{t('schedules.form.price')}</label>
-            <input id="scr-price" className={styles.input} type="number" step="0.50" value={form.price} onChange={e => set('price', e.target.value)} />
           </div>
           <div>
             <label className={styles.label} htmlFor="scr-status">{t('schedules.form.status')}</label>

@@ -45,7 +45,7 @@
 
 .pagination { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--border); background: var(--bg-1); }
 .pgInfo { font-size: var(--fs-sm); color: var(--text-3); }
-.pgControls { display: flex; align-items: center; gap: 8px; }
+.pgControls { display: flex; align-items: center; gap: 8px; order: -1; }
 .pgNum { font-size: var(--fs-sm); color: var(--text-2); }
 .pgBtn { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: var(--bg-3); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text-2); cursor: pointer; transition: background var(--t); }
 .pgBtn:hover:not(:disabled) { background: var(--bg-4); color: var(--text-1); }

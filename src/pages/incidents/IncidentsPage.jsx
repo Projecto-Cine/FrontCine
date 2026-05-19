@@ -51,8 +51,9 @@ export default function IncidentsPage() {
       usersService.getAll().catch(() => []),
     ]).then(([inc, users]) => {
       setIncidents(Array.isArray(inc) ? inc : []);
+      const STAFF_ROLES = new Set(['MANTENIMIENTO', 'GERENCIA', 'CAJERO', 'LIMPIEZA', 'MAINTENANCE', 'OPERATOR', 'SUPERVISOR', 'ADMIN']);
       const staff = Array.isArray(users)
-        ? users.filter(u => ['maintenance', 'operator', 'supervisor', 'admin'].includes((u.role ?? '').toLowerCase()))
+        ? users.filter(u => STAFF_ROLES.has((u.role ?? '').toUpperCase()))
         : [];
       setStaffUsers(staff);
     }).finally(() => setLoading(false));
@@ -95,10 +96,14 @@ export default function IncidentsPage() {
   const columns = [
     { key: 'id',          label: t('incidents.col.id'),         width: 90,  render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{v}</span> },
     { key: 'title',       label: t('incidents.col.title'),                   render: v => <span style={{ fontWeight: 500 }}>{v}</span> },
-    { key: 'category',    label: t('incidents.col.category'),   width: 120, render: v => <Badge variant={CATEGORY_COLOR[v] || 'default'}>{v ? (t(`incidents.categories.${v}`) || v) : '—'}</Badge> },
     { key: 'priority',    label: t('incidents.col.priority'),   width: 100, render: v => <Badge variant={PRIORITY_MAP[v]?.v || 'default'}>{PRIORITY_MAP[v]?.label}</Badge> },
     { key: 'room',        label: t('incidents.col.location'),   width: 160, render: v => <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v || '—'}</span> },
-    { key: 'assigned_to', label: t('incidents.col.assignedTo'), width: 140, render: v => v ? <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v}</span> : <span style={{ color: 'var(--text-3)' }}>{t('incidents.form.unassigned')}</span> },
+    { key: 'assigned_to', label: t('incidents.col.assignedTo'), width: 160, render: v => {
+      const name = typeof v === 'object' && v !== null ? (v.name ?? v.username ?? '') : v;
+      return name
+        ? <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{name}</span>
+        : <span style={{ color: 'var(--text-3)' }}>{t('incidents.form.unassigned')}</span>;
+    }},
     { key: 'status',      label: t('incidents.col.status'),     width: 120, render: v => <Badge variant={STATUS_MAP[v]?.v || 'default'} dot>{STATUS_MAP[v]?.label}</Badge> },
     { key: 'updated_at',  label: t('incidents.col.updated'),    width: 130, render: v => {
       if (!v) return <span style={{ color: 'var(--text-3)' }}>—</span>;

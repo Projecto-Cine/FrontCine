@@ -13,7 +13,7 @@ const norm = (i) => {
     ...i,
     priority,
     status,
-    assigned_to: i.assignedTo ?? i.assigned_to,
+    assigned_to: (() => { const r = i.assignedTo ?? i.assigned_to; return (typeof r === 'object' && r !== null) ? (r.name ?? r.username ?? '') : (r ?? ''); })(),
     updated_at:  i.updatedAt  ?? i.updated_at ?? i.lastModified ?? null,
   };
 };

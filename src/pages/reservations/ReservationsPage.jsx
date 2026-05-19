@@ -336,7 +336,6 @@ export default function ReservationsPage() {
           return (
             <div style={{ display: 'flex', gap: 2 }}>
               <Button variant="ghost" size="sm" icon={Eye}   onClick={() => setDetail(row)}  title={t('common.edit')} />
-              <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)}   title={t('common.edit')} />
               {s === 'PENDING' && (
                 <Button variant="ghost" size="sm" icon={CreditCard}
                   style={{ color: 'var(--accent)' }}

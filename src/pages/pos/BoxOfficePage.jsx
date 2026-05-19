@@ -675,11 +675,11 @@ export default function TaquillaPage() {
           const seat   = realSeats?.find(s => s.screeningSeatId === screeningSeatId);
           const typeId = seat ? (seatTypes[seat.id] || ticketType) : ticketType;
           const type   = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
-          return { screeningSeatId, seatId: screeningSeatId, ticketType: type.backendType ?? 'ADULT' };
+          return { screeningSeatId, ticketType: type.backendType ?? 'ADULT' };
         }),
       };
       if (resolvedUserId) purchaseBody.userId = resolvedUserId;
-      else purchaseBody.guestEmail = resolvedGuestEmail || 'anonimo@taquilla.com';
+      else if (resolvedGuestEmail) purchaseBody.guestEmail = resolvedGuestEmail;
 
       const res = await salesService.createPurchase(purchaseBody);
 

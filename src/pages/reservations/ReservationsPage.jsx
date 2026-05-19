@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  Euro, Search, Ticket, XCircle, Plus, Edit2,
+  Euro, Search, Ticket, Plus, Edit2,
   CreditCard, Banknote, Smartphone, Globe,
-  CheckCircle, Loader, RotateCcw, Eye,
+  CheckCircle, Loader, RotateCcw, Trash2,
 } from 'lucide-react';
 import PageHeader   from '../../components/shared/PageHeader';
 import DataTable    from '../../components/shared/DataTable';
@@ -164,12 +164,12 @@ export default function ReservationsPage() {
     setSaving(true);
     const formAmount  = Number(form.totalAmount) || 0;
     const clientEmail = users.find(u => String(u.id) === String(form.userId))?.email ?? '';
-    const emailToSend = form.guestEmail.trim() || clientEmail;
+    const emailToSend = (form.guestEmail ?? '').trim() || clientEmail;
     const payload = {
       userId:      Number(form.userId),
       screeningId: form.screeningId ? Number(form.screeningId) : undefined,
-      totalAmount: formAmount || undefined,
-      status:      editing ? getStatus(editing) : 'PENDING',
+      total:       formAmount || undefined,
+      ...(editing ? { status: getStatus(editing) } : {}),
       ...(emailToSend ? { guestEmail: emailToSend } : {}),
     };
     try {
@@ -335,21 +335,16 @@ export default function ReservationsPage() {
           const s = getStatus(row);
           return (
             <div style={{ display: 'flex', gap: 2 }}>
-              <Button variant="ghost" size="sm" icon={Eye}   onClick={() => setDetail(row)}  title={t('common.edit')} />
+              <Button variant="ghost" size="sm" icon={Edit2} onClick={() => setDetail(row)}  title={t('common.edit')} />
               {s === 'PENDING' && (
                 <Button variant="ghost" size="sm" icon={CreditCard}
                   style={{ color: 'var(--accent)' }}
                   onClick={() => { setPayTarget(row); setPayMethod('CARD'); setCashGiven(''); setModal('pay'); }}
                   title={t('reservations.col.payment')} />
               )}
-              {s === 'CONFIRMED' && (
-                <Button variant="ghost" size="sm" icon={RotateCcw}
-                  style={{ color: 'var(--yellow)' }}
-                  onClick={() => setRefundTarget(row)}
-                  title={t('reservations.refund.title')} />
-              )}
               {['CONFIRMED', 'PENDING'].includes(s) && (
-                <Button variant="ghost" size="sm" icon={XCircle}
+                <Button variant="ghost" size="sm" icon={Trash2}
+                  style={{ color: 'var(--red)' }}
                   onClick={() => setCancelTarget(row)} title={t('reservations.cancel.title')} />
               )}
             </div>
@@ -602,14 +597,8 @@ export default function ReservationsPage() {
                     {t('reservations.pay.card')}
                   </Button>
                 )}
-                {status === 'CONFIRMED' && (
-                  <Button variant="secondary" size="sm" icon={RotateCcw}
-                    onClick={() => { setDetail(null); setRefundTarget(detail); }}>
-                    {t('reservations.refund.title')}
-                  </Button>
-                )}
                 {['CONFIRMED', 'PENDING'].includes(status) && (
-                  <Button variant="danger" size="sm" icon={XCircle}
+                  <Button variant="danger" size="sm" icon={Trash2}
                     onClick={() => { setDetail(null); setCancelTarget(detail); }}>
                     {t('reservations.cancel.title')}
                   </Button>

@@ -219,7 +219,8 @@ export default function CuadrantePage() {
   const { toast } = useApp();
   const { user }  = useAuth();
   const { t, language } = useLanguage();
-  const readOnly = ['LIMPIEZA', 'MANTENIMIENTO'].includes(user?.role);
+  const readOnly   = ['LIMPIEZA', 'MANTENIMIENTO'].includes(user?.role);
+  const canGenerate = user?.role === 'GERENCIA';
   const [mode, setMode] = useState('week');
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [monthStart, setMonthStart] = useState(() => {
@@ -496,7 +497,7 @@ export default function CuadrantePage() {
             <button className={styles.navBtn} onClick={nextPeriod}><ChevronRight size={14} /></button>
           </div>
 
-          {!readOnly && (
+          {canGenerate && (
             <button className={styles.generateBtn} onClick={handleGenerate} disabled={saving || loading}>
               {saving ? <Loader size={13} className={styles.spinner} /> : <RefreshCw size={13} />}
               {saving ? 'Guardando...' : (mode === 'week' ? t('shifts.generate.week') : t('shifts.generate.month'))}

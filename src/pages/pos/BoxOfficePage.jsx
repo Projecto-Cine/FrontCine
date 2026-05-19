@@ -13,6 +13,7 @@ import { clientsService }     from '../../services/clientsService';
 import { roomsService }       from '../../services/roomsService';
 import { moviesService }      from '../../services/moviesService';
 import { useApp }  from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 import { useLanguage } from '../../i18n/LanguageContext';
 import Badge      from '../../components/ui/Badge';
@@ -86,6 +87,8 @@ function generateOfflineSeats(sessionId, capacity = 100, roomName = '') {
 export default function TaquillaPage() {
   const { toast } = useApp();
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isCajero = user?.role === 'CAJERO';
 
 
   const [step, setStep]                   = useState('sessions');
@@ -933,15 +936,19 @@ export default function TaquillaPage() {
                   placeholder={t('box_office.search')}
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
               </div>
-              <button className={styles.newSessionBtn} onClick={() => setShowNewSession(true)} title="Nueva sesión">
-                <Plus size={14} />
-                <span>Nueva sesión</span>
-              </button>
+              {!isCajero && (
+                <button className={styles.newSessionBtn} onClick={() => setShowNewSession(true)} title="Nueva sesión">
+                  <Plus size={14} />
+                  <span>Nueva sesión</span>
+                </button>
+              )}
               {/* Botón devolución desactivado por petición del cliente */}
-              <button className={styles.fullResetBtn} onClick={() => setShowFullResetConfirm(true)} title="Reset total — borrar TODAS las sesiones">
-                <Trash2 size={12} />
-                <span>Reset total</span>
-              </button>
+              {!isCajero && (
+                <button className={styles.fullResetBtn} onClick={() => setShowFullResetConfirm(true)} title="Reset total — borrar TODAS las sesiones">
+                  <Trash2 size={12} />
+                  <span>Reset total</span>
+                </button>
+              )}
             </div>
 
             {loadingSessions ? (
@@ -1836,7 +1843,7 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
           <div><span className={styles.tcLabel}>{t('box_office.ticket.date')}</span><span className={styles.tcVal}>{ticket.date}</span></div>
           <div><span className={styles.tcLabel}>{t('box_office.ticket.time')}</span><span className={styles.tcVal}>{ticket.time} h</span></div>
           <div><span className={styles.tcLabel}>{t('box_office.ticket.room')}</span><span className={styles.tcVal}>{ticket.room}</span></div>
-          <div><span className={styles.tcLabel}>{t('box_office.ticket.seat')}</span><span className={styles.tcVal}>{ticket.seat}</span></div>
+          <div><span className={styles.tcLabel}>{tickets.length > 1 ? 'BUTACAS' : t('box_office.ticket.seat')}</span><span className={styles.tcVal}>{tickets.map(tk => tk.seat).join(' · ')}</span></div>
         </div>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketCardTotal}>
@@ -1851,7 +1858,7 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
           <div className={styles.ticketQRInfo}>
             <span className={styles.ticketQRLabel}>{t('box_office.ticket.scan')}</span>
             <span className={styles.ticketId}>{ticket.id}</span>
-            <span className={styles.ticketIdSeat}>Butaca {ticket.seat}</span>
+            <span className={styles.ticketIdSeat}>Butaca {ticket.seat} {tickets.length > 1 ? `(${current + 1}/${tickets.length})` : ''}</span>
           </div>
         </div>
         <div className={styles.ticketCardDivider} />

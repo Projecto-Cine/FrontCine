@@ -1,0 +1,23 @@
+.shell { min-height: 100vh; background: var(--bg-1); display: flex; flex-direction: column; }
+
+.header {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; height: 56px;
+  background: var(--bg-2); border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+
+.logo { display: flex; align-items: center; gap: 10px; color: var(--accent); font-weight: 700; font-size: var(--fs-lg); letter-spacing: 0.02em; text-decoration: none; }
+.logo svg { color: var(--accent); }
+
+.headerRight { display: flex; align-items: center; gap: 10px; }
+
+.guestHint { font-size: var(--fs-sm); color: var(--text-3); display: none; }
+@media (min-width: 480px) { .guestHint { display: block; } }
+
+.userChip { display: flex; align-items: center; gap: 6px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 99px; padding: 5px 10px 5px 8px; font-size: var(--fs-sm); color: var(--text-1); }
+.logoutBtn { display: flex; align-items: center; background: none; border: none; color: var(--text-3); cursor: pointer; padding: 2px; margin-left: 2px; border-radius: 4px; transition: color var(--t); }
+.logoutBtn:hover { color: var(--red); }
+
+.main { flex: 1; max-width: 680px; width: 100%; margin: 0 auto; padding: 20px 16px 40px; }

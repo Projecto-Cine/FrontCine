@@ -1,4 +1,4 @@
-﻿.page { display: flex; flex-direction: column; gap: 16px; }
+﻿.page { display: flex; flex-direction: column; gap: 16px; flex: 1; min-height: 0; overflow: hidden; }
 .filters { display: flex; align-items: center; gap: 16px; }
 .filterChip { display: flex; align-items: center; gap: 6px; }
 .filterCount { font-size: var(--fs-sm); color: var(--text-3); }

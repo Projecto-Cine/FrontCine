@@ -231,6 +231,7 @@ export default function CuadrantePage() {
   const [scheduleMap, setScheduleMap] = useState({});
   const [editCell, setEditCell] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const buildRowsFromShifts = (employees, shifts, ws) =>
     employees.map(emp => ({
@@ -331,28 +332,62 @@ export default function CuadrantePage() {
 
   const stats = coverageStats(weekRows);
 
+  const saveScheduleToBackend = async (rows, ws) => {
+    const from = ws.toISOString().split('T')[0];
+    const to   = addDays(ws, 6).toISOString().split('T')[0];
+    const existing = await shiftsService.getByRange(from, to).catch(() => []) ?? [];
+    await Promise.all(existing.map(s => shiftsService.remove(s.id).catch(() => {})));
+    const creates = [];
+    rows.forEach(emp => {
+      emp.days.forEach((shift, dayIdx) => {
+        if (shift !== 'L') {
+          const times = SHIFT_TIMES[shift];
+          creates.push(shiftsService.create({
+            employeeId: emp.id,
+            shiftDate:  addDays(ws, dayIdx).toISOString().split('T')[0],
+            startTime:  times.start,
+            endTime:    times.end,
+            status:     'SCHEDULED',
+          }).catch(() => {}));
+        }
+      });
+    });
+    await Promise.all(creates);
+  };
+
   const handleGenerate = async () => {
     const genKey = Date.now();
-    let updates = {};
-
-    if (mode === 'week') {
-      setScheduleMap(prev => ({ ...prev, [currentKey]: generateWeekSchedule(activeEmployees, weekStart, genKey) }));
-      toast(t('shifts.weekGenerated'), 'success');
-    } else {
-      let cursor = getWeekStart(monthStart);
-      const targetMonth = monthStart.getMonth();
-      for (let w = 0; w < 6; w++) {
-        const hasMonth = Array.from({ length: 7 }, (_, i) => addDays(cursor, i))
-          .some(d => d.getMonth() === targetMonth);
-        if (!hasMonth) break;
-        updates[weekKey(cursor)] = generateWeekSchedule(activeEmployees, cursor, genKey + w);
-        cursor = addDays(cursor, 7);
+    setSaving(true);
+    try {
+      if (mode === 'week') {
+        const generated = generateWeekSchedule(activeEmployees, weekStart, genKey);
+        setScheduleMap(prev => ({ ...prev, [currentKey]: generated }));
+        await saveScheduleToBackend(generated, weekStart);
+        toast(t('shifts.weekGenerated'), 'success');
+      } else {
+        let cursor = getWeekStart(monthStart);
+        const targetMonth = monthStart.getMonth();
+        const allUpdates = {};
+        const savePromises = [];
+        for (let w = 0; w < 6; w++) {
+          const hasMonth = Array.from({ length: 7 }, (_, i) => addDays(cursor, i))
+            .some(d => d.getMonth() === targetMonth);
+          if (!hasMonth) break;
+          const generated = generateWeekSchedule(activeEmployees, new Date(cursor), genKey + w);
+          allUpdates[weekKey(cursor)] = generated;
+          savePromises.push(saveScheduleToBackend(generated, new Date(cursor)));
+          cursor = addDays(cursor, 7);
+        }
+        setScheduleMap(prev => ({ ...prev, ...allUpdates }));
+        await Promise.all(savePromises);
+        toast(t('shifts.monthGenerated', { count: Object.keys(allUpdates).length }), 'success');
       }
-      setScheduleMap(prev => ({ ...prev, ...updates }));
-      toast(t('shifts.monthGenerated', { count: Object.keys(updates).length }), 'success');
+    } catch {
+      toast('Error al guardar el cuadrante en el servidor.', 'error');
+    } finally {
+      setSaving(false);
+      setEditCell(null);
     }
-
-    setEditCell(null);
   };
 
   const handleShiftChange = async (empId, dayIdx, newShift) => {
@@ -462,9 +497,9 @@ export default function CuadrantePage() {
           </div>
 
           {!readOnly && (
-            <button className={styles.generateBtn} onClick={handleGenerate}>
-              <RefreshCw size={13} />
-              {mode === 'week' ? t('shifts.generate.week') : t('shifts.generate.month')}
+            <button className={styles.generateBtn} onClick={handleGenerate} disabled={saving || loading}>
+              {saving ? <Loader size={13} className={styles.spinner} /> : <RefreshCw size={13} />}
+              {saving ? 'Guardando...' : (mode === 'week' ? t('shifts.generate.week') : t('shifts.generate.month'))}
             </button>
           )}
 

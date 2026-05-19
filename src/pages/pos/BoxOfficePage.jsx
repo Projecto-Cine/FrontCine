@@ -577,13 +577,16 @@ export default function TaquillaPage() {
   const is4D  = /4D|4DX/i.test(theater?.name ?? movie?.format ?? '');
   const extra = is4D ? { price: 3.00, label: '4D' } : null;
   const clientVisits     = Number(selectedClient?.annualVisits ?? selectedClient?.visitsPerYear ?? 0);
-  const fidelityEligible = !!(selectedClient && clientVisits > 10 && ticketType === 'adult');
+  // fidelityDiscountEligible viene del backend (annualVisits >= 10), o lo calculamos localmente como fallback
+  const clientEligible   = !!(selectedClient?.fidelityDiscountEligible || clientVisits >= 10);
+  // Descuento en la compra 11: aplica a TODOS los tipos de entrada
+  const fidelityEligible = !!(selectedClient && clientEligible && selectedSeats.length > 0);
   const discountedBase   = fidelityEligible ? +(basePrice * 0.9).toFixed(2) : basePrice;
   // Per-seat total: tipo por butaca + VIP automático si el asiento es VIP + suplemento 4D
   const total = selectedSeats.reduce((sum, seatId) => {
     const typeId = seatTypes[seatId] || ticketType;
     const type   = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
-    const isFidelity = !!(selectedClient && (Number(selectedClient?.annualVisits ?? selectedClient?.visitsPerYear ?? 0)) > 10 && typeId === 'adult');
+    const isFidelity = !!(selectedClient && clientEligible);
     const price  = isFidelity ? +(type.price * 0.9).toFixed(2) : type.price;
     const seat   = realSeats?.find(s => s.id === seatId);
     const isVip  = (seat?.seatType ?? '').toUpperCase() === 'VIP';
@@ -697,6 +700,9 @@ export default function TaquillaPage() {
       if (res?.id) {
         try {
           const confirmed = await salesService.confirmPurchase(res.id);
+          if (confirmed?.discountApplied) {
+            toast(`🎉 Descuento fidelidad aplicado: −€${Number(confirmed.discountAmount ?? 0).toFixed(2)} (compra 11)`, 'success');
+          }
           if (resolvedGuestEmail) {
             if (confirmed?.emailSent === false) {
               toast('Compra confirmada, pero el email no se pudo enviar. Revisa la configuración SMTP del servidor.', 'warning');
@@ -1100,8 +1106,8 @@ export default function TaquillaPage() {
                     <span className={styles.clientChipName}>{selectedClient.name ?? selectedClient.username}</span>
                     <span className={styles.clientChipEmail}>{selectedClient.email ?? ''}</span>
                   </div>
-                  {clientVisits > 10
-                    ? <span className={styles.fidelityBadge}><Star size={10} /> −10%</span>
+                  {clientEligible
+                    ? <span className={styles.fidelityBadge}><Star size={10} /> ¡Compra 11 −10%!</span>
                     : <span className={styles.fidelityBadge} style={{ opacity: 0.55 }}><Star size={10} /> {clientVisits}/10 visitas</span>
                   }
                 </div>
@@ -1194,18 +1200,25 @@ export default function TaquillaPage() {
                 <span className={styles.cartTypeLabel}>{baseType.label}</span>
                 <span className={styles.cartTypePrice}>€{basePrice.toFixed(2)} / ud.</span>
               </div>
-              {fidelityEligible && (
-                <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(201,168,76,0.2)' }}>
-                  <span className={styles.cartTypeLabel} style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Star size={10} /> {t('box_office.fidelity')}
-                  </span>
-                  <span className={styles.cartTypePrice} style={{ color: 'var(--accent)' }}>−€{(basePrice * 0.1).toFixed(2)} / ud.</span>
-                </div>
-              )}
-              {selectedClient && !fidelityEligible && (
+              {fidelityEligible && (() => {
+                const totalDiscount = selectedSeats.reduce((sum, s) => {
+                  const tid  = seatTypes[s] ?? ticketType;
+                  const typ  = ticketTypes.find(t => t.id === tid) || ticketTypes[0];
+                  return sum + typ.price * 0.1;
+                }, 0);
+                return (
+                  <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(201,168,76,0.2)' }}>
+                    <span className={styles.cartTypeLabel} style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Star size={10} /> Descuento fidelidad · compra 11 (−10% todas las entradas)
+                    </span>
+                    <span className={styles.cartTypePrice} style={{ color: 'var(--accent)' }}>−€{totalDiscount.toFixed(2)}</span>
+                  </div>
+                );
+              })()}
+              {selectedClient && !clientEligible && selectedSeats.length > 0 && (
                 <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(100,100,100,0.15)' }}>
                   <span className={styles.cartTypeLabel} style={{ color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Star size={10} /> Club Lumen · {clientVisits}/10 visitas — sin descuento aún
+                    <Star size={10} /> Club Lumen · {clientVisits}/10 — descuento en compra 11
                   </span>
                 </div>
               )}
@@ -1219,7 +1232,7 @@ export default function TaquillaPage() {
                 {selectedSeats.map(s => {
                   const typeId    = seatTypes[s] || ticketType;
                   const type      = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
-                  const isFid     = !!(selectedClient && (Number(selectedClient?.annualVisits ?? selectedClient?.visitsPerYear ?? 0)) > 10 && typeId === 'adult');
+                  const isFid     = !!(selectedClient && clientEligible);
                   const seat      = realSeats?.find(r => r.id === s);
                   const isVip     = (seat?.seatType ?? '').toUpperCase() === 'VIP';
                   const seatPrice = (isFid ? +(type.price * 0.9).toFixed(2) : type.price) + (isVip ? VIP_SEAT_SUPPLEMENT : 0) + (extra?.price ?? 0);

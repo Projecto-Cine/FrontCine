@@ -123,6 +123,7 @@ export default function InventoryPage() {
       </div>
     )},
     { key: 'category', label: t('inventory.col.category'), width: 110, render: v => <Badge variant={CAT_COLOR[v] || 'default'}>{t(`inventory.categories.${v}`) || v}</Badge> },
+    { key: 'supplier', label: 'Proveedor', width: 140, render: v => <span style={{ fontSize: 11, color: v ? 'var(--text-2)' : 'var(--text-3)' }}>{v || '—'}</span> },
     { key: 'quantity', label: t('inventory.col.quantity'), width: 90, render: (v, row) => (
       <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: v <= row.min_stock ? 'var(--yellow)' : 'var(--text-1)' }}>{v} {row.unit}</span>
     )},

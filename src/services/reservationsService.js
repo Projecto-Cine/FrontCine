@@ -2,6 +2,10 @@ import { api } from './api';
 
 export const reservationsService = {
   getAll:         ()              => api.get('/purchases'),
+  getActive:      ()              => Promise.all([
+    api.get('/purchases?status=PENDING'),
+    api.get('/purchases?status=PAID'),
+  ]).then(([pending, paid]) => [...(pending ?? []), ...(paid ?? [])]),
   getById:        (id)            => api.get(`/purchases/${id}`),
   getByUser:      (userId)        => api.get(`/purchases/user/${userId}`),
   getByScreening: (screeningId)   => api.get(`/purchases/screening/${screeningId}`),

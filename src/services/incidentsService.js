@@ -2,32 +2,36 @@ import { api } from './api';
 
 const SEV_TO_PRI = { ALTA: 'critical', MEDIA: 'high', BAJA: 'low', HIGH: 'critical', MEDIUM: 'high', LOW: 'low' };
 const PRI_TO_SEV = { critical: 'ALTA', high: 'MEDIA', medium: 'MEDIA', low: 'BAJA' };
+const STATUS_TO_BACK = { open: 'OPEN', in_progress: 'IN_PROGRESS', resolved: 'RESOLVED' };
 
 const norm = (i) => {
   if (!i) return i;
   const priority = SEV_TO_PRI[i.severity] ?? i.priority ?? 'low';
-  const status   = i.resolved === true
-    ? 'resolved'
-    : (i.status ?? 'open').toLowerCase().replace(' ', '_');
+  const status   = (i.status ?? 'OPEN').toLowerCase().replace(' ', '_');
+  const rawAssigned = i.assignedTo ?? i.assigned_to;
+  const isObj = typeof rawAssigned === 'object' && rawAssigned !== null;
   return {
     ...i,
     priority,
     status,
-    assigned_to: i.assignedTo ?? i.assigned_to,
-    updated_at:  i.updatedAt  ?? i.updated_at ?? i.lastModified ?? null,
+    assigned_to:      isObj ? rawAssigned.id   : (rawAssigned ?? ''),  // ID para el select
+    assigned_to_name: isObj ? (rawAssigned.name ?? rawAssigned.username ?? '') : (rawAssigned ?? ''), // nombre para mostrar
+    updated_at:       i.updatedAt ?? i.updated_at ?? i.lastModified ?? null,
   };
 };
 const normList = (data) => Array.isArray(data) ? data.map(norm) : data;
 
 const toBackend = (data) => ({
   ...data,
-  severity:    PRI_TO_SEV[data.priority] ?? data.severity,
-  priority:    undefined,
-  resolved:    data.status === 'resolved',
-  assignedTo:  data.assigned_to ?? data.assignedTo,
-  assigned_to: undefined,
-  updated_at:  undefined,
-  updatedAt:   undefined,
+  severity:         PRI_TO_SEV[data.priority] ?? data.severity,
+  priority:         undefined,
+  status:           STATUS_TO_BACK[data.status] ?? data.status?.toUpperCase() ?? 'OPEN',
+  resolved:         undefined,
+  assignedTo:       data.assigned_to ? Number(data.assigned_to) : null,
+  assigned_to:      undefined,
+  assigned_to_name: undefined,
+  updated_at:       undefined,
+  updatedAt:        undefined,
 });
 
 export const incidentsService = {

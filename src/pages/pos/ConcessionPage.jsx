@@ -13,14 +13,14 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import EmptyState from '../../components/shared/EmptyState';
 import styles from './ConcessionPage.module.css';
 
-const CAT_LABEL = { Todo: 'Todo', FOOD: 'Comida', DRINK: 'Bebida', MERCHANDISE: 'Merchandising' };
-const CAT_EMOJI = { FOOD: '🍿', DRINK: '🥤', MERCHANDISE: '🛒' };
-const FIXED_CATS = ['Todo', 'FOOD', 'DRINK', 'MERCHANDISE'];
+const CAT_LABEL = { Todo: 'Todo', Comida: 'Comida', Bebida: 'Bebida', Merchandise: 'Merchandising' };
+const CAT_EMOJI = { Comida: '🍿', Bebida: '🥤', Merchandise: '🛒' };
+const FIXED_CATS = ['Todo', 'Comida', 'Bebida', 'Merchandise'];
 
 const getEmoji = (p) => p.emoji ?? CAT_EMOJI[p.category] ?? '🔲';
 const getPrice = (p) => p.price ?? p.price_unit ?? 0;
 
-const EMPTY_PRODUCT = { name: '', category: 'FOOD', price: '', description: '', emoji: '', imageUrl: '', stock: '' };
+const EMPTY_PRODUCT = { name: '', category: 'Comida', price: '', description: '', emoji: '', imageUrl: '', stock: '' };
 
 
 const IMG_KEY = 'lumen_product_images';
@@ -570,9 +570,9 @@ export default function CajaPage() {
                   <div>
                     <label className={styles.managerLabel} htmlFor="pf-category">{t('concession.form.category')}</label>
                     <select id="pf-category" className={styles.managerInput} value={productForm.category} onChange={e => setField('category', e.target.value)}>
-                      <option value="FOOD">Comida</option>
-                      <option value="DRINK">Bebida</option>
-                      <option value="MERCHANDISE">Merchandising</option>
+                      <option value="Comida">Comida</option>
+                      <option value="Bebida">Bebida</option>
+                      <option value="Merchandise">Merchandising</option>
                     </select>
                   </div>
                   <div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, Users, GraduationCap, Star, UserCheck, Plus, Edit2, Trash2 } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
@@ -26,15 +26,16 @@ function initials(name = '') {
 function normalizeClient(apiRes, formData = {}) {
   return {
     ...apiRes,
-    id:       apiRes?.id ?? apiRes?.userId ?? apiRes?.clientId ?? ('CLI-' + Date.now()),
-    name:     apiRes?.name ?? formData.name ?? apiRes?.username ?? '-',
-    lastName: apiRes?.lastName ?? formData.lastName ?? '',
-    email:    apiRes?.email ?? formData.email ?? '-',
-    username: apiRes?.username ?? formData.username ?? '',
-    student:  apiRes?.student ?? apiRes?.isStudent ?? formData.student ?? false,
-    status:   apiRes?.status ?? 'ACTIVE',
-    userType: apiRes?.userType ?? 'ADULT',
-    birthDate: apiRes?.birthDate ?? apiRes?.dateOfBirth ?? '',
+    id:           apiRes?.id ?? apiRes?.userId ?? apiRes?.clientId ?? ('CLI-' + Date.now()),
+    name:         apiRes?.name ?? formData.name ?? apiRes?.username ?? '-',
+    lastName:     apiRes?.lastName ?? formData.lastName ?? '',
+    email:        apiRes?.email ?? formData.email ?? '-',
+    username:     apiRes?.username ?? formData.username ?? '',
+    student:      apiRes?.student ?? apiRes?.isStudent ?? formData.student ?? false,
+    status:       apiRes?.status ?? 'ACTIVE',
+    userType:     apiRes?.userType ?? 'ADULT',
+    birthDate:    apiRes?.birthDate ?? apiRes?.dateOfBirth ?? '',
+    visitsPerYear: apiRes?.annualVisits ?? apiRes?.visitsPerYear ?? 0,
   };
 }
 
@@ -60,12 +61,18 @@ export default function ClientsPage() {
     SUSPENDED: t('clients.status.SUSPENDED'),
   };
 
+  const isRealClient = (c) => {
+    const name  = (c.name ?? c.firstName ?? '').trim().toLowerCase();
+    const email = (c.email ?? '').toLowerCase();
+    return name !== 'guest' && name !== '' && !email.includes('anonimo@');
+  };
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const data = await clientsService.getAll();
       const raw  = Array.isArray(data) ? data : (data?.content ?? []);
-      setResults(raw.map(c => normalizeClient(c)));
+      setResults(raw.map(c => normalizeClient(c)).filter(isRealClient));
       setSearched(true);
     } catch {
       toast('Error al cargar clientes.', 'error');
@@ -79,7 +86,7 @@ export default function ClientsPage() {
     try {
       const data = await clientsService.search(q);
       const raw  = Array.isArray(data) ? data : (data?.content ?? []);
-      setResults(raw.map(c => normalizeClient(c)));
+      setResults(raw.map(c => normalizeClient(c)).filter(isRealClient));
       setSearched(true);
     } catch {
       toast('Error al buscar clientes.', 'error');
@@ -191,8 +198,8 @@ export default function ClientsPage() {
     setDetail(row);
     setDetailLoading(true);
     try {
-      const full = await clientsService.getById(row.id);
-      setDetail(full ?? row);
+      const raw  = await clientsService.getById(row.id);
+      setDetail(raw ? normalizeClient(raw) : row);
     } catch { /* keep row data */ }
     setDetailLoading(false);
   };
@@ -230,13 +237,23 @@ export default function ClientsPage() {
       <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{v ?? '-'}</span> },
     { key: 'visitsPerYear', label: t('clients.col.visits'), width: 100, render: v =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{v ?? '-'}</span> },
-    { key: 'fidelityDiscountEligible', label: t('clients.col.loyalty'), width: 110, render: v =>
-      v ? <Badge variant="accent" dot>{t('clients.loyal')}</Badge> : <Badge variant="default">{t('clients.loyalNo')}</Badge> },
+    { key: 'discountActive', label: t('clients.col.loyalty'), width: 110, render: (v, row) => {
+      const isSocio = !!(v || row.fidelityDiscountEligible || row.fidelityMember);
+      return isSocio ? <Badge variant="accent" dot>{t('clients.loyal')}</Badge> : <Badge variant="default">{t('clients.loyalNo')}</Badge>;
+    }},
     { key: 'status', label: t('clients.col.status'), width: 110, render: v => {
       const s = v ?? 'ACTIVE';
       return <Badge variant={STATUS_COLOR[s] ?? 'default'} dot>{STATUS_LABEL[s] ?? s}</Badge>;
     }},
   ];
+
+  const sortedResults = useMemo(() => {
+    return [...results].sort((a, b) => {
+      const la = (a.lastName ?? '').toLowerCase();
+      const lb = (b.lastName ?? '').toLowerCase();
+      return la.localeCompare(lb, 'es');
+    });
+  }, [results]);
 
   return (
     <div className={styles.page}>
@@ -278,7 +295,7 @@ export default function ClientsPage() {
       {searched && (
         <DataTable
           columns={columns}
-          data={results}
+          data={sortedResults}
           searchKeys={['name', 'email', 'username']}
           onRowClick={openDetail}
           rowKey="id"
@@ -398,8 +415,10 @@ export default function ClientsPage() {
         size="sm"
       >
         {detail && !detailLoading && (() => {
-          const eligible = detail.fidelityDiscountEligible;
-          const status   = detail.status ?? 'ACTIVE';
+          const isSocio    = !!(detail.discountActive || detail.fidelityMember);
+          const hasDiscount = !!(detail.fidelityDiscountEligible || (detail.annualVisits ?? detail.visitsPerYear ?? 0) >= 10);
+          const visits     = detail.visitsPerYear ?? 0;
+          const status     = detail.status ?? 'ACTIVE';
           return (
             <div className={styles.detail}>
               <div className={styles.detailHeader}>
@@ -410,10 +429,10 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              {eligible && (
+              {hasDiscount && (
                 <div className={styles.fidelityBanner}>
                   <Star size={14} />
-                  {t('clients.loyalBanner')}
+                  ¡Descuento disponible! Próxima compra con −10% en todas las entradas
                 </div>
               )}
 
@@ -438,11 +457,11 @@ export default function ClientsPage() {
                 </div>
                 <div className={styles.detailCard}>
                   <span className={styles.detailLbl}>{t('clients.detail.visits')}</span>
-                  <span className={styles.detailVal}>{detail.visitsPerYear ?? '-'}</span>
+                  <span className={styles.detailVal}>{visits}/10</span>
                 </div>
                 <div className={styles.detailCard}>
                   <span className={styles.detailLbl}>{t('clients.detail.loyalty')}</span>
-                  <span className={styles.detailVal}>{eligible ? t('clients.loyalYes') : t('clients.loyalNo')}</span>
+                  <span className={styles.detailVal}>{isSocio ? t('clients.loyalYes') : t('clients.loyalNo')}</span>
                 </div>
                 <div className={styles.detailCard}>
                   <span className={styles.detailLbl}>{t('clients.detail.dob')}</span>

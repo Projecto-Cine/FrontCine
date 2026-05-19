@@ -573,13 +573,14 @@ export default function TaquillaPage() {
   // +€3 solo para salas 4D/4DX
   const is4D  = /4D|4DX/i.test(theater?.name ?? movie?.format ?? '');
   const extra = is4D ? { price: 3.00, label: '4D' } : null;
-  const fidelityEligible = !!(selectedClient?.fidelityDiscountEligible && ticketType === 'adult');
+  const clientVisits     = Number(selectedClient?.annualVisits ?? selectedClient?.visitsPerYear ?? 0);
+  const fidelityEligible = !!(selectedClient && clientVisits > 10 && ticketType === 'adult');
   const discountedBase   = fidelityEligible ? +(basePrice * 0.9).toFixed(2) : basePrice;
   // Per-seat total: tipo por butaca + VIP automático si el asiento es VIP + suplemento 4D
   const total = selectedSeats.reduce((sum, seatId) => {
     const typeId = seatTypes[seatId] || ticketType;
     const type   = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
-    const isFidelity = !!(selectedClient?.fidelityDiscountEligible && typeId === 'adult');
+    const isFidelity = !!(selectedClient && (Number(selectedClient?.annualVisits ?? selectedClient?.visitsPerYear ?? 0)) > 10 && typeId === 'adult');
     const price  = isFidelity ? +(type.price * 0.9).toFixed(2) : type.price;
     const seat   = realSeats?.find(s => s.id === seatId);
     const isVip  = (seat?.seatType ?? '').toUpperCase() === 'VIP';
@@ -674,11 +675,11 @@ export default function TaquillaPage() {
           const seat   = realSeats?.find(s => s.screeningSeatId === screeningSeatId);
           const typeId = seat ? (seatTypes[seat.id] || ticketType) : ticketType;
           const type   = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
-          return { screeningSeatId, seatId: screeningSeatId, ticketType: type.backendType ?? 'ADULT' };
+          return { screeningSeatId, ticketType: type.backendType ?? 'ADULT' };
         }),
       };
       if (resolvedUserId) purchaseBody.userId = resolvedUserId;
-      if (resolvedGuestEmail) purchaseBody.guestEmail = resolvedGuestEmail;
+      else purchaseBody.guestEmail = resolvedGuestEmail || 'anonimo@taquilla.com';
 
       const res = await salesService.createPurchase(purchaseBody);
 
@@ -1085,7 +1086,10 @@ export default function TaquillaPage() {
                     <span className={styles.clientChipName}>{selectedClient.name ?? selectedClient.username}</span>
                     <span className={styles.clientChipEmail}>{selectedClient.email ?? ''}</span>
                   </div>
-                  <span className={styles.fidelityBadge}><Star size={10} /> Socio</span>
+                  {clientVisits > 10
+                    ? <span className={styles.fidelityBadge}><Star size={10} /> −10%</span>
+                    : <span className={styles.fidelityBadge} style={{ opacity: 0.55 }}><Star size={10} /> {clientVisits}/10 visitas</span>
+                  }
                 </div>
               ) : guestEmail ? (
                 <div className={styles.clientChip}>
@@ -1184,6 +1188,13 @@ export default function TaquillaPage() {
                   <span className={styles.cartTypePrice} style={{ color: 'var(--accent)' }}>−€{(basePrice * 0.1).toFixed(2)} / ud.</span>
                 </div>
               )}
+              {selectedClient && !fidelityEligible && (
+                <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(100,100,100,0.15)' }}>
+                  <span className={styles.cartTypeLabel} style={{ color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Star size={10} /> Club Lumen · {clientVisits}/10 visitas — sin descuento aún
+                  </span>
+                </div>
+              )}
               {extra && (
                 <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(201,168,76,0.2)' }}>
                   <span className={styles.cartTypeLabel} style={{ color: 'var(--accent)' }}>+ Suplemento {extra.label}</span>
@@ -1194,7 +1205,7 @@ export default function TaquillaPage() {
                 {selectedSeats.map(s => {
                   const typeId    = seatTypes[s] || ticketType;
                   const type      = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
-                  const isFid     = !!(selectedClient?.fidelityDiscountEligible && typeId === 'adult');
+                  const isFid     = !!(selectedClient && (Number(selectedClient?.annualVisits ?? selectedClient?.visitsPerYear ?? 0)) > 10 && typeId === 'adult');
                   const seat      = realSeats?.find(r => r.id === s);
                   const isVip     = (seat?.seatType ?? '').toUpperCase() === 'VIP';
                   const seatPrice = (isFid ? +(type.price * 0.9).toFixed(2) : type.price) + (isVip ? VIP_SEAT_SUPPLEMENT : 0) + (extra?.price ?? 0);
@@ -1265,6 +1276,7 @@ export default function TaquillaPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="client-modal-title"
+            style={{ maxWidth: 360 }}
           >
             <div className={styles.modalHeader}>
               <div className={styles.modalTitle}>

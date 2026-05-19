@@ -7,9 +7,9 @@ const EMPLOYEE_ROLES = new Set(['GERENCIA', 'CAJERO', 'LIMPIEZA', 'MANTENIMIENTO
 const ROLE_REDIRECT  = { CAJERO: '/box-office', LIMPIEZA: '/shifts', MANTENIMIENTO: '/shifts' };
 const EMPLOYEE_PERMISSIONS = {
   GERENCIA:      '*',
-  CAJERO:        ['/', '/box-office', '/concession', '/reservations', '/shifts'],
-  LIMPIEZA:      ['/', '/shifts'],
-  MANTENIMIENTO: ['/', '/shifts'],
+  CAJERO:        ['/box-office', '/concession', '/reservations', '/shifts'],
+  LIMPIEZA:      ['/shifts'],
+  MANTENIMIENTO: ['/incidents', '/shifts'],
 };
 
 export function AuthProvider({ children }) {

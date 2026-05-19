@@ -118,12 +118,12 @@
 
 /* ── Modal nueva sesión ────────────────────────────── */
 .modalBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 200; }
-.modalBox { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg, 10px); width: 100%; max-width: 440px; display: flex; flex-direction: column; overflow: hidden; }
+.modalBox { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg, 10px); width: 100%; max-width: 440px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
 .modalHeader { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
 .modalTitle { display: flex; align-items: center; gap: 8px; font-size: var(--fs-md); font-weight: 700; color: var(--text-1); }
 .modalClose { background: none; border: none; color: var(--text-3); cursor: pointer; padding: 4px; border-radius: var(--r); }
 .modalClose:hover { color: var(--text-1); }
-.modalBody { display: flex; flex-direction: column; gap: 10px; padding: 18px; }
+.modalBody { display: flex; flex-direction: column; gap: 10px; padding: 18px; overflow-y: auto; }
 .modalLabel { font-size: var(--fs-sm); color: var(--text-2); margin-bottom: 2px; }
 .modalSelect { width: 100%; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px; color: var(--text-1); font-size: var(--fs-md); outline: none; }
 .modalSelect:focus { border-color: var(--accent); }

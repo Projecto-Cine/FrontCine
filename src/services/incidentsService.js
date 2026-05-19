@@ -9,7 +9,13 @@ const norm = (i) => {
   const status   = i.resolved === true
     ? 'resolved'
     : (i.status ?? 'open').toLowerCase().replace(' ', '_');
-  return { ...i, priority, status, assigned_to: i.assignedTo ?? i.assigned_to };
+  return {
+    ...i,
+    priority,
+    status,
+    assigned_to: i.assignedTo ?? i.assigned_to,
+    updated_at:  i.updatedAt  ?? i.updated_at ?? i.lastModified ?? null,
+  };
 };
 const normList = (data) => Array.isArray(data) ? data.map(norm) : data;
 
@@ -17,8 +23,11 @@ const toBackend = (data) => ({
   ...data,
   severity:    PRI_TO_SEV[data.priority] ?? data.severity,
   priority:    undefined,
+  resolved:    data.status === 'resolved',
   assignedTo:  data.assigned_to ?? data.assignedTo,
   assigned_to: undefined,
+  updated_at:  undefined,
+  updatedAt:   undefined,
 });
 
 export const incidentsService = {

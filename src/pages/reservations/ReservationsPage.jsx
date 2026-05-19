@@ -272,13 +272,16 @@ export default function ReservationsPage() {
       const title = scr?.movie?.title ?? row.movieTitle ?? noScreeningText;
       return <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 500 }}>{title}</span>;
     }},
-    { key: 'sala', label: 'Sala', width: 120, render: (_, row) => {
+    { key: 'sala', label: t('reservations.col.room'), width: 120, render: (_, row) => {
       const scr = getScreening(row, screenings);
       const sala = scr?.theater?.name ?? scr?.room?.name ?? row.theaterName ?? '—';
       return <span style={{ fontSize: 'var(--fs-sm)' }}>{sala}</span>;
     }},
-    { key: 'seats', label: t('reservations.col.seats'), width: 110, render: (_, row) =>
-      <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)' }}>{getSeats(row).join(', ') || '-'}</span> },
+    { key: 'seats', label: t('reservations.col.seats'), width: 110, render: (_, row) => {
+      const scr = getScreening(row, screenings);
+      const capacity = scr?.theater?.capacity ?? scr?.theater?.totalSeats ?? scr?.theater?.seats ?? '—';
+      return <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)' }}>{capacity}</span>;
+    }},
     { key: 'amount', label: t('reservations.col.amount'), width: 90, render: (_, row) =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>€{getAmount(row).toFixed(2)}</span> },
     { key: 'paymentMethod', label: t('reservations.col.payment'), width: 90, render: (_, row) => {

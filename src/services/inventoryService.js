@@ -11,18 +11,22 @@ const toInventory = (item) => ({
 
 const fromInventory = (data) => {
   const hasFrontendNames = 'quantity' in data;
-  return {
+  const base = {
+    minStock: 0,
+    supplier: '',
     ...data,
-    ...(hasFrontendNames ? {
-      quantity: undefined,
-      min_stock: undefined,
-      price_unit: undefined,
-      unit: undefined,
-      location: undefined,
-      stock: Number(data.quantity),
-      minStock: Number(data.min_stock),
-      price: Number(data.price_unit),
-    } : {}),
+  };
+  if (!hasFrontendNames) return base;
+  return {
+    ...base,
+    quantity:   undefined,
+    min_stock:  undefined,
+    price_unit: undefined,
+    unit:       undefined,
+    location:   undefined,
+    stock:      Number(data.quantity),
+    minStock:   Number(data.min_stock) || 0,
+    price:      Number(data.price_unit),
   };
 };
 

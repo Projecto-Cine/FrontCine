@@ -110,6 +110,12 @@ export default function TaquillaPage() {
   const [selectedClient, setSelectedClient]   = useState(null);
   const [guestEmail, setGuestEmail]           = useState('');
   const [isMember, setIsMember]             = useState(null); // null=unasked, true=member, false=guest
+  const [showRegisterForm, setShowRegisterForm] = useState(false);
+  const [regForm, setRegForm] = useState({
+    name: '', lastName: '', username: '', email: '', password: '',
+    dateOfBirth: '', student: false, isFidelityMember: false,
+  });
+  const [registering, setRegistering] = useState(false);
   const clientDebounce   = useRef(null);
   const searchRef        = useRef(null);
   const activeSessionRef = useRef(null); // race-condition guard
@@ -780,6 +786,8 @@ export default function TaquillaPage() {
     setGuestEmail('');
     setClientQuery('');
     setClientResults([]);
+    setShowRegisterForm(false);
+    setRegForm({ name: '', lastName: '', username: '', email: '', password: '', dateOfBirth: '', student: false, isFidelityMember: false });
     setShowClientModal(true);
   };
 
@@ -796,7 +804,53 @@ export default function TaquillaPage() {
     setIsMember(null);
     setSelectedClient(null);
     setGuestEmail('');
+    setShowRegisterForm(false);
+    setRegForm({ name: '', lastName: '', username: '', email: '', password: '', dateOfBirth: '', student: false, isFidelityMember: false });
     selectSession(pendingSession);
+  };
+
+  const setRegField = (k, v) => setRegForm(prev => ({ ...prev, [k]: v }));
+
+  const handleRegisterClient = async () => {
+    if (!regForm.name.trim()) { toast('El nombre es obligatorio.', 'error'); return; }
+    if (!regForm.email.trim()) { toast('El email es obligatorio.', 'error'); return; }
+    if (!regForm.password.trim()) { toast('La contraseña es obligatoria.', 'error'); return; }
+    if (!regForm.dateOfBirth.trim()) { toast('La fecha de nacimiento es obligatoria.', 'error'); return; }
+    setRegistering(true);
+    try {
+      const payload = {
+        name:           regForm.name,
+        lastName:       regForm.lastName || '',
+        email:          regForm.email,
+        password:       regForm.password,
+        birthDate:      regForm.dateOfBirth || null,
+        student:        regForm.student,
+        discountActive: false,
+        role:           'CLIENT',
+      };
+      const raw = await clientsService.create(payload);
+      const newClient = {
+        id: raw?.id ?? raw?.userId ?? raw?.clientId,
+        name: raw?.name ?? regForm.name,
+        lastName: raw?.lastName ?? regForm.lastName,
+        email: raw?.email ?? regForm.email,
+        username: raw?.username ?? regForm.username ?? '',
+        birthDate: raw?.birthDate ?? regForm.dateOfBirth,
+        student: regForm.student,
+      };
+      setSelectedClient(newClient);
+      setIsMember(true);
+      setShowRegisterForm(false);
+      setGuestEmail('');
+      toast('Socio registrado correctamente ✓', 'success');
+    } catch (err) {
+      if (err?.status === 409) {
+        toast('Este email ya está registrado.', 'error');
+      } else {
+        toast('Error al registrar el socio.', 'error');
+      }
+    }
+    setRegistering(false);
   };
 
   const reset = useCallback(() => {
@@ -1307,7 +1361,7 @@ export default function TaquillaPage() {
                 </>
               )}
 
-              {/* Visit flow — email only (optional) */}
+              {/* Visit flow — email + signup option */}
               {isMember === false && (
                 <>
                   <div className={styles.guestFlow}>
@@ -1319,9 +1373,75 @@ export default function TaquillaPage() {
                       autoFocus
                     />
                     <p className={styles.guestEmailHint}>Si introduces un email, el ticket se enviará por correo.</p>
+
+                    {!showRegisterForm && (
+                      <button className={styles.signupPromptBtn}
+                        onClick={() => { setShowRegisterForm(true); setGuestEmail(''); }}>
+                        <UserPlus size={14} /> ¿Quiere hacerse socio?
+                      </button>
+                    )}
+
+                    {showRegisterForm && (
+                      <div className={styles.registerForm}>
+                        <p className={styles.registerFormTitle}>Nuevo socio</p>
+                        <p className={styles.registerFormHint}>Completa los datos para registrar al cliente como socio.</p>
+
+                        <div className={styles.modalRow}>
+                          <div className={styles.modalField}>
+                            <label className={styles.modalLabel}>Nombre *</label>
+                            <input className={styles.modalInput} placeholder="Nombre"
+                              value={regForm.name} onChange={e => setRegField('name', e.target.value)} />
+                          </div>
+                          <div className={styles.modalField}>
+                            <label className={styles.modalLabel}>Apellidos</label>
+                            <input className={styles.modalInput} placeholder="Apellidos"
+                              value={regForm.lastName} onChange={e => setRegField('lastName', e.target.value)} />
+                          </div>
+                        </div>
+
+                        <div className={styles.modalField}>
+                          <label className={styles.modalLabel}>Email *</label>
+                          <input className={styles.modalInput} type="email" placeholder="Email"
+                            value={regForm.email} onChange={e => setRegField('email', e.target.value)} />
+                        </div>
+
+                        <div className={styles.modalField}>
+                          <label className={styles.modalLabel}>Contraseña *</label>
+                          <input className={styles.modalInput} type="password" placeholder="Contraseña"
+                            value={regForm.password} onChange={e => setRegField('password', e.target.value)} />
+                        </div>
+
+                        <div className={styles.modalField}>
+                          <label className={styles.modalLabel}>Fecha de nacimiento *</label>
+                          <input className={styles.modalInput} type="date"
+                            value={regForm.dateOfBirth} onChange={e => setRegField('dateOfBirth', e.target.value)} />
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input type="checkbox" id="reg-student" checked={regForm.student}
+                            onChange={e => setRegField('student', e.target.checked)}
+                            style={{ width: 15, height: 15, accentColor: 'var(--accent)', cursor: 'pointer' }} />
+                          <label htmlFor="reg-student" style={{ fontSize: 12, color: 'var(--text-2)', cursor: 'pointer' }}>
+                            Es estudiante
+                          </label>
+                        </div>
+
+                        <div className={styles.registerFormActions}>
+                          <button className={styles.cancelBtn}
+                            onClick={() => { setShowRegisterForm(false); setRegForm({ name: '', lastName: '', username: '', email: '', password: '', dateOfBirth: '', student: false, isFidelityMember: false }); }}>
+                            Cancelar
+                          </button>
+                          <button className={styles.registerBtn} disabled={registering}
+                            onClick={handleRegisterClient}>
+                            {registering ? <Loader size={14} /> : null}
+                            {registering ? 'Registrando…' : 'Guardar socio'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <button className={styles.memberToggleBack}
-                    onClick={() => { setIsMember(null); setGuestEmail(''); }}>
+                    onClick={() => { setIsMember(null); setGuestEmail(''); setShowRegisterForm(false); }}>
                     ← Atrás
                   </button>
                 </>
@@ -1330,7 +1450,7 @@ export default function TaquillaPage() {
 
             <div className={styles.modalFooter}>
               <button className={styles.modalCancel} onClick={handleClientDiscard}>Saltar</button>
-              <button className={styles.modalSave} disabled={isMember === true && !selectedClient} onClick={handleClientSubmit}>
+              <button className={styles.modalSave} disabled={(isMember === true && !selectedClient) || showRegisterForm} onClick={handleClientSubmit}>
                 <ChevronRight size={14} aria-hidden="true" /> Continuar
               </button>
             </div>

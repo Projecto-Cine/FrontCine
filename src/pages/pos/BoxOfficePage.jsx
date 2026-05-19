@@ -603,32 +603,40 @@ export default function TaquillaPage() {
 
     setPaying(true);
     try {
-      // Always fetch fresh screening seats from the API to avoid stale IDs
-      const freshData = await sessionsService.syncSeats(selectedSession.id);
-      const raw = Array.isArray(freshData) ? freshData
-        : Array.isArray(freshData?.content) ? freshData.content
-        : Array.isArray(freshData?.data)    ? freshData.data
-        : Array.isArray(freshData?.seats)   ? freshData.seats
-        : [];
-      const seen = new Set();
-      const normalized = [];
-      for (const ss of raw) {
-        if (ss?.id == null) continue;
-        const seatObj = ss.seat ?? ss;
-        const row     = ss.row    ?? seatObj.row;
-        const number  = ss.number ?? seatObj.number ?? seatObj.seatNumber ?? seatObj.col;
-        if (!row || number == null) continue;
-        const displayId = `${String(row).toUpperCase()}${String(number).padStart(2, '0')}`;
-        if (seen.has(displayId)) continue;
-        seen.add(displayId);
-        const statusLow = (ss.status ?? '').toLowerCase();
-        normalized.push({
-          id: displayId, row: String(row).toUpperCase(), number,
-          status: (statusLow !== '' && statusLow !== 'available') ? 'occupied' : 'available',
-          screeningSeatId: ss.id,
-        });
+      // Fetch fresh screening seats — fall back to already-loaded realSeats if sync fails
+      let normalized = [];
+      try {
+        const freshData = await sessionsService.syncSeats(selectedSession.id);
+        const raw = Array.isArray(freshData) ? freshData
+          : Array.isArray(freshData?.content) ? freshData.content
+          : Array.isArray(freshData?.data)    ? freshData.data
+          : Array.isArray(freshData?.seats)   ? freshData.seats
+          : [];
+        const seen = new Set();
+        for (const ss of raw) {
+          if (ss?.id == null) continue;
+          const seatObj = ss.seat ?? ss;
+          const row     = ss.row    ?? seatObj.row;
+          const number  = ss.number ?? seatObj.number ?? seatObj.seatNumber ?? seatObj.col;
+          if (!row || number == null) continue;
+          const displayId = `${String(row).toUpperCase()}${String(number).padStart(2, '0')}`;
+          if (seen.has(displayId)) continue;
+          seen.add(displayId);
+          const statusLow = (ss.status ?? '').toLowerCase();
+          normalized.push({
+            id: displayId, row: String(row).toUpperCase(), number,
+            status: (statusLow !== '' && statusLow !== 'available') ? 'occupied' : 'available',
+            screeningSeatId: ss.id,
+          });
+        }
+        if (normalized.length) setRealSeats(normalized);
+      } catch {
+        // syncSeats failed — use already-loaded seat map data
+        normalized = realSeats ?? [];
       }
-      if (normalized.length) setRealSeats(normalized);
+
+      // If sync returned nothing, fall back to realSeats
+      if (!normalized.length) normalized = realSeats ?? [];
 
       let screeningSeatIds = selectedSeats
         .map(seatStr => normalized.find(s => s.id === seatStr)?.screeningSeatId)

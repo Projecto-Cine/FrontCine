@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, Users, GraduationCap, Star, UserCheck, Plus, Edit2, Trash2 } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
@@ -238,6 +238,14 @@ export default function ClientsPage() {
     }},
   ];
 
+  const sortedResults = useMemo(() => {
+    return [...results].sort((a, b) => {
+      const la = (a.lastName ?? '').toLowerCase();
+      const lb = (b.lastName ?? '').toLowerCase();
+      return la.localeCompare(lb, 'es');
+    });
+  }, [results]);
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -278,7 +286,7 @@ export default function ClientsPage() {
       {searched && (
         <DataTable
           columns={columns}
-          data={results}
+          data={sortedResults}
           searchKeys={['name', 'email', 'username']}
           onRowClick={openDetail}
           rowKey="id"

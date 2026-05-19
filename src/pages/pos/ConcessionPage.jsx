@@ -192,26 +192,26 @@ export default function CajaPage() {
   const handleSaveProduct = async () => {
     if (!productForm.name.trim() || !productForm.price) { toast('Nombre y precio son obligatorios.', 'error'); return; }
     setSavingProduct(true);
+    const imageUrl = productForm.imageUrl || '';
+    // Solo campos que el backend conoce — imagen/emoji se guardan en localStorage
     const payload = {
-      name:        productForm.name.trim(),
-      category:    productForm.category,
-      price:       Number(productForm.price),
-      description: productForm.description,
-      emoji:       productForm.emoji,
-      imageUrl:    productForm.imageUrl,
-      stock:       productForm.stock !== '' ? Number(productForm.stock) : 0,
+      name:     productForm.name.trim(),
+      category: productForm.category,
+      price:    Number(productForm.price),
+      stock:    productForm.stock !== '' ? Number(productForm.stock) : 0,
+      minStock: 0,
     };
     try {
       if (editingProduct) {
-        if (payload.imageUrl) saveStoredImg(editingProduct.id, payload.imageUrl);
+        if (imageUrl) saveStoredImg(editingProduct.id, imageUrl);
         const saved = await inventoryService.update(editingProduct.id, payload);
-        const merged = { ...editingProduct, ...payload, ...(saved ?? {}), imageUrl: payload.imageUrl || saved?.imageUrl || editingProduct.imageUrl };
+        const merged = { ...editingProduct, ...payload, ...(saved ?? {}), imageUrl: imageUrl || saved?.imageUrl || editingProduct.imageUrl, emoji: productForm.emoji };
         setProducts(prev => prev.map(p => p.id === editingProduct.id ? merged : p));
         toast(`"${payload.name}" actualizado.`, 'success');
       } else {
         const saved = await inventoryService.create(payload);
-        const created = { ...payload, ...(saved ?? {}), id: saved?.id ?? Date.now(), imageUrl: payload.imageUrl || saved?.imageUrl || '' };
-        if (created.imageUrl) saveStoredImg(created.id, created.imageUrl);
+        const created = { ...payload, ...(saved ?? {}), id: saved?.id ?? Date.now(), imageUrl: imageUrl || saved?.imageUrl || '', emoji: productForm.emoji };
+        if (imageUrl) saveStoredImg(created.id, imageUrl);
         setProducts(prev => [...prev, created]);
         toast(`"${payload.name}" añadido.`, 'success');
       }

@@ -68,7 +68,7 @@ const getScreeningLabel = (s, noScreeningText) => {
   return `${title}${theater}${date}`;
 };
 
-const EMPTY_FORM = { userId: '', screeningId: '', totalAmount: '' };
+const EMPTY_FORM = { userId: '', screeningId: '', totalAmount: '', guestEmail: '' };
 
 /* ── Component ───────────────────────────────────────── */
 export default function ReservationsPage() {
@@ -113,10 +113,8 @@ export default function ReservationsPage() {
     QR:     t('reservations.pay.qr'),
   };
   const PAY_METHODS = [
-    { id: 'CARD',   label: t('reservations.pay.card'),   Icon: CreditCard },
-    { id: 'CASH',   label: t('reservations.pay.cash'),   Icon: Banknote   },
-    { id: 'QR',     label: t('reservations.pay.qr'),     Icon: Smartphone },
-    { id: 'ONLINE', label: t('reservations.pay.online'), Icon: Globe      },
+    { id: 'CARD', label: t('reservations.pay.card'), Icon: CreditCard },
+    { id: 'CASH', label: t('reservations.pay.cash'), Icon: Banknote   },
   ];
 
   const noScreeningText = t('reservations.detail.noScreening');
@@ -164,11 +162,15 @@ export default function ReservationsPage() {
   const handleSave = async () => {
     if (!form.userId) { toast('Selecciona un cliente.', 'error'); return; }
     setSaving(true);
+    const formAmount  = Number(form.totalAmount) || 0;
+    const clientEmail = users.find(u => String(u.id) === String(form.userId))?.email ?? '';
+    const emailToSend = form.guestEmail.trim() || clientEmail;
     const payload = {
       userId:      Number(form.userId),
       screeningId: form.screeningId ? Number(form.screeningId) : undefined,
-      total:       form.totalAmount  ? Number(form.totalAmount) : undefined,
+      totalAmount: formAmount || undefined,
       status:      editing ? getStatus(editing) : 'PENDING',
+      ...(emailToSend ? { guestEmail: emailToSend } : {}),
     };
     try {
       if (editing) {
@@ -179,7 +181,7 @@ export default function ReservationsPage() {
       } else {
         const created = await purchasesService.create(payload);
         setPurchases(prev => [...prev, created]);
-        setPayTarget(created);
+        setPayTarget({ ...created, totalAmount: formAmount, _guestEmail: emailToSend });
         setPayMethod('CARD');
         setCashGiven('');
         setModal('pay');
@@ -209,7 +211,13 @@ export default function ReservationsPage() {
       const scr = getScreening(payTarget, screenings);
       setPaidTickets({ purchase: { ...payTarget, status: 'CONFIRMED', paymentMethod: payMethod }, scr, qrs, total: payTotal, change });
       setModal('ticket');
-      toast('¡Cobro realizado! Entradas generadas.', 'success');
+      const email = payTarget._guestEmail;
+      if (email) {
+        if (res?.emailSent === false) toast('Cobro realizado, pero el email no se pudo enviar.', 'warning');
+        else toast(`Ticket enviado por email a ${email}`, 'success');
+      } else {
+        toast('¡Cobro realizado! Entradas generadas.', 'success');
+      }
     } catch (err) {
       if (err?.status === 401) toast('Sesión expirada. Vuelve a iniciar sesión.', 'error');
       else toast('Error al procesar el cobro. Inténtalo de nuevo.', 'error');
@@ -259,28 +267,25 @@ export default function ReservationsPage() {
         <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>{resolveEmail(row)}</div>
       </div>
     )},
-    { key: 'screening', label: t('reservations.col.screening'), render: (_, row) =>
-      <span style={{ fontSize: 'var(--fs-sm)' }}>{getScreeningLabel(getScreening(row, screenings), noScreeningText)}</span> },
+    { key: 'screening', label: t('reservations.col.screening'), render: (_, row) => {
+      const scr = getScreening(row, screenings);
+      const title = scr?.movie?.title ?? row.movieTitle ?? noScreeningText;
+      return <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 500 }}>{title}</span>;
+    }},
+    { key: 'sala', label: 'Sala', width: 120, render: (_, row) => {
+      const scr = getScreening(row, screenings);
+      const sala = scr?.theater?.name ?? scr?.room?.name ?? row.theaterName ?? '—';
+      return <span style={{ fontSize: 'var(--fs-sm)' }}>{sala}</span>;
+    }},
     { key: 'seats', label: t('reservations.col.seats'), width: 110, render: (_, row) =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)' }}>{getSeats(row).join(', ') || '-'}</span> },
     { key: 'amount', label: t('reservations.col.amount'), width: 90, render: (_, row) =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>€{getAmount(row).toFixed(2)}</span> },
     { key: 'paymentMethod', label: t('reservations.col.payment'), width: 90, render: (_, row) => {
-      const pay    = getPaymentMethod(row);
-      const status = getStatus(row);
-      const label  = PAYMENT_LABEL[pay] || (pay || null);
-      if (!label) {
-        if (status === 'CONFIRMED') return <Badge variant="green">Pagado</Badge>;
-        if (status === 'PENDING')   return <Badge variant="yellow">Pendiente</Badge>;
-        return <Badge variant="default">—</Badge>;
-      }
+      const pay   = getPaymentMethod(row);
+      const label = PAYMENT_LABEL[pay];
+      if (!label) return <Badge variant="default">—</Badge>;
       return <Badge variant={PAYMENT_COLOR[pay] || 'default'}>{label}</Badge>;
-    }},
-    { key: 'status', label: t('reservations.col.status'), width: 130, render: (_, row) => {
-      const raw = row.status ?? row.purchaseStatus ?? 'PENDING';
-      const norm = raw === 'PAID' ? 'CONFIRMED' : raw;
-      const cfg = STATUS_MAP[norm] ?? { label: raw, v: 'default' };
-      return <Badge variant={cfg.v} dot>{cfg.label}</Badge>;
     }},
   ];
 
@@ -369,14 +374,24 @@ export default function ReservationsPage() {
           <div className={styles.fieldFull}>
             <label className={styles.label}>{t('reservations.form.client')}</label>
             <select className={styles.input} value={form.userId}
-              onChange={e => setField('userId', e.target.value)}>
+              onChange={e => {
+                const uid = e.target.value;
+                const clientEmail = users.find(u => String(u.id) === uid)?.email ?? '';
+                setForm(prev => ({ ...prev, userId: uid, guestEmail: clientEmail }));
+              }}>
               <option value="">{t('reservations.form.selectClient')}</option>
-              {users.map(u => (
+              {users.filter(u => (u.role ?? '').toUpperCase() === 'CLIENT').map(u => (
                 <option key={u.id} value={u.id}>
-                  {u.name ?? u.email} — {u.role}
+                  {[u.name, u.lastName].filter(Boolean).join(' ') || u.email}
                 </option>
               ))}
             </select>
+          </div>
+          <div className={styles.fieldFull}>
+            <label className={styles.label}>Email para el ticket</label>
+            <input className={styles.input} type="email" value={form.guestEmail}
+              onChange={e => setField('guestEmail', e.target.value)}
+              placeholder="Se auto-rellena con el email del cliente" />
           </div>
           <div>
             <label className={styles.label}>{t('reservations.form.screening')}</label>

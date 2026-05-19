@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  Minus, Plus, X, CreditCard, Banknote, Smartphone,
+  Minus, Plus, X, CreditCard, Banknote,
   ShoppingCart, CheckCircle, Printer, Trash2, Search,
   RotateCcw, Loader, Settings, Edit2, Save, Upload,
 } from 'lucide-react';
@@ -192,26 +192,26 @@ export default function CajaPage() {
   const handleSaveProduct = async () => {
     if (!productForm.name.trim() || !productForm.price) { toast('Nombre y precio son obligatorios.', 'error'); return; }
     setSavingProduct(true);
+    const imageUrl = productForm.imageUrl || '';
+    // Solo campos que el backend conoce — imagen/emoji se guardan en localStorage
     const payload = {
-      name:        productForm.name.trim(),
-      category:    productForm.category,
-      price:       Number(productForm.price),
-      description: productForm.description,
-      emoji:       productForm.emoji,
-      imageUrl:    productForm.imageUrl,
-      stock:       productForm.stock !== '' ? Number(productForm.stock) : 0,
+      name:     productForm.name.trim(),
+      category: productForm.category,
+      price:    Number(productForm.price),
+      stock:    productForm.stock !== '' ? Number(productForm.stock) : 0,
+      minStock: 0,
     };
     try {
       if (editingProduct) {
-        if (payload.imageUrl) saveStoredImg(editingProduct.id, payload.imageUrl);
+        if (imageUrl) saveStoredImg(editingProduct.id, imageUrl);
         const saved = await inventoryService.update(editingProduct.id, payload);
-        const merged = { ...editingProduct, ...payload, ...(saved ?? {}), imageUrl: payload.imageUrl || saved?.imageUrl || editingProduct.imageUrl };
+        const merged = { ...editingProduct, ...payload, ...(saved ?? {}), imageUrl: imageUrl || saved?.imageUrl || editingProduct.imageUrl, emoji: productForm.emoji };
         setProducts(prev => prev.map(p => p.id === editingProduct.id ? merged : p));
         toast(`"${payload.name}" actualizado.`, 'success');
       } else {
         const saved = await inventoryService.create(payload);
-        const created = { ...payload, ...(saved ?? {}), id: saved?.id ?? Date.now(), imageUrl: payload.imageUrl || saved?.imageUrl || '' };
-        if (created.imageUrl) saveStoredImg(created.id, created.imageUrl);
+        const created = { ...payload, ...(saved ?? {}), id: saved?.id ?? Date.now(), imageUrl: imageUrl || saved?.imageUrl || '', emoji: productForm.emoji };
+        if (imageUrl) saveStoredImg(created.id, imageUrl);
         setProducts(prev => [...prev, created]);
         toast(`"${payload.name}" añadido.`, 'success');
       }
@@ -238,14 +238,12 @@ export default function CajaPage() {
   };
 
   const PAY_METHODS = [
-    { id: 'card',   label: t('concession.pay_methods.card'),   Icon: CreditCard },
-    { id: 'cash',   label: t('concession.pay_methods.cash'),   Icon: Banknote   },
-    { id: 'online', label: t('concession.pay_methods.online'), Icon: Smartphone },
+    { id: 'card', label: t('concession.pay_methods.card'), Icon: CreditCard },
+    { id: 'cash', label: t('concession.pay_methods.cash'), Icon: Banknote   },
   ];
   const PAY_LABEL = {
-    card:   t('concession.pay_methods.card'),
-    cash:   t('concession.pay_methods.cash'),
-    online: t('concession.pay_methods.online'),
+    card: t('concession.pay_methods.card'),
+    cash: t('concession.pay_methods.cash'),
   };
 
   return (

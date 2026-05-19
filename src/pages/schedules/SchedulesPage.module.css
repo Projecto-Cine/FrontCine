@@ -1,4 +1,4 @@
-﻿.page { display: flex; flex-direction: column; gap: 16px; }
+﻿.page { display: flex; flex-direction: column; gap: 16px; flex: 1; min-height: 0; overflow: hidden; }
 .toolbar { display: flex; align-items: center; gap: 20px; }
 .dateFilter { display: flex; align-items: center; gap: 8px; position: relative; }
 .filterIcon { color: var(--text-3); }

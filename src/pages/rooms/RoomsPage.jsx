@@ -11,7 +11,7 @@ import { theatersService } from '../../services/roomsService';
 import styles from './RoomsPage.module.css';
 
 const THEATER_TYPES = ['STANDARD', 'IMAX', '4DX', 'VIP', 'DOLBY', '3D'];
-const EMPTY = { name: '', capacity: '', numRows: '', numColumns: '', type: 'STANDARD' };
+const EMPTY = { name: '', capacity: '', type: 'STANDARD' };
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState([]);
@@ -43,11 +43,9 @@ export default function RoomsPage() {
       return;
     }
     const payload = {
-      name:       form.name.trim(),
-      capacity:   Number(form.capacity),
-      type:       form.type || 'STANDARD',
-      ...(form.numRows    ? { numRows:    Number(form.numRows)    } : {}),
-      ...(form.numColumns ? { numColumns: Number(form.numColumns) } : {}),
+      name:     form.name.trim(),
+      capacity: Number(form.capacity),
+      type:     form.type || 'STANDARD',
     };
     try {
       if (editing) {
@@ -83,12 +81,9 @@ export default function RoomsPage() {
         )}
       </span>
     )},
-    { key: 'totalSeats', label: t('rooms.col.capacity'), width: 180, render: (value, row) => (
+    { key: 'totalSeats', label: t('rooms.col.capacity'), width: 120, render: (value, row) => (
       <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>
         {value ?? row.capacity ?? 0} but.
-        {row.numRows && row.numColumns && (
-          <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>({row.numRows}×{row.numColumns})</span>
-        )}
       </span>
     )},
   ];
@@ -142,31 +137,16 @@ export default function RoomsPage() {
             />
             {errors.name && <span id="err-room-name" role="alert" className={styles.fieldError}>{errors.name}</span>}
           </div>
-          <div>
+          <div className={styles.fieldFull}>
             <label className={styles.label} htmlFor="room-cap">{t('rooms.form.capacity')}</label>
             <input id="room-cap"
               className={`${styles.input} ${errors.capacity ? styles.inputError : ''}`}
               type="number" min="1" value={form.capacity} onChange={e => set('capacity', e.target.value)}
               onBlur={e => validateField('capacity', e.target.value)}
+              placeholder="Ej: 120"
               aria-invalid={!!errors.capacity} aria-describedby={errors.capacity ? 'err-room-cap' : undefined}
             />
             {errors.capacity && <span id="err-room-cap" role="alert" className={styles.fieldError}>{errors.capacity}</span>}
-          </div>
-          <div>
-            <label className={styles.label} htmlFor="room-rows">Filas</label>
-            <input id="room-rows"
-              className={styles.input}
-              type="number" min="1" placeholder="Ej: 10"
-              value={form.numRows} onChange={e => set('numRows', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={styles.label} htmlFor="room-cols">Columnas</label>
-            <input id="room-cols"
-              className={styles.input}
-              type="number" min="1" placeholder="Ej: 15"
-              value={form.numColumns} onChange={e => set('numColumns', e.target.value)}
-            />
           </div>
         </div>
       </Modal>

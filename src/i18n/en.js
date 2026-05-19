@@ -208,6 +208,7 @@ export default {
       remove:    'Remove',
       select:    'Select poster',
       uploading: 'Uploading…',
+      urlPh:     'Or paste poster URL here...',
     },
     detail: {
       genre:    'Genre',

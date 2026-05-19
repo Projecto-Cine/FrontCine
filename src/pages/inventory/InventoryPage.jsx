@@ -12,9 +12,10 @@ import { inventoryService } from '../../services/inventoryService';
 import SkeletonPage from '../../components/shared/Skeleton';
 import styles from './InventoryPage.module.css';
 
-const CAT_COLOR = { Bebida: 'cyan', Comida: 'yellow', Merchandise: 'purple' };
-const EMPTY = { name: '', category: 'Bebida', quantity: '', min_stock: '', unit: 'ud', supplier: '', price_unit: '' };
-const CATEGORY_KEYS = ['Bebida', 'Comida', 'Merchandise'];
+const CAT_COLOR = { FOOD: 'yellow', DRINK: 'cyan', MERCHANDISE: 'purple', Bebida: 'cyan', Comida: 'yellow', Merchandise: 'purple' };
+const CAT_LABEL = { FOOD: 'Comida', DRINK: 'Bebida', MERCHANDISE: 'Merchandise', Bebida: 'Bebida', Comida: 'Comida', Merchandise: 'Merchandise' };
+const EMPTY = { name: '', category: 'FOOD', quantity: '', min_stock: '', unit: 'ud', price_unit: '' };
+const CATEGORY_KEYS = ['FOOD', 'DRINK', 'MERCHANDISE'];
 
 export default function InventoryPage() {
   const [items, setItems] = useState([]);
@@ -73,12 +74,11 @@ export default function InventoryPage() {
         <span style={{ fontWeight: 500 }}>{v}</span>
       </div>
     )},
-    { key: 'category', label: t('inventory.col.category'), width: 110, render: v => <Badge variant={CAT_COLOR[v] || 'default'}>{t(`inventory.categories.${v}`) || v}</Badge> },
+    { key: 'category', label: t('inventory.col.category'), width: 110, render: v => <Badge variant={CAT_COLOR[v] || 'default'}>{CAT_LABEL[v] || v}</Badge> },
     { key: 'quantity', label: t('inventory.col.quantity'), width: 90, render: (v, row) => (
       <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: v <= row.min_stock ? 'var(--yellow)' : 'var(--text-1)' }}>{v} {row.unit}</span>
     )},
     { key: 'min_stock', label: t('inventory.col.min'), width: 70, render: (v, row) => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{v} {row.unit}</span> },
-    { key: 'supplier', label: t('inventory.col.supplier'), render: v => <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{v}</span> },
     { key: 'price_unit', label: t('inventory.col.priceUnit'), width: 80, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>€{Number(v).toFixed(2)}</span> },
     { key: 'stock_status', label: t('inventory.col.status'), width: 100, sortable: false, render: (_, row) => {
       const s = stockStatus(row.quantity, row.min_stock);
@@ -116,7 +116,7 @@ export default function InventoryPage() {
         </button>
         {categories.map(c => (
           <button key={c} className={`${styles.filterBtn} ${filterCat === c ? styles.filterActive : ''}`} onClick={() => setFilterCat(c)}>
-            {t(`inventory.categories.${c}`) || c} <span className={styles.filterCount}>{items.filter(i => i.category === c).length}</span>
+            {CAT_LABEL[c] || c} <span className={styles.filterCount}>{items.filter(i => i.category === c).length}</span>
           </button>
         ))}
       </div>
@@ -124,7 +124,7 @@ export default function InventoryPage() {
       <DataTable
         columns={columns}
         data={filtered}
-        searchKeys={['name', 'category', 'supplier']}
+        searchKeys={['name', 'category']}
         rowActions={(row) => <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)} />}
       />
 
@@ -142,7 +142,7 @@ export default function InventoryPage() {
           <div>
             <label className={styles.label} htmlFor="inv-cat">{t('inventory.form.category')}</label>
             <select id="inv-cat" className={styles.input} value={form.category} onChange={e => set('category', e.target.value)}>
-              {CATEGORY_KEYS.map(c => <option key={c} value={c}>{t(`inventory.categories.${c}`) || c}</option>)}
+              {CATEGORY_KEYS.map(c => <option key={c} value={c}>{CAT_LABEL[c] || c}</option>)}
             </select>
           </div>
           <div>
@@ -160,10 +160,6 @@ export default function InventoryPage() {
           <div>
             <label className={styles.label} htmlFor="inv-price">{t('inventory.form.priceUnit')}</label>
             <input id="inv-price" className={styles.input} type="number" step="0.01" value={form.price_unit} onChange={e => set('price_unit', e.target.value)} />
-          </div>
-          <div>
-            <label className={styles.label} htmlFor="inv-sup">{t('inventory.form.supplier')}</label>
-            <input id="inv-sup" className={styles.input} value={form.supplier} onChange={e => set('supplier', e.target.value)} />
           </div>
         </div>
       </Modal>

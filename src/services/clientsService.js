@@ -8,4 +8,6 @@ export const clientsService = {
   update:  (id, data) => api.put(`/clients/${id}`, data),
   remove:  (id)       => api.delete(`/clients/${id}`),
   search:  (q)        => api.get(`/clients/search?q=${encodeURIComponent(q)}`),
+  checkByEmail: (email) => api.get(`/users/by-email?email=${encodeURIComponent(email)}`),
+  quickRegister: (data) => api.post('/users/quick-register', data),
 };

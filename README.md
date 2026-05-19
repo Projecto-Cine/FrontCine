@@ -448,3 +448,5 @@ npm run lint
 
 <p align="center">
   Desarrollado con pasión para la gestión moderna de cines 🎬
+</p>
+

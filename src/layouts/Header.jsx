@@ -1,4 +1,4 @@
-import { PanelLeftClose, PanelLeft, Bell, Clock, Keyboard, Search } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, Clock, Keyboard, Search } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from 'react-router-dom';
@@ -87,16 +87,6 @@ export default function Header({ onOpenPalette }) {
             aria-label={t('header.shortcuts')}
           >
             <Keyboard size={14} aria-hidden="true" />
-          </button>
-
-          <button
-            className={styles.iconBtn}
-            title={t('header.notifications')}
-            aria-label={t('header.notifications')}
-            aria-haspopup="true"
-          >
-            <Bell size={14} aria-hidden="true" />
-            <span className={styles.notifDot} aria-hidden="true" />
           </button>
 
           {user && (

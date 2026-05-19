@@ -15,7 +15,7 @@ const ROLES = ['CAJERO', 'GERENCIA', 'LIMPIEZA', 'MANTENIMIENTO'];
 const ROLE_COLOR = { CAJERO: 'accent', GERENCIA: 'red', LIMPIEZA: 'green', MANTENIMIENTO: 'cyan' };
 const ROLE_LABEL = { CAJERO: 'Cajero/a', GERENCIA: 'Gerencia', LIMPIEZA: 'Limpieza', MANTENIMIENTO: 'Mantenimiento' };
 
-const EMPTY = { name: '', email: '', role: 'CAJERO', phone: '', active: true };
+const EMPTY = { name: '', email: '', password: '', role: 'CAJERO', phoneNumber: '' };
 
 const normalize = (e) => {
   const role = String(e.role ?? e.position ?? e.workerRole ?? 'CAJERO').toUpperCase();
@@ -50,13 +50,14 @@ export default function EmployeesPage() {
   }, [toast]);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setErrors({}); setModal('form'); };
-  const openEdit   = (emp) => { setEditing(emp); setForm({ name: emp.name ?? '', email: emp.email ?? '', role: emp.role ?? 'CAJERO', phone: emp.phone ?? '', active: emp.active !== false }); setErrors({}); setModal('form'); };
+  const openEdit   = (emp) => { setEditing(emp); setForm({ name: emp.name ?? '', email: emp.email ?? '', password: '', role: emp.role ?? 'CAJERO', phoneNumber: emp.phoneNumber ?? emp.phone ?? '' }); setErrors({}); setModal('form'); };
   const set        = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim())  e.name  = 'El nombre es obligatorio.';
-    if (!form.email.trim()) e.email = 'El email es obligatorio.';
+    if (!form.name.trim())                 e.name     = 'El nombre es obligatorio.';
+    if (!form.email.trim())                e.email    = 'El email es obligatorio.';
+    if (!editing && !form.password.trim()) e.password = 'La contraseña es obligatoria.';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -64,12 +65,14 @@ export default function EmployeesPage() {
   const handleSave = async () => {
     if (!validate()) return;
     try {
-      const payload = { name: form.name.trim(), email: form.email.trim(), role: form.role, phone: form.phone.trim() || undefined, active: form.active };
+      const payload = { name: form.name.trim(), email: form.email.trim(), role: form.role, phoneNumber: form.phoneNumber.trim() || undefined };
       if (editing) {
+        if (form.password.trim()) payload.password = form.password.trim();
         const saved = await employeesService.update(editing.id, payload);
         setEmployees(prev => prev.map(e => e.id === editing.id ? normalize(saved ?? { ...editing, ...payload }) : e));
         toast('Empleado actualizado.', 'success');
       } else {
+        payload.password = form.password.trim();
         const saved = await employeesService.create(payload);
         setEmployees(prev => [...prev, normalize(saved)]);
         toast('Empleado creado.', 'success');
@@ -154,6 +157,13 @@ export default function EmployeesPage() {
             {errors.email && <span className={styles.fieldError}>{errors.email}</span>}
           </div>
           <div>
+            <label className={styles.label} htmlFor="emp-pass">{editing ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña *'}</label>
+            <input id="emp-pass" className={`${styles.input} ${errors.password ? styles.inputError : ''}`}
+              type="password" value={form.password} onChange={e => set('password', e.target.value)}
+              placeholder={editing ? '••••••••' : 'Mínimo 6 caracteres'} />
+            {errors.password && <span className={styles.fieldError}>{errors.password}</span>}
+          </div>
+          <div>
             <label className={styles.label} htmlFor="emp-role">Rol</label>
             <select id="emp-role" className={styles.input} value={form.role} onChange={e => set('role', e.target.value)}>
               {ROLES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
@@ -161,15 +171,8 @@ export default function EmployeesPage() {
           </div>
           <div>
             <label className={styles.label} htmlFor="emp-phone">Teléfono</label>
-            <input id="emp-phone" className={styles.input} type="tel"
-              value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+34 600 000 000" />
-          </div>
-          <div>
-            <label className={styles.label} htmlFor="emp-active">Estado</label>
-            <select id="emp-active" className={styles.input} value={form.active ? 'true' : 'false'} onChange={e => set('active', e.target.value === 'true')}>
-              <option value="true">Activo</option>
-              <option value="false">Inactivo</option>
-            </select>
+            <input id="emp-phone" className={styles.input} value={form.phoneNumber}
+              onChange={e => set('phoneNumber', e.target.value)} placeholder="+34 600 000 000" />
           </div>
         </div>
       </Modal>

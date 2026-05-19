@@ -95,12 +95,18 @@ export default function IncidentsPage() {
   const columns = [
     { key: 'id',          label: t('incidents.col.id'),         width: 90,  render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{v}</span> },
     { key: 'title',       label: t('incidents.col.title'),                   render: v => <span style={{ fontWeight: 500 }}>{v}</span> },
-    { key: 'category',    label: t('incidents.col.category'),   width: 120, render: v => <Badge variant={CATEGORY_COLOR[v] || 'default'}>{t(`incidents.categories.${v}`) || v}</Badge> },
+    { key: 'category',    label: t('incidents.col.category'),   width: 120, render: v => <Badge variant={CATEGORY_COLOR[v] || 'default'}>{v ? (t(`incidents.categories.${v}`) || v) : '—'}</Badge> },
     { key: 'priority',    label: t('incidents.col.priority'),   width: 100, render: v => <Badge variant={PRIORITY_MAP[v]?.v || 'default'}>{PRIORITY_MAP[v]?.label}</Badge> },
     { key: 'room',        label: t('incidents.col.location'),   width: 160, render: v => <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v || '—'}</span> },
     { key: 'assigned_to', label: t('incidents.col.assignedTo'), width: 140, render: v => v ? <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v}</span> : <span style={{ color: 'var(--text-3)' }}>{t('incidents.form.unassigned')}</span> },
     { key: 'status',      label: t('incidents.col.status'),     width: 120, render: v => <Badge variant={STATUS_MAP[v]?.v || 'default'} dot>{STATUS_MAP[v]?.label}</Badge> },
-    { key: 'updated_at',  label: t('incidents.col.updated'),    width: 130, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-3)' }}>{v}</span> },
+    { key: 'updated_at',  label: t('incidents.col.updated'),    width: 130, render: v => {
+      if (!v) return <span style={{ color: 'var(--text-3)' }}>—</span>;
+      const d = new Date(v);
+      return <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-3)' }}>
+        {d.toLocaleDateString('es-ES')} {d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+      </span>;
+    }},
   ];
 
   const open     = incidents.filter(i => i.status !== 'resolved');

@@ -25,3 +25,5 @@
 .red     { background: var(--red-dim); color: var(--red); }
 .cyan    { background: var(--cyan-dim); color: var(--cyan); }
 .purple  { background: var(--purple-dim); color: var(--purple); }
+.pink    { background: var(--pink-dim); color: var(--pink); }
+.blue    { background: var(--blue-dim); color: var(--blue); }

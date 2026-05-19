@@ -679,7 +679,7 @@ export default function TaquillaPage() {
         }),
       };
       if (resolvedUserId) purchaseBody.userId = resolvedUserId;
-      else if (resolvedGuestEmail) purchaseBody.guestEmail = resolvedGuestEmail;
+      else purchaseBody.guestEmail = resolvedGuestEmail || 'anonimo@taquilla.com';
 
       const res = await salesService.createPurchase(purchaseBody);
 

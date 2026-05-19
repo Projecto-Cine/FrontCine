@@ -60,12 +60,18 @@ export default function ClientsPage() {
     SUSPENDED: t('clients.status.SUSPENDED'),
   };
 
+  const isRealClient = (c) => {
+    const name  = (c.name ?? c.firstName ?? '').trim().toLowerCase();
+    const email = (c.email ?? '').toLowerCase();
+    return name !== 'guest' && name !== '' && !email.includes('anonimo@');
+  };
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const data = await clientsService.getAll();
       const raw  = Array.isArray(data) ? data : (data?.content ?? []);
-      setResults(raw.map(c => normalizeClient(c)));
+      setResults(raw.map(c => normalizeClient(c)).filter(isRealClient));
       setSearched(true);
     } catch {
       toast('Error al cargar clientes.', 'error');
@@ -79,7 +85,7 @@ export default function ClientsPage() {
     try {
       const data = await clientsService.search(q);
       const raw  = Array.isArray(data) ? data : (data?.content ?? []);
-      setResults(raw.map(c => normalizeClient(c)));
+      setResults(raw.map(c => normalizeClient(c)).filter(isRealClient));
       setSearched(true);
     } catch {
       toast('Error al buscar clientes.', 'error');

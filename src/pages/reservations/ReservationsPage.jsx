@@ -276,11 +276,14 @@ export default function ReservationsPage() {
 
   /* ── Cancel / Delete ─────────────────────────────── */
   const handleCancel = async () => {
+    const screeningId = cancelTarget.screeningId ?? cancelTarget.screening?.id ?? getScreening(cancelTarget, screenings)?.id;
     try {
       await purchasesService.cancel(cancelTarget.id).catch(() => null);
       await purchasesService.remove(cancelTarget.id).catch(() => null);
+      if (screeningId) await screeningsService.remove(screeningId).catch(() => null);
     } finally {
       setPurchases(prev => prev.filter(p => p.id !== cancelTarget.id));
+      if (screeningId) setScreenings(prev => prev.filter(s => s.id !== screeningId));
       toast(`Reserva ${cancelTarget.id} eliminada.`, 'warning');
       setCancelTarget(null);
     }

@@ -987,17 +987,19 @@ export default function TaquillaPage() {
                               || s.dateTime?.split('T')[1]?.substring(0, 5)
                               || '--:--';
 
+                            const isPrivate = (s.basePrice ?? s.price ?? 9) === 0;
                             return (
                               <div key={s.id} className={styles.timeBtnWrap}>
                                 <button
                                   className={`${styles.timeBtn} ${isFull ? styles.timeBtnFull : ''}`}
-                                  onClick={() => handleTimeClick(s)}
-                                  disabled={isFull}
+                                  onClick={() => !isPrivate && handleTimeClick(s)}
+                                  disabled={isFull || isPrivate}
+                                  title={isPrivate ? 'Sala reservada — evento privado' : undefined}
                                 >
                                   <span className={styles.timeBtnHour}>{time}</span>
                                   <span className={styles.timeBtnRoom}>{rm.name?.split('—')[0]?.trim() ?? `Sala ${s.room_id ?? ''}`}</span>
-                                  <span className={styles.timeBtnOcc} style={{ color: OCC_COLOR(occPct) }}>
-                                    {isFull ? t('box_office.full') : `${soldCnt}/${cap}`}
+                                  <span className={styles.timeBtnOcc} style={{ color: isPrivate ? 'var(--yellow)' : OCC_COLOR(occPct) }}>
+                                    {isPrivate ? '🔒 Reserva privada' : isFull ? t('box_office.full') : `${soldCnt}/${cap}`}
                                   </span>
                                 </button>
                                 <div className={styles.timeBtnActions}>

@@ -16,8 +16,10 @@ const DEMO_EMPLOYEE = [
   { e: 'mantenimiento@lumen.es', label: 'Mantenimiento' },
 ];
 const DEMO_ADMIN = [
-  { e: 'gerencia@lumen.es',    label: 'Gerencia (acceso total)' },
-  { e: 'cajero@lumen.es',      label: 'Cajero/a' },
+  { e: 'admin@lumen.com',       label: 'Administrador' },
+  { e: 'supervisor@lumen.com',  label: 'Supervisor' },
+  { e: 'gerencia@lumen.es',     label: 'Gerencia' },
+  { e: 'operador@lumen.com',    label: 'Operador' },
 ];
 
 export default function Login() {
@@ -144,7 +146,7 @@ export default function Login() {
         {mode === 'admin' && (
           <div className={styles.hint}>
             <ShieldCheck size={12} aria-hidden="true" />
-            <span>{t('login.hint')} <strong>gerencia@lumen.es</strong> / <strong>lumen2026</strong></span>
+            <span>{t('login.hint')} <strong>admin@lumen.com</strong> / <strong>lumen2026</strong></span>
           </div>
         )}
 

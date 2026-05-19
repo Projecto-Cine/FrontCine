@@ -79,4 +79,43 @@ describe('incidentsService — backend ↔ frontend normalization', () => {
     const result = await incidentsService.getAll();
     expect(result).toBeNull();
   });
+
+  it('norm returns the value unchanged for null/undefined input', async () => {
+    api.get.mockResolvedValue(null);
+    const result = await incidentsService.getById(99);
+    expect(result).toBeNull();
+  });
+
+  it('uses the incoming "priority" when severity is missing', async () => {
+    api.get.mockResolvedValue({ id: 1, priority: 'medium' });
+    const result = await incidentsService.getById(1);
+    expect(result.priority).toBe('medium');
+  });
+
+  it('uses snake_case fields when camelCase counterparts are missing', async () => {
+    api.get.mockResolvedValue({ id: 1, severity: 'LOW', assigned_to: 'Pedro', updated_at: '2026-01-01' });
+    const result = await incidentsService.getById(1);
+    expect(result.assigned_to).toBe('Pedro');
+    expect(result.updated_at).toBe('2026-01-01');
+  });
+
+  it('uses lastModified as updated_at fallback', async () => {
+    api.get.mockResolvedValue({ id: 1, severity: 'HIGH', lastModified: '2026-02-02' });
+    const result = await incidentsService.getById(1);
+    expect(result.updated_at).toBe('2026-02-02');
+  });
+
+  it('toBackend keeps severity when no priority mapping exists', async () => {
+    api.post.mockResolvedValue({ id: 1 });
+    await incidentsService.create({ severity: 'CUSTOM' });
+    const sent = api.post.mock.calls[0][1];
+    expect(sent.severity).toBe('CUSTOM');
+  });
+
+  it('toBackend marks resolved=true when status is "resolved"', async () => {
+    api.post.mockResolvedValue({ id: 1 });
+    await incidentsService.create({ priority: 'low', status: 'resolved' });
+    const sent = api.post.mock.calls[0][1];
+    expect(sent.resolved).toBe(true);
+  });
 });

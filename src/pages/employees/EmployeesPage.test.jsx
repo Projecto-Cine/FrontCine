@@ -77,6 +77,10 @@ describe('EmployeesPage — comprehensive', () => {
       const telInputs = document.querySelectorAll('input[type="tel"]');
       if (telInputs[0]) fireEvent.change(telInputs[0], { target: { value: '600555666' } });
 
+      // Password (newly required for employee creation)
+      const pwInputs = document.querySelectorAll('input[type="password"]');
+      if (pwInputs[0]) fireEvent.change(pwInputs[0], { target: { value: 'lumen2026' } });
+
       const saveBtn = screen.getAllByRole('button').find(b =>
         (b.textContent.includes('rear') || b.textContent.includes('ñadir') || b.textContent.includes('uardar')) && b.closest('[role="dialog"]')
       );

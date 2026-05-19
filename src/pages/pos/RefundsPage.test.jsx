@@ -462,4 +462,26 @@ describe('RefundsPage — comprehensive', () => {
     fireEvent.click(screen.getAllByRole('button').find(b => /Caja/i.test(b.textContent ?? '')));
     await waitFor(() => expect(screen.getByText('guille')).toBeInTheDocument());
   });
+
+  it('renders merchandise sale with all field fallbacks ("—", "1 ud.")', async () => {
+    merchSalesGetAll.mockResolvedValueOnce([
+      // No merchandise object → "—". No totalPrice → "€0.00". No quantity → "× 1".
+      { id: 302, saleDate: `${TODAY}T17:00:00` },
+    ]);
+    renderPage();
+    fireEvent.click(screen.getAllByRole('button').find(b => /Caja/i.test(b.textContent ?? '')));
+    await waitFor(() => expect(screen.getByText(/Cliente anónimo/i)).toBeInTheDocument());
+    expect(document.body.textContent).toContain('€0.00');
+  });
+
+  it('opens merch-refund confirm with sale that has no totalPrice (€0.00 fallback)', async () => {
+    merchSalesGetAll.mockResolvedValueOnce([
+      { id: 303, merchandise: { name: 'Z' }, quantity: 1, saleDate: `${TODAY}T18:00:00` },
+    ]);
+    renderPage();
+    fireEvent.click(screen.getAllByRole('button').find(b => /Caja/i.test(b.textContent ?? '')));
+    await waitFor(() => expect(screen.getByText('Z')).toBeInTheDocument());
+    fireEvent.click(screen.getAllByRole('button').find(b => /Reembolsar/i.test(b.textContent ?? '')));
+    await waitFor(() => expect(screen.getByText(/Confirmar reembolso/i)).toBeInTheDocument());
+  });
 });

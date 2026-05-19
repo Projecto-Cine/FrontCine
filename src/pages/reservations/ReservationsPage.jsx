@@ -154,6 +154,7 @@ export default function ReservationsPage() {
       userId:      String(row.user?.id ?? row.userId ?? ''),
       screeningId: String(getScreening(row, screenings)?.id ?? row.screeningId ?? ''),
       totalAmount: String(getAmount(row)),
+      guestEmail:  getClientEmail(row) ?? '',
     });
     setModal('form');
   };

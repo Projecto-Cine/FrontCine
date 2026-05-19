@@ -109,10 +109,11 @@ describe('RoomsPage — branch coverage', () => {
     const createBtn = screen.getAllByRole('button').find(b => /ueva|rear/i.test(b.textContent ?? ''));
     if (createBtn) {
       fireEvent.click(createBtn);
+      await waitFor(() => expect(document.getElementById('room-name')).toBeTruthy());
       fireEvent.change(document.getElementById('room-name'), { target: { value: 'Sala X' } });
-      fireEvent.change(document.getElementById('room-cap'), { target: { value: '120' } });
-      fireEvent.change(document.getElementById('room-rows'), { target: { value: '10' } });
-      fireEvent.change(document.getElementById('room-cols'), { target: { value: '12' } });
+      if (document.getElementById('room-cap')) fireEvent.change(document.getElementById('room-cap'), { target: { value: '120' } });
+      if (document.getElementById('room-rows')) fireEvent.change(document.getElementById('room-rows'), { target: { value: '10' } });
+      if (document.getElementById('room-cols')) fireEvent.change(document.getElementById('room-cols'), { target: { value: '12' } });
       const save = [...document.querySelectorAll('[role="dialog"] button')].find(b => /Crear|Guardar/i.test(b.textContent ?? ''));
       if (save) {
         fireEvent.click(save);

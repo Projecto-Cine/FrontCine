@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Modal, { ConfirmModal } from './Modal';
 import { LanguageProvider } from '../../i18n/LanguageContext';
@@ -46,14 +46,15 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('calls onClose when clicking outside the modal (overlay)', async () => {
+  it('calls onClose when clicking outside the modal (overlay)', () => {
     const onClose = vi.fn();
-    const user = userEvent.setup();
-    const { container } = renderWith(<Modal open onClose={onClose} title="X">body</Modal>);
+    renderWith(<Modal open onClose={onClose} title="X">body</Modal>);
 
-    // The overlay is the first child div. Click it (not the modal itself).
-    const overlay = container.firstChild;
-    await user.click(overlay);
+    // Modal now renders into a React portal, so look it up via document.body.
+    // The overlay is the parent of the dialog box.
+    const dialog = screen.getByRole('dialog');
+    const overlay = dialog.parentElement;
+    if (overlay) fireEvent.click(overlay, { target: overlay });
     expect(onClose).toHaveBeenCalled();
   });
 

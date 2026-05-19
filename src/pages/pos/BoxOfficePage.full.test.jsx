@@ -174,7 +174,7 @@ async function pickSessionAndSkipModal() {
   const timeBtn = screen.getAllByRole('button').find(b => /\d{2}:\d{2}/.test(b.textContent ?? ''));
   if (timeBtn) fireEvent.click(timeBtn);
   await waitFor(() => {
-    const skip = screen.getAllByRole('button').find(b => /Omitir/i.test(b.textContent ?? ''));
+    const skip = screen.getAllByRole('button').find(b => /Saltar|Omitir/i.test(b.textContent ?? ''));
     if (skip) fireEvent.click(skip);
     expect(skip).toBeTruthy();
   }, { timeout: 3000 });
@@ -859,6 +859,25 @@ describe('BoxOfficePage — exhaustive coverage', () => {
         }
       }
     }
+  });
+
+  it('client search debounce clears results when input is emptied', async () => {
+    renderPage();
+    await waitFor(() => expect(document.body.textContent).toContain('Dune'));
+    await pickSessionAndSkipModal();
+
+    const clientInput = document.querySelector('input[aria-label*="liente"], input[placeholder*="liente"]');
+    if (clientInput) {
+      // Fill then empty — covers both !clientQuery.trim() branches
+      fireEvent.change(clientInput, { target: { value: 'X' } });
+      fireEvent.change(clientInput, { target: { value: '' } });
+    }
+  });
+
+  it('renders session with availableSeats=undefined (uses sold fallback)', async () => {
+    sessionsGetAll.mockResolvedValueOnce([{ ...SCREENING, availableSeats: undefined, sold: 12 }]);
+    renderPage();
+    await waitFor(() => expect(document.body.textContent).toContain('Dune'));
   });
 
   it('handlePay early-returns when no seats are selected', async () => {

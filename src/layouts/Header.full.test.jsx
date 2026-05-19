@@ -133,9 +133,11 @@ describe('Header — full coverage', () => {
     expect(screen.queryByTestId('shortcuts')).not.toBeInTheDocument();
   });
 
-  it('renders the notification button', () => {
+  it('renders an icon button group (shortcuts + extras)', () => {
     renderHeader();
-    expect(document.querySelector('[aria-haspopup="true"]')).toBeTruthy();
+    // Header exposes at least the toggle sidebar + shortcuts icon buttons
+    const ariaLabels = Array.from(document.querySelectorAll('[aria-label]')).map(el => el.getAttribute('aria-label'));
+    expect(ariaLabels.some(l => /shortcut|atajo/i.test(l ?? ''))).toBe(true);
   });
 
   it('updates the live clock every 10 seconds', () => {

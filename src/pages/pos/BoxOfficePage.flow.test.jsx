@@ -109,7 +109,7 @@ describe('BoxOfficePage — verified purchase flow', () => {
 
     // Skip client modal
     await waitFor(() => {
-      const skip = screen.getAllByRole('button').find(b => /Omitir/i.test(b.textContent ?? ''));
+      const skip = screen.getAllByRole('button').find(b => /Saltar|Omitir/i.test(b.textContent ?? ''));
       if (skip) fireEvent.click(skip);
       expect(skip).toBeTruthy();
     }, { timeout: 3000 });
@@ -129,7 +129,7 @@ describe('BoxOfficePage — verified purchase flow', () => {
 
     // Skip client modal
     await waitFor(() => {
-      const skip = screen.getAllByRole('button').find(b => /Omitir/i.test(b.textContent ?? ''));
+      const skip = screen.getAllByRole('button').find(b => /Saltar|Omitir/i.test(b.textContent ?? ''));
       if (skip) fireEvent.click(skip);
       expect(skip).toBeTruthy();
     }, { timeout: 3000 });
@@ -150,7 +150,7 @@ describe('BoxOfficePage — verified purchase flow', () => {
 
     // Skip client modal
     await waitFor(() => {
-      const skip = screen.getAllByRole('button').find(b => /Omitir/i.test(b.textContent ?? ''));
+      const skip = screen.getAllByRole('button').find(b => /Saltar|Omitir/i.test(b.textContent ?? ''));
       if (skip) fireEvent.click(skip);
       expect(skip).toBeTruthy();
     }, { timeout: 3000 });
@@ -175,7 +175,7 @@ describe('BoxOfficePage — verified purchase flow', () => {
 
     // Skip client modal
     await waitFor(() => {
-      const skip = screen.getAllByRole('button').find(b => /Omitir/i.test(b.textContent ?? ''));
+      const skip = screen.getAllByRole('button').find(b => /Saltar|Omitir/i.test(b.textContent ?? ''));
       if (skip) fireEvent.click(skip);
       expect(skip).toBeTruthy();
     }, { timeout: 3000 });
@@ -194,7 +194,7 @@ describe('BoxOfficePage — verified purchase flow', () => {
     if (timeBtn) fireEvent.click(timeBtn);
     // Skip client modal
     await waitFor(() => {
-      const skip = screen.getAllByRole('button').find(b => /Omitir/i.test(b.textContent ?? ''));
+      const skip = screen.getAllByRole('button').find(b => /Saltar|Omitir/i.test(b.textContent ?? ''));
       if (skip) fireEvent.click(skip);
       expect(skip).toBeTruthy();
     }, { timeout: 3000 });

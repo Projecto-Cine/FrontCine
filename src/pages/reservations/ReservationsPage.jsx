@@ -277,8 +277,11 @@ export default function ReservationsPage() {
       const sala = scr?.theater?.name ?? scr?.room?.name ?? row.theaterName ?? '—';
       return <span style={{ fontSize: 'var(--fs-sm)' }}>{sala}</span>;
     }},
-    { key: 'seats', label: t('reservations.col.seats'), width: 110, render: (_, row) =>
-      <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)' }}>{getSeats(row).join(', ') || '-'}</span> },
+    { key: 'seats', label: t('reservations.col.seats'), width: 110, render: (_, row) => {
+      const scr = getScreening(row, screenings);
+      const capacity = scr?.theater?.capacity ?? scr?.theater?.totalSeats ?? scr?.theater?.seats ?? '—';
+      return <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)' }}>{capacity}</span>;
+    }},
     { key: 'amount', label: t('reservations.col.amount'), width: 90, render: (_, row) =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>€{getAmount(row).toFixed(2)}</span> },
     { key: 'paymentMethod', label: t('reservations.col.payment'), width: 90, render: (_, row) => {
@@ -333,7 +336,6 @@ export default function ReservationsPage() {
           return (
             <div style={{ display: 'flex', gap: 2 }}>
               <Button variant="ghost" size="sm" icon={Eye}   onClick={() => setDetail(row)}  title={t('common.edit')} />
-              <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)}   title={t('common.edit')} />
               {s === 'PENDING' && (
                 <Button variant="ghost" size="sm" icon={CreditCard}
                   style={{ color: 'var(--accent)' }}

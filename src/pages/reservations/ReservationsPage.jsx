@@ -267,28 +267,25 @@ export default function ReservationsPage() {
         <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-3)' }}>{resolveEmail(row)}</div>
       </div>
     )},
-    { key: 'screening', label: t('reservations.col.screening'), render: (_, row) =>
-      <span style={{ fontSize: 'var(--fs-sm)' }}>{getScreeningLabel(getScreening(row, screenings), noScreeningText)}</span> },
+    { key: 'screening', label: t('reservations.col.screening'), render: (_, row) => {
+      const scr = getScreening(row, screenings);
+      const title = scr?.movie?.title ?? row.movieTitle ?? noScreeningText;
+      return <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 500 }}>{title}</span>;
+    }},
+    { key: 'sala', label: 'Sala', width: 120, render: (_, row) => {
+      const scr = getScreening(row, screenings);
+      const sala = scr?.theater?.name ?? scr?.room?.name ?? row.theaterName ?? '—';
+      return <span style={{ fontSize: 'var(--fs-sm)' }}>{sala}</span>;
+    }},
     { key: 'seats', label: t('reservations.col.seats'), width: 110, render: (_, row) =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-sm)' }}>{getSeats(row).join(', ') || '-'}</span> },
     { key: 'amount', label: t('reservations.col.amount'), width: 90, render: (_, row) =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--fs-md)', fontWeight: 600 }}>€{getAmount(row).toFixed(2)}</span> },
     { key: 'paymentMethod', label: t('reservations.col.payment'), width: 90, render: (_, row) => {
-      const pay    = getPaymentMethod(row);
-      const status = getStatus(row);
-      const label  = PAYMENT_LABEL[pay] || (pay || null);
-      if (!label) {
-        if (status === 'CONFIRMED') return <Badge variant="green">Pagado</Badge>;
-        if (status === 'PENDING')   return <Badge variant="yellow">Pendiente</Badge>;
-        return <Badge variant="default">—</Badge>;
-      }
+      const pay   = getPaymentMethod(row);
+      const label = PAYMENT_LABEL[pay];
+      if (!label) return <Badge variant="default">—</Badge>;
       return <Badge variant={PAYMENT_COLOR[pay] || 'default'}>{label}</Badge>;
-    }},
-    { key: 'status', label: t('reservations.col.status'), width: 130, render: (_, row) => {
-      const raw = row.status ?? row.purchaseStatus ?? 'PENDING';
-      const norm = raw === 'PAID' ? 'CONFIRMED' : raw;
-      const cfg = STATUS_MAP[norm] ?? { label: raw, v: 'default' };
-      return <Badge variant={cfg.v} dot>{cfg.label}</Badge>;
     }},
   ];
 

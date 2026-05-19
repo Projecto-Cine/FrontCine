@@ -1,5 +1,37 @@
 ﻿.page { display: flex; flex-direction: column; gap: 16px; }
-.kpiRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.kpiRow { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; }
+
+/* ── Modal ── */
+.modalBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 200; }
+.modalBox { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg, 10px); width: 100%; max-width: 440px; display: flex; flex-direction: column; overflow: hidden; }
+.modalHeader { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.modalTitle { display: flex; align-items: center; gap: 8px; font-size: var(--fs-md); font-weight: 700; color: var(--text-1); }
+.modalClose { background: none; border: none; color: var(--text-3); cursor: pointer; padding: 4px; border-radius: var(--r); }
+.modalClose:hover { color: var(--text-1); }
+.modalBody { display: flex; flex-direction: column; gap: 6px; padding: 12px 18px; max-height: 320px; overflow-y: auto; }
+.modalFooter { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--border); }
+.modalCancel { background: none; border: 1px solid var(--border); border-radius: var(--r); padding: 7px 16px; color: var(--text-2); font-size: var(--fs-md); cursor: pointer; }
+.modalCancel:hover { border-color: var(--text-2); color: var(--text-1); }
+.modalSave { display: flex; align-items: center; gap: 6px; background: var(--accent); color: var(--bg-0); border: none; border-radius: var(--r); padding: 7px 18px; font-size: var(--fs-md); font-weight: 600; cursor: pointer; }
+.modalSave:hover { opacity: 0.85; }
+
+/* ── Order modal ── */
+.orderModalBox { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg, 10px); width: 100%; max-width: 520px; display: flex; flex-direction: column; overflow: hidden; }
+.orderBody { padding: 12px 18px; max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.supplierGroup { display: flex; flex-direction: column; gap: 6px; }
+.supplierTitle { font-size: var(--fs-sm); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 0 0; border-top: 1px solid var(--border); margin-top: 4px; }
+.supplierGroup:first-child .supplierTitle { border-top: none; margin-top: 0; }
+.orderItem { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg-3); border-radius: var(--r); border: 1px solid var(--border); }
+.orderItemInfo { flex: 1; min-width: 0; }
+.orderItemName { font-size: var(--fs-sm); font-weight: 600; color: var(--text-1); }
+.orderItemMeta { font-size: var(--fs-2xs); color: var(--text-3); }
+.qtyInput { width: 56px; background: var(--bg-2); border: 1px solid var(--border-l); border-radius: var(--r); padding: 4px 8px; color: var(--text-1); font-size: var(--fs-md); outline: none; text-align: center; font-family: var(--mono); }
+.qtyInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(196,154,108,0.12); }
+
+.stockItem { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: var(--bg-3); border-radius: var(--r); border: 1px solid var(--border); }
+.stockItemInfo { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.stockItemName { font-size: var(--fs-md); font-weight: 600; color: var(--text-1); }
+.stockItemMeta { font-size: var(--fs-xs); color: var(--text-3); }
 .alertBanner { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--yellow-dim); border: 1px solid rgba(245,158,11,0.25); border-radius: var(--r); font-size: var(--fs-md); color: var(--text-1); }
 .alertBanner svg { color: var(--yellow); flex-shrink: 0; }
 .filterRow { display: flex; gap: 4px; flex-wrap: wrap; }

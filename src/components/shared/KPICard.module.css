@@ -23,6 +23,8 @@
 .red    { background: var(--red-dim); color: var(--red); }
 .cyan   { background: var(--cyan-dim); color: var(--cyan); }
 .purple { background: var(--purple-dim); color: var(--purple); }
+.pink   { background: var(--pink-dim); color: var(--pink); }
+.blue   { background: var(--blue-dim); color: var(--blue); }
 
 .value { font-size: 26px; font-weight: 700; color: var(--text-1); line-height: 1.1; }
 .bottom { display: flex; align-items: center; justify-content: space-between; }

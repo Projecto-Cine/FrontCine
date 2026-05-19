@@ -50,7 +50,8 @@ export default function RoomsPage() {
     try {
       if (editing) {
         const saved = await theatersService.update(editing.id, payload);
-        setRooms(prev => prev.map(room => room.id === editing.id ? (saved ?? { ...room, ...payload }) : room));
+        const merged = { ...(saved ?? { ...editing, ...payload }), totalSeats: saved?.totalSeats ?? payload.capacity, capacity: payload.capacity };
+        setRooms(prev => prev.map(room => room.id === editing.id ? merged : room));
         toast('Sala actualizada. Los asientos se han sincronizado con las sesiones futuras.', 'success');
       } else {
         const saved = await theatersService.create(payload);

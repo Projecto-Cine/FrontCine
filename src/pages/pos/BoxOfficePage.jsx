@@ -937,10 +937,7 @@ export default function TaquillaPage() {
                 <Plus size={14} />
                 <span>Nueva sesión</span>
               </button>
-              <button className={styles.refundHeaderBtn} onClick={() => { setShowRefund(true); setRefundInput(''); }} title="Devolución de entrada">
-                <RotateCcw size={14} />
-                <span>Devolución</span>
-              </button>
+              {/* Botón devolución desactivado por petición del cliente */}
               <button className={styles.fullResetBtn} onClick={() => setShowFullResetConfirm(true)} title="Reset total — borrar TODAS las sesiones">
                 <Trash2 size={12} />
                 <span>Reset total</span>

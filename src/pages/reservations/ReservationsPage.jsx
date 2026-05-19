@@ -139,7 +139,7 @@ export default function ReservationsPage() {
 
   useEffect(() => {
     Promise.all([
-      purchasesService.getAll(),
+      purchasesService.getActive(),
       screeningsService.getAll(),
       usersService.getAll(),
       roomsService.getAll().catch(() => []),
@@ -203,6 +203,7 @@ export default function ReservationsPage() {
           movieId:   Number(form.movieId),
           theaterId: Number(form.roomId),
           startTime,
+          basePrice: 0,
         });
         screeningId = newScreening?.id;
         setScreenings(prev => [...prev, newScreening]);

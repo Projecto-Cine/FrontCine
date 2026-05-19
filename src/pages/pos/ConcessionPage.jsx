@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  Minus, Plus, X, CreditCard, Banknote, Smartphone,
+  Minus, Plus, X, CreditCard, Banknote,
   ShoppingCart, CheckCircle, Printer, Trash2, Search,
   RotateCcw, Loader, Settings, Edit2, Save, Upload,
 } from 'lucide-react';
@@ -238,14 +238,12 @@ export default function CajaPage() {
   };
 
   const PAY_METHODS = [
-    { id: 'card',   label: t('concession.pay_methods.card'),   Icon: CreditCard },
-    { id: 'cash',   label: t('concession.pay_methods.cash'),   Icon: Banknote   },
-    { id: 'online', label: t('concession.pay_methods.online'), Icon: Smartphone },
+    { id: 'card', label: t('concession.pay_methods.card'), Icon: CreditCard },
+    { id: 'cash', label: t('concession.pay_methods.cash'), Icon: Banknote   },
   ];
   const PAY_LABEL = {
-    card:   t('concession.pay_methods.card'),
-    cash:   t('concession.pay_methods.cash'),
-    online: t('concession.pay_methods.online'),
+    card: t('concession.pay_methods.card'),
+    cash: t('concession.pay_methods.cash'),
   };
 
   return (

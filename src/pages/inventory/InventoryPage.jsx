@@ -31,11 +31,17 @@ export default function InventoryPage() {
   const { toast } = useApp();
   const { t } = useLanguage();
 
-  useEffect(() => {
+  const loadItems = () => {
     inventoryService.getAll()
       .then(data => setItems(Array.isArray(data) ? data : []))
       .catch(() => toast('Error al cargar inventario.', 'error'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadItems();
+    window.addEventListener('merchandise:updated', loadItems);
+    return () => window.removeEventListener('merchandise:updated', loadItems);
   }, []);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setNewSupplier(false); setModal('form'); };

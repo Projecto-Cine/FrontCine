@@ -53,7 +53,7 @@ export default function IncidentsPage() {
     ]).then(([inc, employees]) => {
       setIncidents(Array.isArray(inc) ? inc : []);
       const staff = Array.isArray(employees)
-        ? employees.filter(u => ['MANTENIMIENTO', 'LIMPIEZA'].includes((u.role ?? '').toUpperCase()))
+        ? employees.filter(u => ['MANTENIMIENTO', 'LIMPIEZA', 'CAJERO', 'ADMIN', 'GERENCIA'].includes((u.role ?? '').toUpperCase()))
         : [];
       setStaffUsers(staff);
     }).finally(() => setLoading(false));

@@ -103,6 +103,7 @@ export default function TaquillaPage() {
   const [payMethod, setPayMethod]         = useState('card');
   const [cashGiven, setCashGiven]         = useState('');
   const [tickets, setTickets]             = useState([]);
+  const [fidelityApplied, setFidelityApplied] = useState(false);
   const [paying, setPaying]               = useState(false);
   const [searchQuery, setSearchQuery]     = useState('');
   const [selectedDate, setSelectedDate]   = useState(() => new Date().toISOString().split('T')[0]);

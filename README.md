@@ -431,6 +431,21 @@ Lumen Cinema sigue buenas prácticas modernas de accesibilidad:
 
 ---
 
+# 📊 Lighthouse
+
+Auditoría de calidad web con Google Lighthouse para evaluar rendimiento, accesibilidad, buenas prácticas y SEO.
+
+```txt
+🟢 Rendimiento      — ?
+🟢 Accesibilidad    — ?
+🟢 Buenas prácticas — ?
+🟢 SEO              — ?
+```
+
+> Ejecutar: `npx lighthouse http://localhost:5173 --view` o desde las DevTools de Chrome.
+
+---
+
 # ⌨️ Atajos de teclado
 
 Pulsa `?` en cualquier pantalla para ver el modal completo de atajos.

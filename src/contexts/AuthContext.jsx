@@ -7,9 +7,9 @@ const EMPLOYEE_ROLES = new Set(['GERENCIA', 'CAJERO', 'LIMPIEZA', 'MANTENIMIENTO
 const ROLE_REDIRECT  = { CAJERO: '/box-office', LIMPIEZA: '/shifts', MANTENIMIENTO: '/shifts' };
 const EMPLOYEE_PERMISSIONS = {
   GERENCIA:      '*',
-  CAJERO:        ['/', '/box-office', '/concession', '/reservations', '/shifts'],
-  LIMPIEZA:      ['/', '/shifts'],
-  MANTENIMIENTO: ['/', '/shifts'],
+  CAJERO:        ['/box-office', '/concession', '/reservations', '/shifts'],
+  LIMPIEZA:      ['/shifts'],
+  MANTENIMIENTO: ['/incidents', '/shifts'],
 };
 
 export function AuthProvider({ children }) {
@@ -17,8 +17,17 @@ export function AuthProvider({ children }) {
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Restaurar sesión al recargar si hay token guardado
+  // Restaurar sesión al recargar si hay token guardado.
+  // En dev, si es un tab nuevo (sessionStorage vacío), limpia la sesión
+  // para que npm run dev siempre arranque en login.
   useEffect(() => {
+    if (import.meta.env.DEV && !sessionStorage.getItem('_auth_init')) {
+      sessionStorage.setItem('_auth_init', '1');
+      localStorage.removeItem('lumen_token');
+      localStorage.removeItem('lumen_user');
+      setLoading(false);
+      return;
+    }
     const token = localStorage.getItem('lumen_token');
     if (!token) { setLoading(false); return; }
 

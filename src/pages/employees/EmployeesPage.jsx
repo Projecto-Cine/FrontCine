@@ -9,21 +9,28 @@ import KPICard from '../../components/shared/KPICard';
 import { useApp } from '../../contexts/AppContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { employeesService } from '../../services/employeesService';
+import { shiftsService } from '../../services/shiftsService';
 import styles from './EmployeesPage.module.css';
 
 const ROLES = ['CAJERO', 'GERENCIA', 'LIMPIEZA', 'MANTENIMIENTO'];
 const ROLE_COLOR = { CAJERO: 'accent', GERENCIA: 'red', LIMPIEZA: 'green', MANTENIMIENTO: 'cyan' };
 const ROLE_LABEL = { CAJERO: 'Cajero/a', GERENCIA: 'Gerencia', LIMPIEZA: 'Limpieza', MANTENIMIENTO: 'Mantenimiento' };
 
-const EMPTY = { name: '', email: '', role: 'CAJERO', phone: '', active: true };
+const EMPTY = { name: '', lastName: '', email: '', password: '', role: 'CAJERO', phoneNumber: '', active: true };
+
+const splitName = (full) => {
+  const parts = (full ?? '').trim().split(' ');
+  return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') };
+};
 
 const normalize = (e) => {
   const role = String(e.role ?? e.position ?? e.workerRole ?? 'CAJERO').toUpperCase();
-  const fullName = [e.name, e.lastName].filter(Boolean).join(' ').trim();
+  const parts = splitName(e.name ?? '');
   return {
     ...e,
     id: e.id ?? e.workerId,
-    name: fullName || e.username || e.email || '-',
+    name: parts.firstName || e.username || e.email || '-',
+    lastName: parts.lastName,
     role,
     active: e.active !== false && e.status !== 'INACTIVE',
     email: e.email ?? '',
@@ -50,26 +57,55 @@ export default function EmployeesPage() {
   }, [toast]);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setErrors({}); setModal('form'); };
-  const openEdit   = (emp) => { setEditing(emp); setForm({ name: emp.name ?? '', email: emp.email ?? '', role: emp.role ?? 'CAJERO', phone: emp.phone ?? '', active: emp.active !== false }); setErrors({}); setModal('form'); };
+  const openEdit   = (emp) => {
+    const full = emp.name + (emp.lastName ? ' ' + emp.lastName : '');
+    const parts = splitName(full);
+    setEditing(emp);
+    setForm({ name: parts.firstName, lastName: parts.lastName, email: emp.email ?? '', password: '', role: emp.role ?? 'CAJERO', phoneNumber: emp.phoneNumber ?? emp.phone ?? '', active: emp.active !== false });
+    setErrors({});
+    setModal('form');
+  };
   const set        = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim())  e.name  = 'El nombre es obligatorio.';
-    if (!form.email.trim()) e.email = 'El email es obligatorio.';
+    if (!form.name.trim())                 e.name     = 'El nombre es obligatorio.';
+    if (!form.email.trim())                e.email    = 'El email es obligatorio.';
+    if (!editing && !form.password.trim()) e.password = 'La contraseña es obligatoria.';
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const fullName = () => [form.name.trim(), form.lastName.trim()].filter(Boolean).join(' ');
+
+  const removeAllShifts = async (empId) => {
+    const past = new Date();
+    past.setFullYear(past.getFullYear() - 5);
+    const future = new Date();
+    future.setFullYear(future.getFullYear() + 2);
+    try {
+      const shifts = await shiftsService.getByRange(
+        past.toISOString().split('T')[0],
+        future.toISOString().split('T')[0]
+      ) ?? [];
+      const empShifts = (Array.isArray(shifts) ? shifts : []).filter(s => s.employeeId === empId);
+      await Promise.all(empShifts.map(s => shiftsService.remove(s.id).catch(() => {})));
+    } catch { /* silencioso */ }
   };
 
   const handleSave = async () => {
     if (!validate()) return;
     try {
-      const payload = { name: form.name.trim(), email: form.email.trim(), role: form.role, phone: form.phone.trim() || undefined, active: form.active };
+      const payload = { name: fullName(), email: form.email.trim(), role: form.role, phoneNumber: form.phoneNumber.trim() || undefined, active: form.active };
       if (editing) {
+        if (form.password.trim()) payload.password = form.password.trim();
         const saved = await employeesService.update(editing.id, payload);
-        setEmployees(prev => prev.map(e => e.id === editing.id ? normalize(saved ?? { ...editing, ...payload }) : e));
+        const merged = { ...(saved ?? { ...editing, ...payload }), active: payload.active };
+        setEmployees(prev => prev.map(e => e.id === editing.id ? normalize(merged) : e));
+        if (payload.active === false) await removeAllShifts(editing.id);
         toast('Empleado actualizado.', 'success');
       } else {
+        payload.password = form.password.trim();
         const saved = await employeesService.create(payload);
         setEmployees(prev => [...prev, normalize(saved)]);
         toast('Empleado creado.', 'success');
@@ -82,17 +118,22 @@ export default function EmployeesPage() {
 
   const handleDelete = async () => {
     try {
+      await removeAllShifts(deleteTarget.id);
       await employeesService.remove(deleteTarget.id);
       setEmployees(prev => prev.filter(e => e.id !== deleteTarget.id));
       toast('Empleado eliminado.', 'warning');
-    } catch {
-      toast('Error al eliminar el empleado.', 'error');
+    } catch (err) {
+      if (err?.status === 409 || err?.status === 500) {
+        toast('No se puede eliminar: tiene incidencias u otros registros asociados. El equipo de backend debe resolver la restricción en base de datos.', 'error');
+      } else {
+        toast('Error al eliminar el empleado.', 'error');
+      }
     }
     setDeleteTarget(null);
   };
 
   const columns = [
-    { key: 'name',  label: 'Nombre',   render: v => <span style={{ fontWeight: 500 }}>{v}</span> },
+    { key: 'name', label: 'Nombre', render: (v, row) => <span style={{ fontWeight: 500 }}>{[v, row?.lastName].filter(Boolean).join(' ')}</span> },
     { key: 'email', label: 'Email',    render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-2)' }}>{v}</span> },
     { key: 'role',  label: 'Rol',      width: 130, render: v => <Badge variant={ROLE_COLOR[v] || 'default'}>{ROLE_LABEL[v] || v}</Badge> },
     { key: 'phone', label: 'Teléfono', width: 130, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v || '—'}</span> },
@@ -144,14 +185,26 @@ export default function EmployeesPage() {
           <div>
             <label className={styles.label} htmlFor="emp-name">Nombre *</label>
             <input id="emp-name" className={`${styles.input} ${errors.name ? styles.inputError : ''}`}
-              value={form.name} onChange={e => set('name', e.target.value)} placeholder="Nombre completo" />
+              value={form.name} onChange={e => set('name', e.target.value)} placeholder="Nombre" />
             {errors.name && <span className={styles.fieldError}>{errors.name}</span>}
+          </div>
+          <div>
+            <label className={styles.label} htmlFor="emp-lastname">Apellidos</label>
+            <input id="emp-lastname" className={styles.input}
+              value={form.lastName} onChange={e => set('lastName', e.target.value)} placeholder="Apellidos" />
           </div>
           <div>
             <label className={styles.label} htmlFor="emp-email">Email *</label>
             <input id="emp-email" className={`${styles.input} ${errors.email ? styles.inputError : ''}`}
               type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="correo@ejemplo.com" />
             {errors.email && <span className={styles.fieldError}>{errors.email}</span>}
+          </div>
+          <div>
+            <label className={styles.label} htmlFor="emp-pass">{editing ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña *'}</label>
+            <input id="emp-pass" className={`${styles.input} ${errors.password ? styles.inputError : ''}`}
+              type="password" value={form.password} onChange={e => set('password', e.target.value)}
+              placeholder={editing ? '••••••••' : 'Mínimo 6 caracteres'} />
+            {errors.password && <span className={styles.fieldError}>{errors.password}</span>}
           </div>
           <div>
             <label className={styles.label} htmlFor="emp-role">Rol</label>
@@ -161,14 +214,14 @@ export default function EmployeesPage() {
           </div>
           <div>
             <label className={styles.label} htmlFor="emp-phone">Teléfono</label>
-            <input id="emp-phone" className={styles.input} type="tel"
-              value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+34 600 000 000" />
+            <input id="emp-phone" className={styles.input} value={form.phoneNumber}
+              onChange={e => set('phoneNumber', e.target.value)} placeholder="+34 600 000 000" />
           </div>
           <div>
             <label className={styles.label} htmlFor="emp-active">Estado</label>
-            <select id="emp-active" className={styles.input} value={form.active ? 'true' : 'false'} onChange={e => set('active', e.target.value === 'true')}>
-              <option value="true">Activo</option>
-              <option value="false">Inactivo</option>
+            <select id="emp-active" className={styles.input} value={form.active ? 'active' : 'inactive'} onChange={e => set('active', e.target.value === 'active')}>
+              <option value="active">Activo</option>
+              <option value="inactive">Inactivo</option>
             </select>
           </div>
         </div>

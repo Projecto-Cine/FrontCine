@@ -1,4 +1,4 @@
-﻿.page { display: flex; flex-direction: column; gap: 16px; }
+﻿.page { display: flex; flex-direction: column; gap: 16px; flex: 1; min-height: 0; overflow: hidden; }
 .formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .fieldFull { grid-column: 1 / -1; }
 .label { display: block; font-size: var(--fs-sm); font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }

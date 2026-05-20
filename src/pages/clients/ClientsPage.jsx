@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, Users, GraduationCap, Star, UserCheck, Plus, Edit2, Trash2 } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import DataTable from '../../components/shared/DataTable';
@@ -13,9 +13,10 @@ import styles from './ClientsPage.module.css';
 
 const STATUS_COLOR = { ACTIVE: 'green', INACTIVE: 'default', SUSPENDED: 'red' };
 
+const FIDELITY_THRESHOLD = 10;
 const EMPTY_FORM = {
   name: '', lastName: '', username: '', email: '', password: '',
-  dateOfBirth: '', student: false,
+  dateOfBirth: '', student: false, fidelityMember: false, visits: 0,
 };
 
 function initials(name = '') {
@@ -25,15 +26,16 @@ function initials(name = '') {
 function normalizeClient(apiRes, formData = {}) {
   return {
     ...apiRes,
-    id:       apiRes?.id ?? apiRes?.userId ?? apiRes?.clientId ?? ('CLI-' + Date.now()),
-    name:     apiRes?.name ?? formData.name ?? apiRes?.username ?? '-',
-    lastName: apiRes?.lastName ?? formData.lastName ?? '',
-    email:    apiRes?.email ?? formData.email ?? '-',
-    username: apiRes?.username ?? formData.username ?? '',
-    student:  apiRes?.student ?? apiRes?.isStudent ?? formData.student ?? false,
-    status:   apiRes?.status ?? 'ACTIVE',
-    userType: apiRes?.userType ?? 'ADULT',
-    birthDate: apiRes?.birthDate ?? apiRes?.dateOfBirth ?? '',
+    id:           apiRes?.id ?? apiRes?.userId ?? apiRes?.clientId ?? ('CLI-' + Date.now()),
+    name:         apiRes?.name ?? formData.name ?? apiRes?.username ?? '-',
+    lastName:     apiRes?.lastName ?? formData.lastName ?? '',
+    email:        apiRes?.email ?? formData.email ?? '-',
+    username:     apiRes?.username ?? formData.username ?? '',
+    student:      apiRes?.student ?? apiRes?.isStudent ?? formData.student ?? false,
+    status:       apiRes?.status ?? 'ACTIVE',
+    userType:     apiRes?.userType ?? 'ADULT',
+    birthDate:    apiRes?.birthDate ?? apiRes?.dateOfBirth ?? '',
+    visitsPerYear: apiRes?.annualVisits ?? apiRes?.visitsPerYear ?? 0,
   };
 }
 
@@ -59,12 +61,18 @@ export default function ClientsPage() {
     SUSPENDED: t('clients.status.SUSPENDED'),
   };
 
+  const isRealClient = (c) => {
+    const name  = (c.name ?? c.firstName ?? '').trim().toLowerCase();
+    const email = (c.email ?? '').toLowerCase();
+    return name !== 'guest' && name !== '' && !email.includes('anonimo@');
+  };
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const data = await clientsService.getAll();
       const raw  = Array.isArray(data) ? data : (data?.content ?? []);
-      setResults(raw.map(c => normalizeClient(c)));
+      setResults(raw.map(c => normalizeClient(c)).filter(isRealClient));
       setSearched(true);
     } catch {
       toast('Error al cargar clientes.', 'error');
@@ -78,7 +86,7 @@ export default function ClientsPage() {
     try {
       const data = await clientsService.search(q);
       const raw  = Array.isArray(data) ? data : (data?.content ?? []);
-      setResults(raw.map(c => normalizeClient(c)));
+      setResults(raw.map(c => normalizeClient(c)).filter(isRealClient));
       setSearched(true);
     } catch {
       toast('Error al buscar clientes.', 'error');
@@ -106,14 +114,17 @@ export default function ClientsPage() {
 
   const openEdit = (row) => {
     setEditing(row);
+    const visits = Number(row.annualVisits ?? row.visitsPerYear ?? 0);
     setForm({
-      name:        row.name ?? '',
-      lastName:    row.lastName ?? '',
-      username:    row.username ?? '',
-      email:       row.email ?? '',
-      password:    '',
-      dateOfBirth: row.dateOfBirth ?? row.birthDate ?? '',
-      student:     !!(row.student || row.isStudent),
+      name:          row.name ?? '',
+      lastName:      row.lastName ?? '',
+      username:      row.username ?? '',
+      email:         row.email ?? '',
+      password:      '',
+      dateOfBirth:   row.dateOfBirth ?? row.birthDate ?? '',
+      student:       !!(row.student || row.isStudent),
+      fidelityMember: visits > FIDELITY_THRESHOLD || !!(row.discountActive || row.fidelityDiscountEligible),
+      visits,
     });
     setModal('form');
   };
@@ -128,11 +139,12 @@ export default function ClientsPage() {
     try {
       if (editing) {
         const payload = {
-          name:       form.name,
-          lastName:   form.lastName || undefined,
-          email:      form.email,
-          birthDate:  form.dateOfBirth || null,
-          student:    form.student,
+          name:                    form.name,
+          lastName:                form.lastName || undefined,
+          email:                   form.email,
+          birthDate:               form.dateOfBirth || null,
+          student:                 form.student,
+          discountActive:           form.fidelityMember,
         };
         if (form.password.trim()) payload.password = form.password;
         const updated = await clientsService.update(editing.id, payload).catch(() => null);
@@ -142,13 +154,14 @@ export default function ClientsPage() {
         toast(t('clients.modalCreate') + ' ✓', 'success');
       } else {
         const payload = {
-          name:       form.name,
-          lastName:   form.lastName || '',
-          email:      form.email,
-          password:   form.password,
-          birthDate:  form.dateOfBirth || null,
-          student:    form.student,
-          role:       'CLIENTE',
+          name:                    form.name,
+          lastName:                form.lastName || '',
+          email:                   form.email,
+          password:                form.password,
+          birthDate:               form.dateOfBirth || null,
+          student:                 form.student,
+          discountActive:           form.fidelityMember,
+          role:                    'CLIENT',
         };
         const raw     = await clientsService.create(payload);
         const created = normalizeClient(raw, payload);
@@ -185,8 +198,8 @@ export default function ClientsPage() {
     setDetail(row);
     setDetailLoading(true);
     try {
-      const full = await clientsService.getById(row.id);
-      setDetail(full ?? row);
+      const raw  = await clientsService.getById(row.id);
+      setDetail(raw ? normalizeClient(raw) : row);
     } catch { /* keep row data */ }
     setDetailLoading(false);
   };
@@ -208,10 +221,12 @@ export default function ClientsPage() {
         </div>
         <div>
           <div style={{ fontWeight: 500, fontSize: 12 }}>{v ?? row.username ?? '-'}</div>
-          <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{row.lastName ?? ''}</div>
         </div>
       </div>
     )},
+    { key: 'lastName', label: 'Apellidos', render: (v) =>
+      <span style={{ fontSize: 12, color: 'var(--text-1)' }}>{v ?? '-'}</span>
+    },
     { key: 'email', label: t('clients.col.email'), render: v =>
       <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v ?? '-'}</span> },
     { key: 'userType', label: 'Tipo', width: 110, render: v => {
@@ -222,13 +237,23 @@ export default function ClientsPage() {
       <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{v ?? '-'}</span> },
     { key: 'visitsPerYear', label: t('clients.col.visits'), width: 100, render: v =>
       <span style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{v ?? '-'}</span> },
-    { key: 'fidelityDiscountEligible', label: t('clients.col.loyalty'), width: 110, render: v =>
-      v ? <Badge variant="accent" dot>{t('clients.loyal')}</Badge> : <Badge variant="default">{t('clients.loyalNo')}</Badge> },
+    { key: 'discountActive', label: t('clients.col.loyalty'), width: 110, render: (v, row) => {
+      const isSocio = !!(v || row.fidelityDiscountEligible || row.fidelityMember);
+      return isSocio ? <Badge variant="accent" dot>{t('clients.loyal')}</Badge> : <Badge variant="default">{t('clients.loyalNo')}</Badge>;
+    }},
     { key: 'status', label: t('clients.col.status'), width: 110, render: v => {
       const s = v ?? 'ACTIVE';
       return <Badge variant={STATUS_COLOR[s] ?? 'default'} dot>{STATUS_LABEL[s] ?? s}</Badge>;
     }},
   ];
+
+  const sortedResults = useMemo(() => {
+    return [...results].sort((a, b) => {
+      const la = (a.lastName ?? '').toLowerCase();
+      const lb = (b.lastName ?? '').toLowerCase();
+      return la.localeCompare(lb, 'es');
+    });
+  }, [results]);
 
   return (
     <div className={styles.page}>
@@ -270,7 +295,7 @@ export default function ClientsPage() {
       {searched && (
         <DataTable
           columns={columns}
-          data={results}
+          data={sortedResults}
           searchKeys={['name', 'email', 'username']}
           onRowClick={openDetail}
           rowKey="id"
@@ -336,6 +361,49 @@ export default function ClientsPage() {
               {t('clients.form.student')}
             </label>
           </div>
+          <div style={{ paddingTop: 8 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+              Membresía
+            </p>
+            <button
+              type="button"
+              onClick={() => setField('fidelityMember', !form.fidelityMember)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                padding: '10px 14px', borderRadius: 'var(--r-lg)', cursor: 'pointer',
+                border: form.fidelityMember ? '1.5px solid var(--accent)' : '1.5px solid var(--border-l)',
+                background: form.fidelityMember ? 'var(--accent-dim)' : 'var(--bg-3)',
+                transition: 'all 120ms',
+              }}
+            >
+              <Star size={16} style={{ color: form.fidelityMember ? 'var(--accent)' : 'var(--text-3)', flexShrink: 0 }} />
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: form.fidelityMember ? 'var(--accent)' : 'var(--text-1)' }}>
+                  {form.fidelityMember ? 'Socio activo' : 'No es socio'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>
+                  {form.fidelityMember && editing && form.visits > FIDELITY_THRESHOLD
+                    ? `Automático · ${form.visits} visitas este año — 10% sobre total de entradas`
+                    : form.fidelityMember
+                    ? 'Activado manualmente · recibirá email de bienvenida al Club Lumen'
+                    : editing
+                    ? `${form.visits}/${FIDELITY_THRESHOLD} visitas este año — se activa automáticamente al superar ${FIDELITY_THRESHOLD}`
+                    : `Se activa automáticamente al superar ${FIDELITY_THRESHOLD} visitas este año`}
+                </div>
+              </div>
+              <div style={{
+                marginLeft: 'auto', width: 36, height: 20, borderRadius: 10, flexShrink: 0,
+                background: form.fidelityMember ? 'var(--accent)' : 'var(--border)',
+                position: 'relative', transition: 'background 120ms',
+              }}>
+                <div style={{
+                  position: 'absolute', top: 3, width: 14, height: 14, borderRadius: '50%',
+                  background: '#fff', transition: 'left 120ms',
+                  left: form.fidelityMember ? 19 : 3,
+                }} />
+              </div>
+            </button>
+          </div>
         </div>
       </Modal>
 
@@ -347,8 +415,10 @@ export default function ClientsPage() {
         size="sm"
       >
         {detail && !detailLoading && (() => {
-          const eligible = detail.fidelityDiscountEligible;
-          const status   = detail.status ?? 'ACTIVE';
+          const isSocio    = !!(detail.discountActive || detail.fidelityMember);
+          const hasDiscount = !!(detail.fidelityDiscountEligible || (detail.annualVisits ?? detail.visitsPerYear ?? 0) >= 10);
+          const visits     = detail.visitsPerYear ?? 0;
+          const status     = detail.status ?? 'ACTIVE';
           return (
             <div className={styles.detail}>
               <div className={styles.detailHeader}>
@@ -359,10 +429,10 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              {eligible && (
+              {hasDiscount && (
                 <div className={styles.fidelityBanner}>
                   <Star size={14} />
-                  {t('clients.loyalBanner')}
+                  ¡Descuento disponible! Próxima compra con −10% en todas las entradas
                 </div>
               )}
 
@@ -387,11 +457,11 @@ export default function ClientsPage() {
                 </div>
                 <div className={styles.detailCard}>
                   <span className={styles.detailLbl}>{t('clients.detail.visits')}</span>
-                  <span className={styles.detailVal}>{detail.visitsPerYear ?? '-'}</span>
+                  <span className={styles.detailVal}>{visits}/10</span>
                 </div>
                 <div className={styles.detailCard}>
                   <span className={styles.detailLbl}>{t('clients.detail.loyalty')}</span>
-                  <span className={styles.detailVal}>{eligible ? t('clients.loyalYes') : t('clients.loyalNo')}</span>
+                  <span className={styles.detailVal}>{isSocio ? t('clients.loyalYes') : t('clients.loyalNo')}</span>
                 </div>
                 <div className={styles.detailCard}>
                   <span className={styles.detailLbl}>{t('clients.detail.dob')}</span>

@@ -208,6 +208,7 @@ export default {
       remove:    'Remove',
       select:    'Select poster',
       uploading: 'Uploading…',
+      urlPh:     'Or paste poster URL here...',
     },
     detail: {
       genre:    'Genre',
@@ -348,6 +349,15 @@ export default {
       screening:     'Screening',
       amount:        'Total amount (€)',
       saveHint:      'After saving, a payment modal will open to choose the payment method and generate tickets.',
+    },
+    col: {
+      ref:      'Ref',
+      client:   'Client',
+      screening:'Screening',
+      room:     'Room',
+      seats:    'Seats',
+      amount:   'Amount',
+      payment:  'Payment',
     },
     refund: {
       title:   'Process refund',

@@ -1,14 +1,44 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  test: {
-    environment: 'node',
-    globals: true,
-  },
   plugins: [react()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.js',
+    css: true,
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        minThreads: 1,
+        maxThreads: 2,
+      },
+    },
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      clean: true,
+      cleanOnRerun: true,
+      include: ['src/**/*.{js,jsx}'],
+      exclude: [
+        'src/**/*.test.{js,jsx}',
+        'src/test/**',
+        'src/main.jsx',
+        'src/i18n/en.js',
+        'src/i18n/es.js',
+        'src/services/mock/**',
+        'src/services/backendModel.js',
+        'src/App.jsx',
+      ],
+    },
+  },
   server: {
+    open: '/login',
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

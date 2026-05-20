@@ -56,9 +56,20 @@
   border-radius: var(--r-sm);
 }
 .cartSeatId { font-family: var(--mono); font-size: var(--fs-md); font-weight: 700; color: var(--accent); flex: 1; }
+.cartSeatTypeSelect {
+  font-size: 0.7rem; padding: 2px 4px; border-radius: var(--r-sm);
+  background: var(--bg-3); border: 1px solid var(--border); color: var(--text-2);
+  cursor: pointer; max-width: 80px;
+}
+.cartSeatTypeSelect:focus { outline: 1px solid var(--accent); }
 .cartSeatPrice { font-family: var(--mono); font-size: var(--fs-md); color: var(--text-2); }
 .cartSeatRemove { display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 3px; color: var(--text-3); }
 .cartSeatRemove:hover { background: var(--red-dim); color: var(--red); }
+.vipBadge {
+  display: inline-block; font-size: 0.55rem; font-weight: 700; padding: 1px 4px;
+  border-radius: 3px; background: rgba(240,192,64,0.18); border: 1px solid rgba(240,192,64,0.5);
+  color: #f0c040; letter-spacing: 0.06em; margin-left: 4px; vertical-align: middle;
+}
 
 /* ── Session pill ───────────────────────────────────── */
 .sessionPill {
@@ -107,12 +118,12 @@
 
 /* ── Modal nueva sesión ────────────────────────────── */
 .modalBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 200; }
-.modalBox { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg, 10px); width: 100%; max-width: 440px; display: flex; flex-direction: column; overflow: hidden; }
+.modalBox { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg, 10px); width: 100%; max-width: 440px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
 .modalHeader { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
 .modalTitle { display: flex; align-items: center; gap: 8px; font-size: var(--fs-md); font-weight: 700; color: var(--text-1); }
 .modalClose { background: none; border: none; color: var(--text-3); cursor: pointer; padding: 4px; border-radius: var(--r); }
 .modalClose:hover { color: var(--text-1); }
-.modalBody { display: flex; flex-direction: column; gap: 10px; padding: 18px; }
+.modalBody { display: flex; flex-direction: column; gap: 10px; padding: 18px; overflow-y: auto; }
 .modalLabel { font-size: var(--fs-sm); color: var(--text-2); margin-bottom: 2px; }
 .modalSelect { width: 100%; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px; color: var(--text-1); font-size: var(--fs-md); outline: none; }
 .modalSelect:focus { border-color: var(--accent); }
@@ -149,6 +160,16 @@
 .refundPreviewRow span { color: var(--text-3); }
 .refundPreviewRow strong { color: var(--text-1); font-family: var(--mono); }
 
+.refundBtn {
+  display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+  padding: 6px 10px;
+  background: rgba(var(--accent-rgb, 196,154,108),.12); border: 1px solid rgba(var(--accent-rgb, 196,154,108),.35);
+  border-radius: var(--r); color: var(--accent);
+  font-size: var(--fs-xs); font-weight: 700;
+  cursor: pointer; transition: all var(--t);
+}
+.refundBtn:hover { background: rgba(var(--accent-rgb, 196,154,108),.22); }
+
 .fullResetBtn {
   display: flex; align-items: center; gap: 5px; flex-shrink: 0;
   padding: 6px 10px;
@@ -170,6 +191,9 @@
 .modalSave { display: flex; align-items: center; gap: 6px; background: var(--accent); color: var(--bg-0); border: none; border-radius: var(--r); padding: 7px 18px; font-size: var(--fs-md); font-weight: 600; cursor: pointer; }
 .modalSave:disabled { opacity: 0.6; cursor: not-allowed; }
 .modalSave:not(:disabled):hover { opacity: 0.85; }
+.inputError  { border-color: var(--red) !important; }
+.modalError  { font-size: var(--fs-xs); color: var(--red); margin-top: -4px; }
+.modalSubtitle { font-size: var(--fs-sm); color: var(--text-3); margin: -4px 0 4px; font-family: var(--mono); }
 
 .backBtn { display: flex; align-items: center; gap: 6px; color: var(--text-3); font-size: var(--fs-md); background: none; border: none; cursor: pointer; padding: 4px 0; transition: color var(--t); }
 .backBtn:hover { color: var(--accent); }
@@ -389,6 +413,7 @@
 /* ── Payment step ──────────────────────────────────── */
 .paySection { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 16px; }
 .paySectionLabel { font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.07em; }
+.payMuted { font-size: var(--fs-md); color: var(--text-3); margin: 0; }
 .payMethods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .payMethod {
   display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -488,6 +513,20 @@
 .cobrarBtn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; transform: none; }
 
 /* ── Success / Ticket ──────────────────────────────── */
+@keyframes successIconPop {
+  0%   { transform: scale(0.4) rotate(-15deg); opacity: 0; }
+  70%  { transform: scale(1.15) rotate(4deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes ticketSlideIn {
+  from { transform: translateY(24px) scale(0.97); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes confettiBurst {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+}
+
 .successShell {
   display: flex;
   flex-direction: column;
@@ -505,6 +544,30 @@
   flex-wrap: wrap;
   justify-content: center;
 }
+
+.successLeft { display: flex; flex-direction: column; gap: 20px; align-items: flex-start; padding: 24px; }
+
+.successIconWrap { position: relative; display: inline-flex; }
+.confetti {
+  position: absolute;
+  width: 6px; height: 6px;
+  border-radius: 2px;
+  animation: confettiBurst 600ms ease-out forwards;
+  pointer-events: none;
+  top: 50%; left: 50%;
+  margin: -3px 0 0 -3px;
+}
+
+.successIcon {
+  width: 64px; height: 64px;
+  background: var(--green-dim);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--green);
+  animation: successIconPop 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.successTitle { font-size: 28px; font-weight: 800; color: var(--text-1); }
+.successSub { font-size: var(--fs-lg); color: var(--text-3); }
 
 .ticketNav { display: flex; gap: 6px; }
 .ticketNavBtn { width: 32px; height: 32px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg-3); color: var(--text-2); font-size: var(--fs-base); font-weight: 700; cursor: pointer; transition: all var(--t); }
@@ -529,6 +592,7 @@
   width: 360px;
   max-height: calc(100vh - var(--header-h) - 120px);
   overflow-y: auto;
+  animation: ticketSlideIn 400ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
 }
 
 .ticketCardHeader { display: flex; align-items: center; gap: 10px; padding: 16px 20px; background: var(--accent-dim); font-size: var(--fs-base); font-weight: 800; color: var(--accent); letter-spacing: 0.1em; flex-shrink: 0; }
@@ -609,6 +673,9 @@
 .clientSearchInput { width: 100%; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px 7px 28px; color: var(--text-1); font-size: var(--fs-md); outline: none; }
 .clientSearchInput:focus { border-color: var(--accent); }
 .clientLoader { position: absolute; right: 10px; color: var(--text-3); }
+.guestEmailHint { font-size: var(--fs-xs); color: var(--text-3); margin-top: 4px; padding-left: 2px; }
+.guestEmailInput { width: 100%; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r); padding: 7px 10px; color: var(--text-1); font-size: var(--fs-md); outline: none; margin-top: 6px; box-sizing: border-box; }
+.guestEmailInput:focus { border-color: var(--accent); }
 .clientDropdown { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); margin-top: 4px; overflow: hidden; }
 .clientDropdownItem { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: transparent; border: none; border-bottom: 1px solid var(--border); cursor: pointer; text-align: left; transition: background var(--t); }
 .clientDropdownItem:last-child { border-bottom: none; }
@@ -622,3 +689,29 @@
 .fidelityBadge { display: flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 700; color: var(--accent); background: var(--accent-dim2); padding: 2px 7px; border-radius: 99px; }
 .clientChipRemove { background: transparent; border: none; color: var(--text-3); cursor: pointer; padding: 2px; display: flex; align-items: center; }
 .clientChipRemove:hover { color: var(--red); }
+
+/* ── Member / Guest Toggle ─────────────────────────── */
+.memberToggle { display: flex; flex-direction: column; gap: 8px; }
+.memberToggleLabel { font-size: var(--fs-md); font-weight: 600; color: var(--text-1); margin: 0; }
+.memberToggleBtns { display: flex; gap: 8px; }
+.memberToggleBtn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border: 1px solid var(--border); border-radius: var(--r); background: var(--bg-1); color: var(--text-1); font-size: var(--fs-md); cursor: pointer; transition: background var(--t), border-color var(--t); }
+.memberToggleBtn:hover { border-color: var(--accent); }
+.memberToggleYes:hover { background: var(--accent-dim2); color: var(--accent); }
+.memberToggleNo:hover { background: var(--green-dim2); color: var(--green); }
+.memberLookup { display: flex; flex-direction: column; gap: 6px; }
+.memberError { font-size: var(--fs-xs); color: var(--red); margin: 0; }
+.lookupBtn { padding: 7px 14px; background: var(--accent); color: #fff; border: none; border-radius: var(--r); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; align-self: flex-start; }
+.lookupBtn:disabled { opacity: 0.5; cursor: default; }
+.memberToggleBack { background: none; border: none; color: var(--text-3); font-size: var(--fs-xs); cursor: pointer; padding: 4px 0; align-self: flex-start; }
+.memberToggleBack:hover { color: var(--text-1); }
+.guestFlow { display: flex; flex-direction: column; gap: 6px; }
+.signupPromptBtn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; background: transparent; border: 1px dashed var(--accent); color: var(--accent); border-radius: var(--r); font-size: var(--fs-sm); cursor: pointer; align-self: flex-start; }
+.signupPromptBtn:hover { background: var(--accent-dim2); }
+.registerForm { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); }
+.registerFormTitle { font-size: var(--fs-md); font-weight: 600; color: var(--text-1); margin: 0; }
+.registerFormHint { font-size: var(--fs-xs); color: var(--text-3); margin: 0; }
+.registerFormActions { display: flex; gap: 8px; justify-content: flex-end; }
+.cancelBtn { padding: 7px 14px; background: transparent; border: 1px solid var(--border); color: var(--text-2); border-radius: var(--r); font-size: var(--fs-sm); cursor: pointer; }
+.cancelBtn:hover { background: var(--bg-3); }
+.registerBtn { padding: 7px 14px; background: var(--accent); color: #fff; border: none; border-radius: var(--r); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+.registerBtn:disabled { opacity: 0.5; cursor: default; }

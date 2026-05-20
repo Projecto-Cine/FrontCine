@@ -33,6 +33,10 @@
   --cyan-dim: rgba(34,211,238,0.10);
   --purple: #c084fc;
   --purple-dim: rgba(192,132,252,0.10);
+  --pink: #f472b6;
+  --pink-dim: rgba(244,114,182,0.10);
+  --blue: #60a5fa;
+  --blue-dim: rgba(96,165,250,0.10);
 
   /* ── Font sizes — escalables por a11y ────── */
   --fs-2xs:  9px;
@@ -182,6 +186,8 @@ html.a11y-high-contrast {
   --red:         #ff4444;
   --cyan:        #00ffff;
   --purple:      #ff88ff;
+  --pink:        #ff88ff;
+  --blue:        #00bbff;
 }
 
 /* Focus ring reforzado en alto contraste */
@@ -218,6 +224,10 @@ html.a11y-light-mode {
   --cyan-dim:    rgba(14,116,144,0.10);
   --purple:      #6B21A8;
   --purple-dim:  rgba(107,33,168,0.10);
+  --pink:        #d9466e;
+  --pink-dim:    rgba(217,70,110,0.10);
+  --blue:        #1d4ed8;
+  --blue-dim:    rgba(29,78,216,0.10);
   --shadow:      0 2px 8px rgba(0,0,0,0.15);
   --shadow-lg:   0 8px 32px rgba(0,0,0,0.18);
 }

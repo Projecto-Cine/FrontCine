@@ -1,4 +1,4 @@
-﻿.page { display: flex; flex-direction: column; gap: 16px; }
+﻿.page { display: flex; flex-direction: column; gap: 16px; flex: 1; min-height: 0; overflow: hidden; }
 .kpiRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .filterRow { display: flex; gap: 4px; }
 .filterBtn { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: transparent; border: 1px solid var(--border); border-radius: var(--r); color: var(--text-2); font-size: var(--fs-md); cursor: pointer; transition: all var(--t); }

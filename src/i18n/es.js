@@ -208,6 +208,7 @@ export default {
       remove:    'Quitar',
       select:    'Seleccionar póster',
       uploading: 'Subiendo...',
+      urlPh:     'O pega aquí la URL del póster...',
     },
     detail: {
       genre:    'Género',
@@ -349,6 +350,15 @@ export default {
       amount:        'Importe total (€)',
       saveHint:      'Al guardar se abrirá el cobro para elegir el método de pago y generar las entradas.',
     },
+    col: {
+      ref:      'Referencia',
+      client:   'Cliente',
+      screening:'Proyección',
+      room:     'Sala',
+      seats:    'Asientos',
+      amount:   'Importe',
+      payment:  'Pago',
+    },
     refund: {
       title:   'Procesar reembolso',
       msg:     '¿Reembolsar €{amount} a {name}? El estado cambiará a Reembolsada.',
@@ -463,11 +473,9 @@ export default {
       ok:   'OK',
     },
     categories: {
-      Técnico:   'Técnico',
-      Concesión: 'Concesión',
-      Oficina:   'Oficina',
-      Limpieza:  'Limpieza',
-      Comercial: 'Comercial',
+      Bebida:      'Bebida',
+      Comida:      'Comida',
+      Merchandise: 'Merchandise',
     },
     form: {
       name:      'Nombre *',
@@ -687,7 +695,7 @@ export default {
     },
     type: {
       adult:   'Adulto',
-      senior:  'Reducida',
+      senior:  'Senior',
       student: 'Estudiante',
       child:   'Infantil',
       imax:    'IMAX',

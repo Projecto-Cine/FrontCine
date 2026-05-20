@@ -1,5 +1,16 @@
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useCountUp } from '../../hooks/useCountUp';
 import styles from './KPICard.module.css';
+
+function AnimatedValue({ value }) {
+  const numeric = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+  const prefix  = isNaN(numeric) ? '' : String(value).match(/^[^0-9-]*/)?.[0] ?? '';
+  const suffix  = isNaN(numeric) ? '' : String(value).match(/[^0-9.]+$/)?.[0] ?? '';
+  const count   = useCountUp(isNaN(numeric) ? 0 : numeric);
+  if (isNaN(numeric)) return <>{value}</>;
+  const formatted = Number.isInteger(numeric) ? count.toFixed(0) : count.toFixed(1);
+  return <>{prefix}{formatted}{suffix}</>;
+}
 
 export default function KPICard({ label, value, sub, icon: Icon, color = 'accent', trend, onClick }) {
   const { t } = useLanguage();
@@ -22,7 +33,7 @@ export default function KPICard({ label, value, sub, icon: Icon, color = 'accent
         <span className={styles.label} aria-hidden={interactive ? 'true' : undefined}>{label}</span>
         {Icon && <span className={`${styles.icon} ${styles[color]}`} aria-hidden="true"><Icon size={15} /></span>}
       </div>
-      <div className={styles.value}>{value}</div>
+      <div className={styles.value}><AnimatedValue value={value} /></div>
       {(sub || trend !== undefined) && (
         <div className={styles.bottom}>
           {sub && <span className={styles.sub}>{sub}</span>}

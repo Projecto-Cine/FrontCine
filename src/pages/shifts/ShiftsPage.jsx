@@ -32,6 +32,17 @@ function startToLetter(startTime = '') {
 
 const VALID_ROLES = new Set(['CAJERO', 'GERENCIA', 'LIMPIEZA', 'MANTENIMIENTO']);
 
+const ROLE_NORMALIZE = {
+  CASHIER:    'CAJERO',
+  MANAGEMENT: 'GERENCIA',
+  CLEANING:   'LIMPIEZA',
+  SECURITY:   'SEGURIDAD',
+  CAJERO:     'CAJERO',
+  GERENCIA:   'GERENCIA',
+  LIMPIEZA:   'LIMPIEZA',
+  MANTENIMIENTO: 'MANTENIMIENTO',
+};
+
 function getWeekStart(date) {
   const d = new Date(date);
   const day = d.getDay() || 7;
@@ -208,7 +219,8 @@ export default function CuadrantePage() {
   const { toast } = useApp();
   const { user }  = useAuth();
   const { t, language } = useLanguage();
-  const readOnly = ['LIMPIEZA', 'MANTENIMIENTO'].includes(user?.role);
+  const readOnly   = ['LIMPIEZA', 'MANTENIMIENTO'].includes(user?.role);
+  const canGenerate = !readOnly;
   const [mode, setMode] = useState('week');
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [monthStart, setMonthStart] = useState(() => {
@@ -220,6 +232,7 @@ export default function CuadrantePage() {
   const [scheduleMap, setScheduleMap] = useState({});
   const [editCell, setEditCell] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const buildRowsFromShifts = (employees, shifts, ws) =>
     employees.map(emp => ({
@@ -246,12 +259,13 @@ export default function CuadrantePage() {
     employeesService.getAll()
       .then(data => {
         const list = (Array.isArray(data) ? data : []).map(e => {
-          const role = String(e.role ?? e.position ?? e.workerRole ?? '').toUpperCase();
+          const raw  = String(e.role ?? e.position ?? e.workerRole ?? '').toUpperCase();
+          const role = ROLE_NORMALIZE[raw] ?? raw;
           const fullName = [e.name, e.lastName].filter(Boolean).join(' ').trim();
           return { ...e, id: e.id ?? e.workerId, name: fullName || e.username || e.email || '-', role };
         });
         setAllUsers(list);
-        const active = list.filter(e => VALID_ROLES.has(e.role));
+        const active = list.filter(e => VALID_ROLES.has(e.role) && e.active !== false);
         return loadWeekIntoMap(weekStart, active);
       })
       .catch(() => setAllUsers([]))
@@ -283,11 +297,11 @@ export default function CuadrantePage() {
   };
 
   const activeEmployees = useMemo(
-    () => allUsers.filter(e => VALID_ROLES.has(String(e.role).toUpperCase())),
+    () => allUsers.filter(e => VALID_ROLES.has(String(e.role).toUpperCase()) && e.active !== false),
     [allUsers]
   );
 
-  const filterRows = (rows) => rows.filter(emp => VALID_ROLES.has(String(emp.role).toUpperCase()));
+  const filterRows = (rows) => rows.filter(emp => VALID_ROLES.has(String(emp.role).toUpperCase()) && emp.active !== false);
 
   const currentKey = weekKey(weekStart);
   const weekRows = useMemo(() => {
@@ -319,28 +333,62 @@ export default function CuadrantePage() {
 
   const stats = coverageStats(weekRows);
 
+  const saveScheduleToBackend = async (rows, ws) => {
+    const from = ws.toISOString().split('T')[0];
+    const to   = addDays(ws, 6).toISOString().split('T')[0];
+    const existing = await shiftsService.getByRange(from, to).catch(() => []) ?? [];
+    await Promise.all(existing.map(s => shiftsService.remove(s.id).catch(() => {})));
+    const creates = [];
+    rows.forEach(emp => {
+      emp.days.forEach((shift, dayIdx) => {
+        if (shift !== 'L') {
+          const times = SHIFT_TIMES[shift];
+          creates.push(shiftsService.create({
+            employeeId: emp.id,
+            shiftDate:  addDays(ws, dayIdx).toISOString().split('T')[0],
+            startTime:  times.start,
+            endTime:    times.end,
+            status:     'SCHEDULED',
+          }).catch(() => {}));
+        }
+      });
+    });
+    await Promise.all(creates);
+  };
+
   const handleGenerate = async () => {
     const genKey = Date.now();
-    let updates = {};
-
-    if (mode === 'week') {
-      setScheduleMap(prev => ({ ...prev, [currentKey]: generateWeekSchedule(activeEmployees, weekStart, genKey) }));
-      toast(t('shifts.weekGenerated'), 'success');
-    } else {
-      let cursor = getWeekStart(monthStart);
-      const targetMonth = monthStart.getMonth();
-      for (let w = 0; w < 6; w++) {
-        const hasMonth = Array.from({ length: 7 }, (_, i) => addDays(cursor, i))
-          .some(d => d.getMonth() === targetMonth);
-        if (!hasMonth) break;
-        updates[weekKey(cursor)] = generateWeekSchedule(activeEmployees, cursor, genKey + w);
-        cursor = addDays(cursor, 7);
+    setSaving(true);
+    try {
+      if (mode === 'week') {
+        const generated = generateWeekSchedule(activeEmployees, weekStart, genKey);
+        setScheduleMap(prev => ({ ...prev, [currentKey]: generated }));
+        await saveScheduleToBackend(generated, weekStart);
+        toast(t('shifts.weekGenerated'), 'success');
+      } else {
+        let cursor = getWeekStart(monthStart);
+        const targetMonth = monthStart.getMonth();
+        const allUpdates = {};
+        const savePromises = [];
+        for (let w = 0; w < 6; w++) {
+          const hasMonth = Array.from({ length: 7 }, (_, i) => addDays(cursor, i))
+            .some(d => d.getMonth() === targetMonth);
+          if (!hasMonth) break;
+          const generated = generateWeekSchedule(activeEmployees, new Date(cursor), genKey + w);
+          allUpdates[weekKey(cursor)] = generated;
+          savePromises.push(saveScheduleToBackend(generated, new Date(cursor)));
+          cursor = addDays(cursor, 7);
+        }
+        setScheduleMap(prev => ({ ...prev, ...allUpdates }));
+        await Promise.all(savePromises);
+        toast(t('shifts.monthGenerated', { count: Object.keys(allUpdates).length }), 'success');
       }
-      setScheduleMap(prev => ({ ...prev, ...updates }));
-      toast(t('shifts.monthGenerated', { count: Object.keys(updates).length }), 'success');
+    } catch {
+      toast('Error al guardar el cuadrante en el servidor.', 'error');
+    } finally {
+      setSaving(false);
+      setEditCell(null);
     }
-
-    setEditCell(null);
   };
 
   const handleShiftChange = async (empId, dayIdx, newShift) => {
@@ -449,10 +497,10 @@ export default function CuadrantePage() {
             <button className={styles.navBtn} onClick={nextPeriod}><ChevronRight size={14} /></button>
           </div>
 
-          {!readOnly && (
-            <button className={styles.generateBtn} onClick={handleGenerate}>
-              <RefreshCw size={13} />
-              {mode === 'week' ? t('shifts.generate.week') : t('shifts.generate.month')}
+          {canGenerate && (
+            <button className={styles.generateBtn} onClick={handleGenerate} disabled={saving || loading}>
+              {saving ? <Loader size={13} className={styles.spinner} /> : <RefreshCw size={13} />}
+              {saving ? 'Guardando...' : (mode === 'week' ? t('shifts.generate.week') : t('shifts.generate.month'))}
             </button>
           )}
 

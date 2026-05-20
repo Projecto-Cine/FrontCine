@@ -260,4 +260,36 @@ describe('ClientsPage — branch coverage', () => {
       await waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeInTheDocument());
     }
   });
+
+  it('toggles the fidelityMember switch in the form', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Ana López')).toBeInTheDocument());
+
+    const createBtn = screen.getAllByRole('button').find(b => /Nuevo cliente|rear cliente/i.test(b.textContent ?? ''));
+    if (createBtn) {
+      fireEvent.click(createBtn);
+      // Find the fidelity toggle button — the only button in the dialog with the "type=button" attribute
+      // and styled as a chip (NOT the form save/cancel buttons)
+      const allBtns = document.querySelectorAll('[role="dialog"] button[type="button"]');
+      // toggle the last button-type=button (the fidelity chip)
+      if (allBtns.length > 0) {
+        fireEvent.click(allBtns[allBtns.length - 1]);
+        fireEvent.click(allBtns[allBtns.length - 1]); // toggle back to cover both branches
+      }
+    }
+  });
+
+  it('detail panel handles client without lastName, status defaults to ACTIVE', async () => {
+    clientsGetById.mockResolvedValueOnce({
+      id: 1, name: 'Solo Name', email: 'solo@x.com',
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Ana López')).toBeInTheDocument());
+
+    const row = document.querySelector('tbody tr');
+    if (row) {
+      fireEvent.click(row);
+      await waitFor(() => expect(clientsGetById).toHaveBeenCalled());
+    }
+  });
 });

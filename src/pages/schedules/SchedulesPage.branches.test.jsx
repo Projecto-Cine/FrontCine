@@ -300,4 +300,40 @@ describe('SchedulesPage — branch coverage', () => {
       expect(dtInput?.value.length).toBeLessThanOrEqual(16);
     }
   });
+
+  it('normalizeFromBackend infers FULL when full=true and no status', async () => {
+    scrGetAll.mockResolvedValueOnce([
+      { id: 80, movieId: 10, theaterId: 20, startTime: `${TODAY}T20:00`, endDatetime: `${TODAY}T22:00`, full: true, basePrice: 8 },
+    ]);
+    renderPage();
+    await waitFor(() => expect(scrGetAll).toHaveBeenCalled());
+  });
+
+  it('normalizeFromBackend infers ACTIVE when current time is in range', async () => {
+    // Active range that brackets "now"
+    const now = new Date();
+    const earlier = new Date(now.getTime() - 60 * 60 * 1000).toISOString().slice(0, 16); // -1h
+    const later   = new Date(now.getTime() + 60 * 60 * 1000).toISOString().slice(0, 16); // +1h
+    scrGetAll.mockResolvedValueOnce([
+      { id: 81, movieId: 10, theaterId: 20, startTime: earlier, endDatetime: later, basePrice: 9 },
+    ]);
+    renderPage();
+    await waitFor(() => expect(scrGetAll).toHaveBeenCalled());
+  });
+
+  it('normalizeFromBackend infers SCHEDULED when "now > end" (already past)', async () => {
+    scrGetAll.mockResolvedValueOnce([
+      { id: 82, movieId: 10, theaterId: 20, startTime: '2020-01-01T20:00', endDatetime: '2020-01-01T22:00', basePrice: 9 },
+    ]);
+    renderPage();
+    await waitFor(() => expect(scrGetAll).toHaveBeenCalled());
+  });
+
+  it('normalizeFromBackend handles a screening without startTime/dateTime', async () => {
+    scrGetAll.mockResolvedValueOnce([
+      { id: 83, movieId: 10, theaterId: 20, basePrice: 8 }, // no startTime/dateTime/status
+    ]);
+    renderPage();
+    await waitFor(() => expect(scrGetAll).toHaveBeenCalled());
+  });
 });

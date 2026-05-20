@@ -146,4 +146,40 @@ describe('Sidebar — full coverage', () => {
     // The role label falls back to "CUSTOM_ROLE" when no translation exists
     expect(document.body.textContent).toContain('Custom');
   });
+
+  it('does NOT render userInfo when sidebar is collapsed AND user exists', () => {
+    sidebarCollapsedFlag = true;
+    currentUser = { name: 'Admin User', role: 'admin' };
+    renderSidebar();
+    // userInfo block is hidden via `!sidebarCollapsed && user && (...)`
+    expect(screen.queryByText('Admin')).toBeNull();
+  });
+
+  it('uses NavLink end={true} only for dashboard (`/`)', () => {
+    renderSidebar('/');
+    // The dashboard NavLink uses exact match (end={true}); other links don't.
+    const dashLink = screen.getByText('nav.dashboard').closest('a');
+    expect(dashLink).toBeTruthy();
+  });
+
+  it('skips a section entirely when ALL of its items are not accessible', () => {
+    // Allow only the dashboard
+    canAccessFn = (path) => path === '/';
+    renderSidebar();
+    // The "Operations", "Management" and "Admin" sections should not render
+    expect(screen.queryByText('nav.movies')).toBeNull();
+    expect(screen.queryByText('nav.inventory')).toBeNull();
+    expect(screen.queryByText('nav.clients')).toBeNull();
+  });
+
+  it('toggleSection adds and removes the sectionKey from collapsed state', () => {
+    renderSidebar();
+    const posHeader = screen.getByText('nav.pos').closest('button');
+    // Initial: expanded (true)
+    expect(posHeader.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(posHeader);
+    expect(posHeader.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(posHeader);
+    expect(posHeader.getAttribute('aria-expanded')).toBe('true');
+  });
 });

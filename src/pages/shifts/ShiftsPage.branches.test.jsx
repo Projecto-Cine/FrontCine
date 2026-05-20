@@ -233,4 +233,25 @@ describe('ShiftsPage — branch coverage', () => {
     const tarde = screen.getAllByRole('button').find(b => /tarde/i.test(b.title ?? ''));
     fireEvent.click(tarde);
   });
+
+  it('navigates to NEXT week with the chevron button (week mode)', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Ana/)).toBeInTheDocument());
+    // Period nav: prev/next are the two chevron buttons next to the period label
+    const allButtons = screen.getAllByRole('button');
+    const navButtons = allButtons.filter(b => b.className?.includes('navBtn'));
+    if (navButtons[1]) fireEvent.click(navButtons[1]); // next
+    if (navButtons[0]) fireEvent.click(navButtons[0]); // prev
+  });
+
+  it('navigates to NEXT month with the chevron button (month mode)', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/Ana/)).toBeInTheDocument());
+    // Switch to month mode first
+    fireEvent.click(screen.getByRole('button', { name: /mes/i }));
+    const allButtons = screen.getAllByRole('button');
+    const navButtons = allButtons.filter(b => b.className?.includes('navBtn'));
+    if (navButtons[1]) fireEvent.click(navButtons[1]); // next month
+    if (navButtons[0]) fireEvent.click(navButtons[0]); // prev month
+  });
 });

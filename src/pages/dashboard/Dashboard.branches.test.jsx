@@ -55,16 +55,32 @@ vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ user: { name: 'Admin', role: 'admin' }, can: () => true }),
 }));
 
-// Stub recharts to avoid jsdom hangs
+// Stub recharts to avoid jsdom hangs.
+// Drive every Tooltip branch (active/inactive, payload-with-color/without)
+// so the CustomTooltip inside Dashboard hits both rendering paths.
 vi.mock('recharts', () => ({
   BarChart: ({ children }) => <div data-testid="bar-chart">{children}</div>,
   Bar: () => null, LineChart: ({ children }) => <div>{children}</div>, Line: () => null,
   XAxis: () => null, YAxis: () => null,
   Tooltip: ({ content }) => {
-    if (typeof content === 'function') return <div>{content({ active: true, payload: [{ value: 75 }], label: 'X' })}</div>;
+    if (typeof content === 'function') {
+      return (
+        <div>
+          {content({ active: true,  payload: [{ value: 75 }], label: 'Sala A' })}
+          {content({ active: false, payload: [],              label: 'Sala B' })}
+          {content({ active: true,  payload: null,            label: 'Sala C' })}
+        </div>
+      );
+    }
     if (content?.type) {
       const Inner = content.type;
-      return <Inner active payload={[{ name: 'X', value: 100, color: 'var(--accent)' }]} label="X" />;
+      return (
+        <div>
+          <Inner active payload={[{ name: '€ Ingresos', value: 1000, color: 'var(--accent)' }]} label="Lun" />
+          <Inner active payload={[{ name: 'Tickets',    value: 12   }]}                           label="Mar" />
+          <Inner active={false} payload={[]}                                                       label="Mié" />
+        </div>
+      );
     }
     return null;
   },

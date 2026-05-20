@@ -122,4 +122,12 @@ describe('StripePaymentForm', () => {
     await user.click(cancelBtn);
     expect(onCancel).toHaveBeenCalled();
   });
+
+  it('error without a `message` falls back to generic translation', async () => {
+    confirmPaymentMock.mockResolvedValue({ error: {} });
+    const { container } = wrap(<StripePaymentForm amount={5} onSuccess={vi.fn()} onCancel={vi.fn()} />);
+    fireEvent.submit(container.querySelector('form'));
+    await screen.findByRole('alert');
+    expect(container.querySelector('[role="alert"]').textContent.length).toBeGreaterThan(0);
+  });
 });

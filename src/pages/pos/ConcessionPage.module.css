@@ -327,6 +327,13 @@ kbd { background: var(--bg-4); border: 1px solid var(--border-l); border-radius:
 .receiptLines { display: flex; flex-direction: column; gap: 4px; }
 .receiptLine { display: flex; justify-content: space-between; font-size: var(--fs-md); color: var(--text-2); padding: 4px 0; }
 .receiptLine span:last-child { font-family: var(--mono); }
+
+/* Print-only header — oculto en pantalla */
+.printHeader { display: none; }
+.printFooter { display: none; }
+.printLogo   { font-size: 18px; font-weight: 800; letter-spacing: 2px; text-align: center; }
+.printSub    { font-size: 11px; text-align: center; opacity: 0.6; margin-top: 2px; }
+.printDivider { border-top: 1px dashed #aaa; margin: 10px 0; }
 .receiptDivider { border: none; border-top: 1px dashed var(--border-l); }
 .receiptTotal { display: flex; justify-content: space-between; font-size: 15px; font-weight: 800; color: var(--text-1); }
 .receiptTotal span:last-child { font-family: var(--mono); }
@@ -408,3 +415,29 @@ kbd { background: var(--bg-4); border: 1px solid var(--border-l); border-radius:
 .managerSaveBtn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--accent); border: none; border-radius: var(--r); color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; transition: background var(--t); }
 .managerSaveBtn:hover:not(:disabled) { background: var(--accent-h); }
 .managerSaveBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Impresión ─────────────────────────────────────── */
+@media print {
+  body * { visibility: hidden; }
+  .receiptModal, .receiptModal * { visibility: visible; }
+  .receiptModal {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: 320px;
+    height: fit-content;
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 20px !important;
+  }
+  .receiptModal * { color: #000 !important; }
+  .receiptFooter  { display: none !important; }
+  .receiptHeader  { display: none !important; }
+  .receiptEmoji   { display: none !important; }
+  .modalOverlay   { background: none !important; }
+  .printHeader    { display: block !important; }
+  .printFooter    { display: block !important; visibility: visible !important; text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 1px; margin-top: 16px; padding-top: 10px; border-top: 1px dashed #aaa; }
+}

@@ -6,11 +6,9 @@ import { AppProvider } from '../../contexts/AppContext';
 
 const room = { id: 1, name: 'Sala 1 IMAX', capacity: 100, type: 'IMAX', status: 'active' };
 const movie = { id: 1, title: 'Dune', genre: 'Ciencia ficción', format: 'IMAX', language: 'ES', active: true, imageUrl: '', durationMin: 155, ageRating: 'PG-13' };
-// Always use today + a fixed late-evening hour so it stays > 3h ahead regardless of test execution time
-const TODAY = new Date().toISOString().split('T')[0];
-const SESSION_TIME = '23:30:00';
+const FUTURE_DATE = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; })();
 const screening = {
-  id: 1, startTime: `${TODAY}T${SESSION_TIME}`, dateTime: `${TODAY}T${SESSION_TIME}`,
+  id: 1, startTime: `${FUTURE_DATE}T20:00:00`, dateTime: `${FUTURE_DATE}T20:00:00`,
   price: 13.5, basePrice: 13.5, movie, theater: room, availableSeats: 98, capacity: 100, full: false, status: 'SCHEDULED',
 };
 
@@ -104,12 +102,12 @@ describe('BoxOfficePage — verified purchase flow', () => {
     renderPage();
     await waitFor(() => { expect(document.body.textContent).toContain('Dune'); }, { timeout: 5000 });
 
-    const timeBtn = screen.getAllByRole('button').find(b => /23:30/.test(b.textContent ?? ''));
+    const timeBtn = screen.getAllByRole('button').find(b => /20:00/.test(b.textContent ?? ''));
     if (timeBtn) fireEvent.click(timeBtn);
 
     // Skip client modal
     await waitFor(() => {
-      const skip = screen.getAllByRole('button').find(b => /Saltar|Omitir/i.test(b.textContent ?? ''));
+      const skip = screen.getAllByRole('button').find(b => /Omitir/i.test(b.textContent ?? ''));
       if (skip) fireEvent.click(skip);
       expect(skip).toBeTruthy();
     }, { timeout: 3000 });
@@ -124,12 +122,12 @@ describe('BoxOfficePage — verified purchase flow', () => {
     renderPage();
     await waitFor(() => { expect(document.body.textContent).toContain('Dune'); }, { timeout: 5000 });
 
-    const timeBtn = screen.getAllByRole('button').find(b => /23:30/.test(b.textContent ?? ''));
+    const timeBtn = screen.getAllByRole('button').find(b => /20:00/.test(b.textContent ?? ''));
     if (timeBtn) fireEvent.click(timeBtn);
 
     // Skip client modal
     await waitFor(() => {
-      const skip = screen.getAllByRole('button').find(b => /Saltar|Omitir/i.test(b.textContent ?? ''));
+      const skip = screen.getAllByRole('button').find(b => /Omitir/i.test(b.textContent ?? ''));
       if (skip) fireEvent.click(skip);
       expect(skip).toBeTruthy();
     }, { timeout: 3000 });
@@ -145,12 +143,12 @@ describe('BoxOfficePage — verified purchase flow', () => {
 
     await waitFor(() => { expect(document.body.textContent).toContain('Dune'); }, { timeout: 5000 });
 
-    const timeBtn = screen.getAllByRole('button').find(b => /23:30/.test(b.textContent ?? ''));
+    const timeBtn = screen.getAllByRole('button').find(b => /20:00/.test(b.textContent ?? ''));
     if (timeBtn) fireEvent.click(timeBtn);
 
     // Skip client modal
     await waitFor(() => {
-      const skip = screen.getAllByRole('button').find(b => /Saltar|Omitir/i.test(b.textContent ?? ''));
+      const skip = screen.getAllByRole('button').find(b => /Omitir/i.test(b.textContent ?? ''));
       if (skip) fireEvent.click(skip);
       expect(skip).toBeTruthy();
     }, { timeout: 3000 });
@@ -170,12 +168,12 @@ describe('BoxOfficePage — verified purchase flow', () => {
     renderPage();
     await waitFor(() => { expect(document.body.textContent).toContain('Dune'); }, { timeout: 5000 });
 
-    const timeBtn = screen.getAllByRole('button').find(b => /23:30/.test(b.textContent ?? ''));
+    const timeBtn = screen.getAllByRole('button').find(b => /20:00/.test(b.textContent ?? ''));
     if (timeBtn) fireEvent.click(timeBtn);
 
     // Skip client modal
     await waitFor(() => {
-      const skip = screen.getAllByRole('button').find(b => /Saltar|Omitir/i.test(b.textContent ?? ''));
+      const skip = screen.getAllByRole('button').find(b => /Omitir/i.test(b.textContent ?? ''));
       if (skip) fireEvent.click(skip);
       expect(skip).toBeTruthy();
     }, { timeout: 3000 });
@@ -190,11 +188,11 @@ describe('BoxOfficePage — verified purchase flow', () => {
     renderPage();
 
     await waitFor(() => { expect(document.body.textContent).toContain('Dune'); }, { timeout: 5000 });
-    const timeBtn = screen.getAllByRole('button').find(b => /23:30/.test(b.textContent ?? ''));
+    const timeBtn = screen.getAllByRole('button').find(b => /20:00/.test(b.textContent ?? ''));
     if (timeBtn) fireEvent.click(timeBtn);
     // Skip client modal
     await waitFor(() => {
-      const skip = screen.getAllByRole('button').find(b => /Saltar|Omitir/i.test(b.textContent ?? ''));
+      const skip = screen.getAllByRole('button').find(b => /Omitir/i.test(b.textContent ?? ''));
       if (skip) fireEvent.click(skip);
       expect(skip).toBeTruthy();
     }, { timeout: 3000 });

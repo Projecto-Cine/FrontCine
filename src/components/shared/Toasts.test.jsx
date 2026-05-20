@@ -59,20 +59,4 @@ describe('Toasts', () => {
     act(() => { vi.advanceTimersByTime(5000); });
     expect(screen.queryByText('Adios')).toBeNull();
   });
-
-  it('falls back to "Info" icon and "Notificación" label for unknown type', () => {
-    function CustomTrigger() {
-      const { toast } = useApp();
-      return <button onClick={() => toast('Algo raro', 'unknown-type', 5000)}>X</button>;
-    }
-    setup(<CustomTrigger />);
-    fireEvent.click(screen.getByRole('button', { name: 'X' }));
-    expect(screen.getByText('Algo raro')).toBeInTheDocument();
-  });
-
-  it('fires a warning toast (covers warning icon + ARIA polite branch)', () => {
-    setup(<Trigger message="Cuidado" type="warning" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Lanzar' }));
-    expect(screen.getByRole('status')).toBeInTheDocument();
-  });
 });

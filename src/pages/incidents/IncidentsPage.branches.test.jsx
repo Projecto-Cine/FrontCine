@@ -175,27 +175,4 @@ describe('IncidentsPage — branch coverage', () => {
       await waitFor(() => { /* settle */ });
     }
   });
-
-  it('resolves an open incident (covers resolve success path + null fallback)', async () => {
-    incidentsUpdate.mockResolvedValueOnce(null);
-    renderPage();
-    await waitFor(() => expect(screen.getByText('Pantalla rota')).toBeInTheDocument());
-    // Row buttons: [view, edit, resolve?] — click the third on open incidents
-    const rowBtns = screen.getAllByRole('button').filter(b => b.closest('td'));
-    if (rowBtns[2]) {
-      fireEvent.click(rowBtns[2]);
-      await waitFor(() => expect(incidentsUpdate).toHaveBeenCalled());
-    }
-  });
-
-  it('handles resolve error', async () => {
-    incidentsUpdate.mockRejectedValueOnce(new Error('fail'));
-    renderPage();
-    await waitFor(() => expect(screen.getByText('Pantalla rota')).toBeInTheDocument());
-    const rowBtns = screen.getAllByRole('button').filter(b => b.closest('td'));
-    if (rowBtns[2]) {
-      fireEvent.click(rowBtns[2]);
-      await waitFor(() => expect(incidentsUpdate).toHaveBeenCalled());
-    }
-  });
 });

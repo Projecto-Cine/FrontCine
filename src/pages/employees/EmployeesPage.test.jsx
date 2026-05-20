@@ -73,13 +73,13 @@ describe('EmployeesPage — comprehensive', () => {
       const selects = screen.getAllByRole('combobox');
       if (selects[0]) fireEvent.change(selects[0], { target: { value: 'CAJERO' } });
 
+      // Password (required when creating)
+      const passInputs = document.querySelectorAll('input[type="password"]');
+      if (passInputs[0]) fireEvent.change(passInputs[0], { target: { value: 'secret123' } });
+
       // Phone
       const telInputs = document.querySelectorAll('input[type="tel"]');
       if (telInputs[0]) fireEvent.change(telInputs[0], { target: { value: '600555666' } });
-
-      // Password (newly required for employee creation)
-      const pwInputs = document.querySelectorAll('input[type="password"]');
-      if (pwInputs[0]) fireEvent.change(pwInputs[0], { target: { value: 'lumen2026' } });
 
       const saveBtn = screen.getAllByRole('button').find(b =>
         (b.textContent.includes('rear') || b.textContent.includes('ñadir') || b.textContent.includes('uardar')) && b.closest('[role="dialog"]')

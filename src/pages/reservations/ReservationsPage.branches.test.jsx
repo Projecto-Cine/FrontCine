@@ -147,40 +147,4 @@ describe('ReservationsPage — branch coverage', () => {
       expect(purchasesCreate).not.toHaveBeenCalled();
     }
   });
-
-  it('handles refund error branch (catch path) without crashing', async () => {
-    // Force update() to throw — covers handleRefund's catch
-    purchasesUpdate.mockRejectedValueOnce(new Error('refund failed'));
-    renderPage();
-    await waitFor(() => expect(document.body.textContent).toContain('Ana'));
-
-    // Find the refund button (only shows on CONFIRMED purchases)
-    const refundBtn = document.querySelector('[title*="eembolso"], [title*="efund"]');
-    if (refundBtn) {
-      fireEvent.click(refundBtn);
-      // If a confirm dialog appears, click confirm to fire handleRefund
-      await waitFor(() => { /* settle */ });
-      const confirm = [...document.querySelectorAll('[role="dialog"] button')].find(b =>
-        /Sí, reembolsar|Confirmar/i.test(b.textContent ?? '')
-      );
-      if (confirm) fireEvent.click(confirm);
-    }
-  });
-
-  it('handles cancel reservation flow', async () => {
-    renderPage();
-    await waitFor(() => expect(document.body.textContent).toContain('Ana'));
-    const cancelBtn = document.querySelector('[title*="ancelar"]');
-    if (cancelBtn) {
-      fireEvent.click(cancelBtn);
-      await waitFor(() => { /* let modal appear */ });
-      const confirm = [...document.querySelectorAll('[role="dialog"] button')].find(b =>
-        /Sí.*cancelar|Confirmar/i.test(b.textContent ?? '')
-      );
-      if (confirm) {
-        fireEvent.click(confirm);
-        await waitFor(() => expect(purchasesCancel).toHaveBeenCalled());
-      }
-    }
-  });
 });

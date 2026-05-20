@@ -46,6 +46,8 @@ export default function RoomsPage() {
       name:     form.name.trim(),
       capacity: Number(form.capacity),
       type:     form.type || 'STANDARD',
+      ...(form.numRows    ? { numRows:    Number(form.numRows)    } : {}),
+      ...(form.numColumns ? { numColumns: Number(form.numColumns) } : {}),
     };
     try {
       if (editing) {
@@ -148,6 +150,22 @@ export default function RoomsPage() {
               aria-invalid={!!errors.capacity} aria-describedby={errors.capacity ? 'err-room-cap' : undefined}
             />
             {errors.capacity && <span id="err-room-cap" role="alert" className={styles.fieldError}>{errors.capacity}</span>}
+          </div>
+          <div>
+            <label className={styles.label} htmlFor="room-rows">Filas (opcional)</label>
+            <input id="room-rows"
+              className={styles.input}
+              type="number" min="1" value={form.numRows || ''} onChange={e => set('numRows', e.target.value)}
+              placeholder="Ej: 10"
+            />
+          </div>
+          <div>
+            <label className={styles.label} htmlFor="room-cols">Columnas (opcional)</label>
+            <input id="room-cols"
+              className={styles.input}
+              type="number" min="1" value={form.numColumns || ''} onChange={e => set('numColumns', e.target.value)}
+              placeholder="Ej: 12"
+            />
           </div>
         </div>
       </Modal>

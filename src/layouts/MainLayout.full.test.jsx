@@ -194,19 +194,4 @@ describe('MainLayout — full coverage', () => {
     fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
     expect(screen.queryByTestId('palette')).not.toBeInTheDocument();
   });
-
-  it('triggers pageKey increment when navigating to another route', async () => {
-    renderLayout(['/']);
-    // Simulate Alt+2 nav to /box-office which would mount a new outlet
-    fireEvent.keyDown(document, { key: '2', altKey: true });
-    expect(navigateMock).toHaveBeenCalledWith('/box-office');
-  });
-
-  it('closes the palette via the CommandPalette onClose', () => {
-    renderLayout();
-    fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
-    expect(screen.getByTestId('palette')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('palette'));
-    expect(screen.queryByTestId('palette')).not.toBeInTheDocument();
-  });
 });

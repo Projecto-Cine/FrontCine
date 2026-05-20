@@ -28,7 +28,8 @@ vi.mock('../../services/inventoryService', () => ({
 
 vi.mock('../../services/salesService', () => ({
   salesService: {
-    createConcessionSale: vi.fn().mockResolvedValue({ id: 1 }),
+    createConcessionSale:   vi.fn().mockResolvedValue({ id: 1 }),
+    createMerchandiseSale:  vi.fn().mockResolvedValue({ remainingStock: 9 }),
   },
 }));
 

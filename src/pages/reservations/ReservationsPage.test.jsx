@@ -15,9 +15,8 @@ const mockScreenings = [
   { id: 101, movie: { title: 'Avatar' }, theater: { name: 'Sala 2' }, dateTime: '2025-06-02T18:00' },
 ];
 const mockUsers = [
-  // Page filters dropdown options by role.toUpperCase() === 'CLIENT'
-  { id: 10, name: 'Ana López', email: 'ana@x.com', role: 'CLIENT' },
-  { id: 11, name: 'Luis García', email: 'luis@x.com', role: 'CLIENT' },
+  { id: 10, name: 'Ana López', email: 'ana@x.com', role: 'CLIENTE' },
+  { id: 11, name: 'Luis García', email: 'luis@x.com', role: 'CLIENTE' },
 ];
 
 const purchasesGetAll = vi.fn().mockResolvedValue(mockPurchases);
@@ -454,10 +453,10 @@ describe('ReservationsPage — comprehensive', () => {
     renderPage();
     await waitFor(() => expect(screen.getAllByTitle(/editar/i).length).toBeGreaterThan(1));
 
-    fireEvent.click(screen.getAllByTitle(/editar/i)[1]);
+    fireEvent.click(screen.getAllByTitle(/editar/i)[0]);
     await waitFor(() => expect(screen.getByRole('button', { name: /guardar cambios/i })).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: /guardar cambios/i }));
-    await waitFor(() => expect(purchasesUpdate).toHaveBeenCalled());
+    await waitFor(() => expect(purchasesUpdate).toHaveBeenCalledWith(1, expect.any(Object)));
 
     clickPendingPaymentAction();
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());

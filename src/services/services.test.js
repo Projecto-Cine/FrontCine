@@ -159,10 +159,8 @@ describe('inventoryService', () => {
     inventoryService.update(1, { name: 'Q' });
     inventoryService.remove(1);
     expect(api.get).toHaveBeenCalledWith('/merchandise/1');
-    // inventoryService.create transforms the payload via fromInventory(),
-    // adding default keys (minStock, supplier) before POSTing.
-    expect(api.post).toHaveBeenCalledWith('/merchandise', expect.objectContaining({ name: 'P' }));
-    expect(api.put).toHaveBeenCalledWith('/merchandise/1', expect.objectContaining({ name: 'Q' }));
+    expect(api.post).toHaveBeenCalledWith('/merchandise', { name: 'P' });
+    expect(api.put).toHaveBeenCalledWith('/merchandise/1', { name: 'Q' });
     expect(api.delete).toHaveBeenCalledWith('/merchandise/1');
   });
 });

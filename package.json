@@ -8,12 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "backend:build": "cd backend && mvnw.cmd clean package -DskipTests",
-    "backend:dev": "cd backend && mvnw.cmd spring-boot:run",
-    "fullstack:dev": "concurrently \"npm run dev\" \"npm run backend:dev\""
+    "test": "node --max-old-space-size=4096 node_modules/vitest/dist/cli.js run",
+    "test:watch": "node --max-old-space-size=4096 node_modules/vitest/dist/cli.js",
+    "test:coverage": "node --max-old-space-size=4096 node_modules/vitest/dist/cli.js run --coverage"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.3.0",

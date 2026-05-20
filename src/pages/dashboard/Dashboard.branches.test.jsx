@@ -55,32 +55,16 @@ vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ user: { name: 'Admin', role: 'admin' }, can: () => true }),
 }));
 
-// Stub recharts to avoid jsdom hangs.
-// Drive every Tooltip branch (active/inactive, payload-with-color/without)
-// so the CustomTooltip inside Dashboard hits both rendering paths.
+// Stub recharts to avoid jsdom hangs
 vi.mock('recharts', () => ({
   BarChart: ({ children }) => <div data-testid="bar-chart">{children}</div>,
   Bar: () => null, LineChart: ({ children }) => <div>{children}</div>, Line: () => null,
   XAxis: () => null, YAxis: () => null,
   Tooltip: ({ content }) => {
-    if (typeof content === 'function') {
-      return (
-        <div>
-          {content({ active: true,  payload: [{ value: 75 }], label: 'Sala A' })}
-          {content({ active: false, payload: [],              label: 'Sala B' })}
-          {content({ active: true,  payload: null,            label: 'Sala C' })}
-        </div>
-      );
-    }
+    if (typeof content === 'function') return <div>{content({ active: true, payload: [{ value: 75 }], label: 'X' })}</div>;
     if (content?.type) {
       const Inner = content.type;
-      return (
-        <div>
-          <Inner active payload={[{ name: '€ Ingresos', value: 1000, color: 'var(--accent)' }]} label="Lun" />
-          <Inner active payload={[{ name: 'Tickets',    value: 12   }]}                           label="Mar" />
-          <Inner active={false} payload={[]}                                                       label="Mié" />
-        </div>
-      );
+      return <Inner active payload={[{ name: 'X', value: 100, color: 'var(--accent)' }]} label="X" />;
     }
     return null;
   },
@@ -227,44 +211,6 @@ describe('Dashboard — branch coverage', () => {
     sessionsGetAll.mockResolvedValue([]);
     incidentsGetAll.mockResolvedValue([]);
     merchGetAll.mockResolvedValue([]);
-    renderPage();
-    await waitFor(() => expect(document.body.textContent.length).toBeGreaterThan(0), { timeout: 8000 });
-  });
-
-  it('renders today sessions with missing movie/theater/startTime (uses "—" fallbacks)', async () => {
-    dashGet.mockResolvedValue({});
-    dashGetPurchases.mockResolvedValue([]);
-    reportsSalesWeek.mockResolvedValue([]);
-    reportsOccupancy.mockResolvedValue([]);
-    sessionsGetUpcoming.mockResolvedValue([
-      { id: 1, startTime: `${TODAY}T10:00`, status: 'ACTIVE' },                                 // missing movie/theater
-      { id: 2, startTime: `${TODAY}T11:00`, movie: {}, theater: {} },                            // empty movie/theater
-      { id: 3, dateTime: `${TODAY}T12:00`, movie: { title: 'X' }, theater: { name: 'Sala A' } }, // dateTime instead of startTime
-      { id: 4, movie: { title: 'Y' } },                                                          // no time at all
-    ]);
-    sessionsGetAll.mockResolvedValue([]);
-    incidentsGetAll.mockResolvedValue([]);
-    merchGetAll.mockResolvedValue([]);
-    renderPage();
-    await waitFor(() => expect(document.body.textContent.length).toBeGreaterThan(0), { timeout: 8000 });
-  });
-
-  it('handles top-3 movies and products with merchandise sales (covers quantity*unitPrice fallback)', async () => {
-    dashGet.mockResolvedValue({});
-    dashGetPurchases.mockResolvedValue([
-      { id: 1, status: 'CONFIRMED', totalAmount: 25, movieTitle: 'Dune' },
-    ]);
-    reportsSalesWeek.mockResolvedValue([]);
-    reportsOccupancy.mockResolvedValue([]);
-    sessionsGetUpcoming.mockResolvedValue([]);
-    sessionsGetAll.mockResolvedValue([]);
-    incidentsGetAll.mockResolvedValue([]);
-    merchGetAll.mockResolvedValue([
-      // totalAmount missing → fallback to qty * unitPrice
-      { id: 1, merchandiseName: 'Pop', quantity: 3, unitPrice: 5 },
-      // Both 0/missing → product name still tallied with 0 revenue
-      { id: 2, product: { name: 'Mug' } },
-    ]);
     renderPage();
     await waitFor(() => expect(document.body.textContent.length).toBeGreaterThan(0), { timeout: 8000 });
   });

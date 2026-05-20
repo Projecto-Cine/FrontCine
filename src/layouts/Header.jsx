@@ -82,6 +82,14 @@ export default function Header({ onOpenPalette }) {
 
           <button
             className={styles.iconBtn}
+            aria-haspopup="true"
+            aria-label={t('header.notifications')}
+            title={t('header.notifications')}
+          >
+          </button>
+
+          <button
+            className={styles.iconBtn}
             onClick={() => setShowShortcuts(true)}
             title={t('header.shortcutsTitle')}
             aria-label={t('header.shortcuts')}

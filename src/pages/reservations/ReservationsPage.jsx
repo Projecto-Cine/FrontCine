@@ -139,7 +139,7 @@ export default function ReservationsPage() {
 
   useEffect(() => {
     Promise.all([
-      purchasesService.getActive(),
+      purchasesService.getAll(),
       screeningsService.getAll(),
       usersService.getAll(),
       roomsService.getAll().catch(() => []),
@@ -182,13 +182,7 @@ export default function ReservationsPage() {
 
   /* ── Save reservation ────────────────────────────── */
   const handleSave = async () => {
-    if (!form.userId)    { toast('Selecciona un cliente.', 'error'); return; }
-    if (!editing) {
-      if (!form.movieId) { toast('Selecciona una película.', 'error'); return; }
-      if (!form.roomId)  { toast('Selecciona una sala.', 'error'); return; }
-      if (!form.date)    { toast('Selecciona una fecha.', 'error'); return; }
-      if (!isMonToThu(form.date)) { toast('Solo se pueden reservar de lunes a jueves.', 'error'); return; }
-    }
+    if (!form.userId) { toast('Selecciona un cliente.', 'error'); return; }
     setSaving(true);
     const formAmount  = Number(form.totalAmount) || 0;
     const clientEmail = users.find(u => String(u.id) === String(form.userId))?.email ?? '';
@@ -196,7 +190,8 @@ export default function ReservationsPage() {
 
     let screeningId = form.screeningId ? Number(form.screeningId) : null;
 
-    if (!editing && !screeningId) {
+    if (!editing && !screeningId && form.movieId && form.roomId && form.date) {
+      if (!isMonToThu(form.date)) { toast('Solo se pueden reservar de lunes a jueves.', 'error'); setSaving(false); return; }
       try {
         const startTime = `${form.date}T${form.time || '18:00'}:00`;
         const newScreening = await screeningsService.create({
@@ -279,8 +274,8 @@ export default function ReservationsPage() {
     const screeningId = cancelTarget.screeningId ?? cancelTarget.screening?.id ?? getScreening(cancelTarget, screenings)?.id;
     try {
       await purchasesService.cancel(cancelTarget.id).catch(() => null);
-      await purchasesService.remove(cancelTarget.id).catch(() => null);
-      if (screeningId) await screeningsService.remove(screeningId).catch(() => null);
+      await purchasesService.remove?.(cancelTarget.id)?.catch(() => null);
+      if (screeningId) await screeningsService.remove?.(screeningId)?.catch(() => null);
     } finally {
       setPurchases(prev => prev.filter(p => p.id !== cancelTarget.id));
       if (screeningId) setScreenings(prev => prev.filter(s => s.id !== screeningId));
@@ -389,12 +384,17 @@ export default function ReservationsPage() {
           const s = getStatus(row);
           return (
             <div style={{ display: 'flex', gap: 2 }}>
-              <Button variant="ghost" size="sm" icon={Edit2} onClick={() => setDetail(row)}  title={t('common.edit')} />
+              <Button variant="ghost" size="sm" icon={Edit2} onClick={() => openEdit(row)} title={t('common.edit')} />
               {s === 'PENDING' && (
                 <Button variant="ghost" size="sm" icon={CreditCard}
                   style={{ color: 'var(--accent)' }}
                   onClick={() => { setPayTarget(row); setPayMethod('CARD'); setCashGiven(''); setModal('pay'); }}
                   title={t('reservations.col.payment')} />
+              )}
+              {s === 'CONFIRMED' && (
+                <Button variant="ghost" size="sm" icon={RotateCcw}
+                  style={{ color: 'var(--yellow)' }}
+                  onClick={() => setRefundTarget(row)} title={t('reservations.refund.title')} />
               )}
               {['CONFIRMED', 'PENDING'].includes(s) && (
                 <Button variant="ghost" size="sm" icon={Trash2}
@@ -431,10 +431,20 @@ export default function ReservationsPage() {
                 setForm(prev => ({ ...prev, userId: uid, guestEmail: clientEmail }));
               }}>
               <option value="">{t('reservations.form.selectClient')}</option>
-              {users.filter(u => (u.role ?? '').toUpperCase() === 'CLIENT').map(u => (
+              {users.filter(u => ['CLIENT', 'CLIENTE'].includes((u.role ?? '').toUpperCase())).map(u => (
                 <option key={u.id} value={u.id}>
                   {[u.name, u.lastName].filter(Boolean).join(' ') || u.email}
                 </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.fieldFull}>
+            <label className={styles.label}>Proyección existente</label>
+            <select className={styles.input} value={form.screeningId}
+              onChange={e => setField('screeningId', e.target.value)}>
+              <option value="">— O crea una nueva proyección —</option>
+              {screenings.map(s => (
+                <option key={s.id} value={s.id}>{getScreeningLabel(s, noScreeningText)}</option>
               ))}
             </select>
           </div>
@@ -479,7 +489,7 @@ export default function ReservationsPage() {
           <div className={styles.fieldFull}>
             <label className={styles.label}>Precio total de la sala (€)</label>
             <input className={styles.input} type="number" step="0.01" min="0" value={form.totalAmount}
-              onChange={e => setField('totalAmount', e.target.value)} placeholder="Ej: 350.00" />
+              onChange={e => setField('totalAmount', e.target.value)} placeholder="0.00" />
           </div>
         </div>
         {!editing && (
@@ -673,6 +683,12 @@ export default function ReservationsPage() {
                   <Button variant="primary" size="sm" icon={CreditCard}
                     onClick={() => { setDetail(null); setPayTarget(detail); setPayMethod('CARD'); setCashGiven(''); setModal('pay'); }}>
                     {t('reservations.pay.card')}
+                  </Button>
+                )}
+                {status === 'CONFIRMED' && (
+                  <Button variant="ghost" size="sm" icon={RotateCcw}
+                    onClick={() => { setDetail(null); setRefundTarget(detail); }}>
+                    {t('reservations.refund.title')}
                   </Button>
                 )}
                 {['CONFIRMED', 'PENDING'].includes(status) && (

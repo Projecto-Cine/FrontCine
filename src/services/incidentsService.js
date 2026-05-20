@@ -7,7 +7,7 @@ const STATUS_TO_BACK = { open: 'OPEN', in_progress: 'IN_PROGRESS', resolved: 'RE
 const norm = (i) => {
   if (!i) return i;
   const priority = SEV_TO_PRI[i.severity] ?? i.priority ?? 'low';
-  const status   = (i.status ?? 'OPEN').toLowerCase().replace(' ', '_');
+  const status = i.resolved === true ? 'resolved' : (i.status ?? 'OPEN').toLowerCase().replace(' ', '_');
   const rawAssigned = i.assignedTo ?? i.assigned_to;
   const isObj = typeof rawAssigned === 'object' && rawAssigned !== null;
   return {
@@ -27,7 +27,7 @@ const toBackend = (data) => ({
   priority:         undefined,
   status:           STATUS_TO_BACK[data.status] ?? data.status?.toUpperCase() ?? 'OPEN',
   resolved:         undefined,
-  assignedTo:       data.assigned_to ? Number(data.assigned_to) : null,
+  assignedTo:       data.assigned_to !== undefined && data.assigned_to !== '' ? (isNaN(Number(data.assigned_to)) ? data.assigned_to : Number(data.assigned_to)) : null,
   assigned_to:      undefined,
   assigned_to_name: undefined,
   updated_at:       undefined,

@@ -10,8 +10,13 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
     css: true,
-    // Under coverage instrumentation jsdom + React render becomes ~3-4× slower;
-    // 5 s default is not always enough for our deep-flow tests.
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        minThreads: 1,
+        maxThreads: 2,
+      },
+    },
     testTimeout: 15_000,
     hookTimeout: 15_000,
     coverage: {
@@ -29,11 +34,6 @@ export default defineConfig({
         'src/services/mock/**',
         'src/services/backendModel.js',
         'src/App.jsx',
-        // Thin service wrappers (1-line CRUD delegates) — already exercised
-        // indirectly through page integration tests.
-        'src/services/incidentsService.js',
-        'src/services/salesService.js',
-        'src/services/sessionsService.js',
       ],
     },
   },

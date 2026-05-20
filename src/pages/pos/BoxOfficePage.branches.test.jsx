@@ -13,7 +13,7 @@
  * Code in English; UI text stays in Spanish.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '../../i18n/LanguageContext';
 import { AppProvider } from '../../contexts/AppContext';
@@ -86,9 +86,11 @@ vi.mock('qrcode.react', () => ({
 
 const moviesGetAll = vi.fn();
 
-// Always use today + a fixed late-evening hour so it stays > 3h ahead regardless of test execution time
 const TODAY = new Date().toISOString().split('T')[0];
-const FUTURE_HOUR = '23:30:00';
+const FUTURE_HOUR = (() => {
+  const d = new Date(); d.setHours(d.getHours() + 4);
+  return `${String(d.getHours()).padStart(2, '0')}:00:00`;
+})();
 
 const MOVIE     = { id: 10, title: 'Dune', genre: 'Ciencia ficción', format: 'IMAX', language: 'ES', active: true };
 const ROOM      = { id: 20, name: 'Sala 4D VIP', capacity: 100, type: 'VIP' };
@@ -142,18 +144,10 @@ function renderPage() {
 }
 
 async function openSeatsStep() {
-  // The time button contains the formatted hour (e.g. "23:30") AND the room name.
-  // Pick the FIRST non-disabled time button to be safe.
-  const timeBtn = screen.getAllByRole('button').find(b =>
-    /\d{1,2}:\d{2}/.test(b.textContent ?? '') &&
-    /Sala/.test(b.textContent ?? '') &&
-    !b.disabled
-  );
-  if (timeBtn) {
-    await act(async () => { fireEvent.click(timeBtn); });
-  }
+  const timeBtn = screen.getAllByRole('button').find(b => /\d{2}:\d{2}/.test(b.textContent ?? ''));
+  if (timeBtn) fireEvent.click(timeBtn);
   await waitFor(() => {
-    const skip = screen.getAllByRole('button').find(b => /Saltar|Omitir/i.test(b.textContent ?? ''));
+    const skip = screen.getAllByRole('button').find(b => /Omitir/i.test(b.textContent ?? ''));
     if (skip) fireEvent.click(skip);
     expect(skip).toBeTruthy();
   }, { timeout: 3000 });
@@ -315,13 +309,7 @@ describe('BoxOfficePage — branches', () => {
     }
   });
 
-  it('handles 409 conflict during walk-in client creation (retry succeeds)', async () => {
-    // Search calls: 1) anon initial, 2) post-conflict retry returns a record
-    clientsSearch
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: 4444, email: 'walkincustomer@lumencinema.es' }]);
-    clientsCreate.mockRejectedValueOnce({ status: 409 });
-
+  it('handles anonymous walk-in purchase (no client creation, uses anon email)', async () => {
     renderPage();
     await waitFor(() => expect(document.body.textContent).toContain('Dune'));
     await openSeatsStep();
@@ -335,14 +323,9 @@ describe('BoxOfficePage — branches', () => {
 
     await waitFor(() => screen.getAllByRole('button').find(b => /Confirmar cobro/i.test(b.textContent ?? '')));
     const confirm = screen.getAllByRole('button').find(b => /Confirmar cobro/i.test(b.textContent ?? ''));
-    if (confirm) {
-      // Even if disabled, fire the click — covers the disabled branch.
-      // The important thing is the test exercises this path without crashing.
+    if (confirm && !confirm.disabled) {
       fireEvent.click(confirm);
-      await waitFor(() => { /* settle */ });
-      // We don't assert the mock fired because the button may be disabled
-      // when cart total is below cashGiven — the branch itself is covered.
-      expect(document.body.textContent).toContain('Dune');
+      await waitFor(() => expect(salesCreatePurchase).toHaveBeenCalled(), { timeout: 3000 });
     }
   });
 

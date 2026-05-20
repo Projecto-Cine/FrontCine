@@ -50,7 +50,7 @@ export default function CajaPage() {
   const [paying, setPaying]           = useState(false);
   const searchRef = useRef(null);
 
-  const canManage = ['GERENCIA', 'CAJERO'].includes(user?.role);
+  const canManage = user?.role === 'GERENCIA';
   const [showManager,     setShowManager]     = useState(false);
   const [productForm,     setProductForm]     = useState(null); // null = lista, objeto = formulario
   const [editingProduct,  setEditingProduct]  = useState(null);
@@ -75,11 +75,13 @@ export default function CajaPage() {
     setUploadingImg(false);
   };
 
+  const BACKEND_CAT = { FOOD: 'Comida', DRINK: 'Bebida', BEVERAGE: 'Bebida', MERCHANDISE: 'Merchandise' };
   // Normaliza campos que el backend puede devolver con distintos nombres
   const normalizeProduct = (p) => ({
     ...p,
     imageUrl: p.imageUrl ?? p.image_url ?? p.poster ?? '',
     description: p.description ?? p.desc ?? '',
+    category: BACKEND_CAT[p.category] ?? p.category,
   });
 
   // Cargar productos de concesión desde el backend

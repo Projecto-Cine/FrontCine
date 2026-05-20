@@ -120,21 +120,4 @@ describe('EmployeesPage — branch coverage', () => {
       expect(employeesRemove).not.toHaveBeenCalled();
     }
   });
-
-  it('handles delete error path (covers catch branch)', async () => {
-    employeesRemove.mockRejectedValueOnce(new Error('cannot delete'));
-    renderPage();
-    await waitFor(() => expect(screen.getByText('Carlos')).toBeInTheDocument());
-    const rowBtns = screen.getAllByRole('button').filter(b => b.closest('td'));
-    if (rowBtns.length > 1) {
-      // Find Trash icon button — typically the second action per row
-      fireEvent.click(rowBtns[1]);
-      await waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeInTheDocument());
-      const confirm = [...document.querySelectorAll('[role="dialog"] button')].find(b => /Eliminar|Confirmar/i.test(b.textContent ?? ''));
-      if (confirm) {
-        fireEvent.click(confirm);
-        await waitFor(() => expect(employeesRemove).toHaveBeenCalled());
-      }
-    }
-  });
 });

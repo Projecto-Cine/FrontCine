@@ -53,7 +53,7 @@ export default function UsersPage() {
   }, [toast]);
 
   const openCreate = () => { if (!isAdmin) return; setEditing(null); setForm(EMPTY); setErrors({}); setModal('form'); };
-  const openEdit = (user) => { if (!isAdmin) return; setEditing(user); setForm(normalizeUser(user)); setErrors({}); setModal('form'); };
+  const openEdit = (user) => { if (!isAdmin) return; setEditing(user); setForm({ ...normalizeUser(user), password: '' }); setErrors({}); setModal('form'); };
   const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
   const validateField = (name, value) => {
     setErrors(e => ({ ...e, [name]: !String(value).trim() ? t('common.fieldRequired') : undefined }));
@@ -67,7 +67,7 @@ export default function UsersPage() {
       toast('Email obligatorio.', 'error');
       return;
     }
-    if (!editing && !password) {
+    if (!editing && !form.password?.trim()) {
       toast('Contraseña obligatoria.', 'error');
       return;
     }
@@ -79,8 +79,7 @@ export default function UsersPage() {
       role: form.role,
       birthDate: form.birthDate || null,
     };
-    if (password) payload.password = password;
-
+    if (form.password.trim()) payload.password = form.password.trim();
     try {
       if (editing) {
         const saved = normalizeUser(await usersService.update(editing.id, payload));

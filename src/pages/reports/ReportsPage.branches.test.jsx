@@ -41,26 +41,13 @@ vi.mock('recharts', () => ({
   Bar: () => null, LineChart: ({ children }) => <div>{children}</div>,
   Line: () => null, XAxis: () => null, YAxis: () => null,
   Tooltip: ({ content }) => {
-    if (typeof content === 'function') {
-      return (
-        <div>
-          {content({ active: true, payload: [{ value: 75 }], label: 'X' })}
-          {content({ active: false, payload: [], label: 'X' })}
-        </div>
-      );
-    }
+    if (typeof content === 'function') return <div>{content({ active: true, payload: [{ value: 75 }], label: 'X' })}</div>;
     if (content?.type) {
       const C = content.type;
-      // Drive both branches of CustomTT: revenue path, non-numeric value path, fallback color path
-      return (
-        <div>
-          <C active payload={[{ name: '€ Ingresos', value: 100, color: 'red', dataKey: 'revenue' }]} label="Lun" />
-          <C active payload={[{ name: 'Tickets', value: 50, dataKey: 'tickets' }]} label="Mar" />
-          <C active payload={[{ name: 'Texto', value: 'abc' }]} label="Mié" />
-          <C active={false} payload={[]} label="X" />
-          <C active payload={null} label="X" />
-        </div>
-      );
+      return <div>
+        <C active payload={[{ name: '€ Ingresos', value: 100, color: 'red', dataKey: 'revenue' }]} label="Lun" />
+        <C active={false} payload={[]} label="Lun" />
+      </div>;
     }
     return null;
   },

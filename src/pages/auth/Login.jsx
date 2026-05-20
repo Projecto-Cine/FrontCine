@@ -21,6 +21,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
+  const [mode, setMode]         = useState('employee');
   const { login, error, setError } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -46,6 +47,26 @@ export default function Login() {
       </div>
 
       <div className={styles.panel}>
+        <div className={styles.tabs} role="tablist">
+          <button
+            role="tab"
+            aria-selected={mode === 'employee'}
+            className={`${styles.tab} ${mode === 'employee' ? styles.tabActive : ''}`}
+            onClick={() => { setMode('employee'); setEmail(''); setPassword(''); }}
+            type="button"
+          >
+            Empleados
+          </button>
+          <button
+            role="tab"
+            aria-selected={mode === 'admin'}
+            className={`${styles.tab} ${mode === 'admin' ? styles.tabActive : ''}`}
+            onClick={() => { setMode('admin'); setEmail(''); setPassword(''); }}
+            type="button"
+          >
+            Administradores
+          </button>
+        </div>
         <div className={styles.brand}>
           <picture>
             <source srcSet={logoWebp} type="image/webp" />

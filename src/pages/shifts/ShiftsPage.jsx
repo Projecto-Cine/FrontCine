@@ -220,7 +220,7 @@ export default function CuadrantePage() {
   const { user }  = useAuth();
   const { t, language } = useLanguage();
   const readOnly   = ['LIMPIEZA', 'MANTENIMIENTO'].includes(user?.role);
-  const canGenerate = user?.role === 'GERENCIA';
+  const canGenerate = !readOnly;
   const [mode, setMode] = useState('week');
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [monthStart, setMonthStart] = useState(() => {

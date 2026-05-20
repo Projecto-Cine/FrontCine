@@ -783,13 +783,16 @@ export default function TaquillaPage() {
       } catch {
         backendMsg = jsonText.slice(0, 150);
       }
+      const rawLower = rawBody.toLowerCase();
       const msg =
-        status === 404 && (rawBody.toLowerCase().includes('seat') || rawBody.toLowerCase().includes('butaca'))
+        status === 404 && (rawLower.includes('seat') || rawLower.includes('butaca'))
           ? 'Butaca no encontrada. Vuelve al mapa y selecciona las butacas de nuevo.' :
         status === 404 ? 'Recurso no encontrado. Recarga la página e inténtalo de nuevo.' :
         status === 409 ? 'Esa butaca ya no está disponible.' :
-        status === 422 && rawBody.toLowerCase().includes('minor') ? 'Un menor debe ir acompañado de un adulto.' :
-        status === 422 ? 'Esta compra ya fue procesada.' :
+        status === 422 && (rawLower.includes('minor') || rawLower.includes('child') || rawLower.includes('menor') || rawLower.includes('infantil'))
+          ? `Entrada de menor no permitida: ${backendMsg || 'la película no admite entradas infantiles o se requiere acompañante adulto.'}` :
+        status === 422 && backendMsg ? `Compra rechazada: ${backendMsg}` :
+        status === 422 ? 'Compra rechazada por el servidor (422). Revisa el tipo de entrada.' :
         backendMsg ? `Error ${status}: ${backendMsg}` : `Error ${status ?? '?'}: no se pudo procesar el cobro.`;
       toast(msg, 'error');
     } finally {
@@ -949,7 +952,10 @@ export default function TaquillaPage() {
                   <span>Nueva sesión</span>
                 </button>
               )}
-              {/* Botón devolución desactivado por petición del cliente */}
+              <button className={styles.refundBtn} onClick={() => setShowRefund(true)} title="Devolución de entrada">
+                <RotateCcw size={12} />
+                <span>Devolución</span>
+              </button>
               {!isCajero && (
                 <button className={styles.fullResetBtn} onClick={() => setShowFullResetConfirm(true)} title="Reset total — borrar TODAS las sesiones">
                   <Trash2 size={12} />
@@ -1477,7 +1483,7 @@ export default function TaquillaPage() {
             </div>
 
             <div className={styles.modalFooter}>
-              <button className={styles.modalCancel} onClick={handleClientDiscard}>Saltar</button>
+              <button className={styles.modalCancel} onClick={handleClientDiscard}>Omitir</button>
               <button className={styles.modalSave} disabled={(isMember === true && !selectedClient) || showRegisterForm} onClick={handleClientSubmit}>
                 <ChevronRight size={14} aria-hidden="true" /> Continuar
               </button>
@@ -1787,7 +1793,7 @@ function RefundReceipt({ receipt, onClose, t }) {
 }
 
 /* ── Ticket success screen ───────────────────────── */
-function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
+export function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
   const [current, setCurrent] = useState(0);
   const ticket    = tickets[current];
 

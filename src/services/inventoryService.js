@@ -20,7 +20,7 @@ const fromInventory = (data) => {
     supplier: '',
     ...data,
   };
-  if (!hasFrontendNames) return base;
+  if (!hasFrontendNames) return { ...data };
   return {
     ...base,
     quantity:   undefined,

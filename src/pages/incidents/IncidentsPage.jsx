@@ -10,7 +10,7 @@ import { AlertTriangle, Clock, CheckSquare } from 'lucide-react';
 import { useApp }  from '../../contexts/AppContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { incidentsService }  from '../../services/incidentsService';
-import { employeesService } from '../../services/employeesService';
+import { usersService } from '../../services/usersService';
 import SkeletonPage from '../../components/shared/Skeleton';
 import styles from './IncidentsPage.module.css';
 
@@ -49,7 +49,7 @@ export default function IncidentsPage() {
   useEffect(() => {
     Promise.all([
       incidentsService.getAll().catch(() => []),
-      employeesService.getAll().catch(() => []),
+      usersService.getAll().catch(() => []),
     ]).then(([inc, employees]) => {
       setIncidents(Array.isArray(inc) ? inc : []);
       const staff = Array.isArray(employees)

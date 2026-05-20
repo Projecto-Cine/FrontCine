@@ -133,8 +133,7 @@ export default function EmployeesPage() {
   };
 
   const columns = [
-    { key: 'name', label: 'Nombre', render: v => <span style={{ fontWeight: 500 }}>{v}</span> },
-    { key: 'lastName', label: 'Apellidos', render: v => <span style={{ color: 'var(--text-1)' }}>{v || '-'}</span> },
+    { key: 'name', label: 'Nombre', render: (v, row) => <span style={{ fontWeight: 500 }}>{[v, row?.lastName].filter(Boolean).join(' ')}</span> },
     { key: 'email', label: 'Email',    render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-2)' }}>{v}</span> },
     { key: 'role',  label: 'Rol',      width: 130, render: v => <Badge variant={ROLE_COLOR[v] || 'default'}>{ROLE_LABEL[v] || v}</Badge> },
     { key: 'phone', label: 'Teléfono', width: 130, render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v || '—'}</span> },

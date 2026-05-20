@@ -265,7 +265,7 @@ export default function CuadrantePage() {
           return { ...e, id: e.id ?? e.workerId, name: fullName || e.username || e.email || '-', role };
         });
         setAllUsers(list);
-        const active = list.filter(e => VALID_ROLES.has(e.role));
+        const active = list.filter(e => VALID_ROLES.has(e.role) && e.active !== false);
         return loadWeekIntoMap(weekStart, active);
       })
       .catch(() => setAllUsers([]))
@@ -297,11 +297,11 @@ export default function CuadrantePage() {
   };
 
   const activeEmployees = useMemo(
-    () => allUsers.filter(e => VALID_ROLES.has(String(e.role).toUpperCase())),
+    () => allUsers.filter(e => VALID_ROLES.has(String(e.role).toUpperCase()) && e.active !== false),
     [allUsers]
   );
 
-  const filterRows = (rows) => rows.filter(emp => VALID_ROLES.has(String(emp.role).toUpperCase()));
+  const filterRows = (rows) => rows.filter(emp => VALID_ROLES.has(String(emp.role).toUpperCase()) && emp.active !== false);
 
   const currentKey = weekKey(weekStart);
   const weekRows = useMemo(() => {

@@ -9,6 +9,7 @@ import KPICard from '../../components/shared/KPICard';
 import { useApp } from '../../contexts/AppContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { employeesService } from '../../services/employeesService';
+import { shiftsService } from '../../services/shiftsService';
 import styles from './EmployeesPage.module.css';
 
 const ROLES = ['CAJERO', 'GERENCIA', 'LIMPIEZA', 'MANTENIMIENTO'];
@@ -77,6 +78,21 @@ export default function EmployeesPage() {
 
   const fullName = () => [form.name.trim(), form.lastName.trim()].filter(Boolean).join(' ');
 
+  const removeAllShifts = async (empId) => {
+    const past = new Date();
+    past.setFullYear(past.getFullYear() - 5);
+    const future = new Date();
+    future.setFullYear(future.getFullYear() + 2);
+    try {
+      const shifts = await shiftsService.getByRange(
+        past.toISOString().split('T')[0],
+        future.toISOString().split('T')[0]
+      ) ?? [];
+      const empShifts = (Array.isArray(shifts) ? shifts : []).filter(s => s.employeeId === empId);
+      await Promise.all(empShifts.map(s => shiftsService.remove(s.id).catch(() => {})));
+    } catch { /* silencioso */ }
+  };
+
   const handleSave = async () => {
     if (!validate()) return;
     try {
@@ -84,7 +100,9 @@ export default function EmployeesPage() {
       if (editing) {
         if (form.password.trim()) payload.password = form.password.trim();
         const saved = await employeesService.update(editing.id, payload);
-        setEmployees(prev => prev.map(e => e.id === editing.id ? normalize(saved ?? { ...editing, ...payload }) : e));
+        const merged = { ...(saved ?? { ...editing, ...payload }), active: payload.active };
+        setEmployees(prev => prev.map(e => e.id === editing.id ? normalize(merged) : e));
+        if (payload.active === false) await removeAllShifts(editing.id);
         toast('Empleado actualizado.', 'success');
       } else {
         payload.password = form.password.trim();
@@ -100,12 +118,13 @@ export default function EmployeesPage() {
 
   const handleDelete = async () => {
     try {
+      await removeAllShifts(deleteTarget.id);
       await employeesService.remove(deleteTarget.id);
       setEmployees(prev => prev.filter(e => e.id !== deleteTarget.id));
       toast('Empleado eliminado.', 'warning');
     } catch (err) {
       if (err?.status === 409 || err?.status === 500) {
-        toast('No se puede eliminar porque tiene registros asociados. Márcalo como Inactivo primero desde el botón de edición.', 'error');
+        toast('No se puede eliminar: tiene incidencias u otros registros asociados. El equipo de backend debe resolver la restricción en base de datos.', 'error');
       } else {
         toast('Error al eliminar el empleado.', 'error');
       }

@@ -444,7 +444,15 @@ npm run lint
 
 ---
 
-# ❤️ Autor
+## 👥 Equipo
+
+| Nombre | Rol | GitHub |
+|--------|-----|--------|
+| Javier Galvañ | Developer | [javiertunsi7](https://github.com/javiertunsi7) |
+| María Regueiro | Developer | [@Mariaregue-spec](https://github.com/Mariaregue-spec) |
+| Ana Morandeira | Developer | [@ana-morandeira](https://github.com/ana-morandeira) |
+| Heber París | Scrum Master |[https://github.com/webermuros1-oss](https://github.com/webermuros1-oss)|
+| Suso Suárez | Product Owner | [https://github.com/Suso777](https://github.com/Suso777) |
 
 <p align="center">
   Desarrollado con pasión para la gestión moderna de cines 🎬

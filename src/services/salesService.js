@@ -5,6 +5,7 @@ export const salesService = {
   getById:              (id)   => api.get(`/purchases/${id}`),
   confirmPurchase:      (id)   => api.post(`/purchases/${id}/confirm`, {}),
   cancelPurchase:       (id)   => api.post(`/purchases/${id}/cancel`, {}),
+<<<<<<< HEAD
 
   createMerchandiseSale: async (data) => {
     const token = localStorage.getItem('lumen_token');
@@ -30,4 +31,6 @@ export const salesService = {
     }
     return res.json();
   },
+  createTicketSale:     (data) => api.post('/purchases', data),
+  createConcessionSale: (data) => api.post('/merchandise/sales', data),
 };

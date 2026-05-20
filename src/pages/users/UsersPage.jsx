@@ -60,33 +60,41 @@ export default function UsersPage() {
   };
 
   const handleSave = async () => {
-    if (!form.email.trim()) {
+    const email = String(form.email ?? '').trim();
+    const password = String(form.password ?? '').trim();
+
+    if (!email) {
       toast('Email obligatorio.', 'error');
       return;
     }
-    if (!editing && !form.password.trim()) {
+    if (!editing && !password) {
       toast('Contraseña obligatoria.', 'error');
       return;
     }
 
     const payload = {
-      name: form.name.trim() || undefined,
+      name: String(form.name ?? '').trim() || undefined,
       lastName: form.lastName?.trim() || undefined,
-      email: form.email.trim(),
+      email,
       role: form.role,
       birthDate: form.birthDate || null,
     };
-    if (form.password.trim()) payload.password = form.password.trim();
-    if (editing) {
-      const saved = normalizeUser(await usersService.update(editing.id, payload));
-      setUsers(prev => prev.map(user => user.id === editing.id ? saved : user));
-      toast(t('users.modalEdit') + ' ✓', 'success');
-    } else {
-      const saved = normalizeUser(await usersService.create(payload));
-      setUsers(prev => [...prev, saved]);
-      toast(t('users.modalCreate') + ' ✓', 'success');
+    if (password) payload.password = password;
+
+    try {
+      if (editing) {
+        const saved = normalizeUser(await usersService.update(editing.id, payload));
+        setUsers(prev => prev.map(user => user.id === editing.id ? saved : user));
+        toast(t('users.modalEdit') + ' ✓', 'success');
+      } else {
+        const saved = normalizeUser(await usersService.create(payload));
+        setUsers(prev => [...prev, saved]);
+        toast(t('users.modalCreate') + ' ✓', 'success');
+      }
+      setModal(null);
+    } catch {
+      toast('Error al guardar el usuario.', 'error');
     }
-    setModal(null);
   };
 
   const handleDelete = async () => {

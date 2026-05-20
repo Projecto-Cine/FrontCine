@@ -230,8 +230,6 @@ export default function TaquillaPage() {
   const [editSaving, setEditSaving]         = useState(false);
   const [syncing, setSyncing]               = useState(false);
   const [deleteSession, setDeleteSession]   = useState(null);
-  const [showResetConfirm, setShowResetConfirm]         = useState(false);
-  const [resetting, setResetting]                       = useState(false);
   const [showFullResetConfirm, setShowFullResetConfirm] = useState(false);
   const [fullResetting, setFullResetting]               = useState(false);
   const [fullResetProgress, setFullResetProgress]       = useState('');
@@ -361,29 +359,6 @@ export default function TaquillaPage() {
       setFullResetProgress('');
     } finally {
       setFullResetting(false);
-    }
-  };
-
-  const handleResetSessions = async () => {
-    setResetting(true);
-    const toDelete = [...filteredSessions];
-    let deleted = 0;
-    let failed  = 0;
-    for (const s of toDelete) {
-      try {
-        await sessionsService.remove(s.id);
-        setSessions(prev => prev.filter(x => x.id !== s.id));
-        deleted++;
-      } catch {
-        failed++;
-      }
-    }
-    setShowResetConfirm(false);
-    setResetting(false);
-    if (failed === 0) {
-      toast(`${deleted} sesión${deleted !== 1 ? 'es' : ''} eliminada${deleted !== 1 ? 's' : ''}. Ahora puedes crear las nuevas.`, 'success');
-    } else {
-      toast(`${deleted} eliminada${deleted !== 1 ? 's' : ''}, ${failed} no se pudo${failed !== 1 ? 'n' : ''} borrar (tienen entradas vendidas).`, 'warning');
     }
   };
 
@@ -1667,33 +1642,6 @@ export default function TaquillaPage() {
         </div>
       )}
 
-      {/* ── Confirm reset todas las sesiones del día ──── */}
-      {showResetConfirm && (
-        <div className={styles.modalBackdrop} role="dialog" aria-modal="true">
-          <div className={styles.modalBox} style={{ maxWidth: 400 }}>
-            <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}><Trash2 size={15} /> Borrar sesiones del día</h3>
-              <button className={styles.modalClose} onClick={() => setShowResetConfirm(false)}><X size={15} /></button>
-            </div>
-            <div className={styles.modalBody}>
-              <p style={{ color: 'var(--text-2)', fontSize: 'var(--fs-md)', lineHeight: 1.6 }}>
-                Se eliminarán <strong>{filteredSessions.length} sesión{filteredSessions.length !== 1 ? 'es' : ''}</strong> del {selectedDate}.
-              </p>
-              <p style={{ color: 'var(--text-3)', fontSize: 'var(--fs-sm)', marginTop: 8, lineHeight: 1.5 }}>
-                Las sesiones con entradas vendidas no se podrán borrar y se te avisará. El resto se eliminarán permanentemente.
-              </p>
-            </div>
-            <div className={styles.modalFooter}>
-              <button className={styles.modalCancel} onClick={() => setShowResetConfirm(false)} disabled={resetting}>Cancelar</button>
-              <button className={styles.modalSave} style={{ background: 'var(--red)' }} onClick={handleResetSessions} disabled={resetting}>
-                {resetting ? <Loader size={14} /> : <Trash2 size={14} />}
-                {resetting ? 'Borrando…' : 'Sí, borrar todas'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Confirm delete sesión ─────────────────────── */}
       {deleteSession && (
         <div className={styles.modalBackdrop} role="dialog" aria-modal="true">
@@ -1787,7 +1735,7 @@ function RefundReceipt({ receipt, onClose, t }) {
 }
 
 /* ── Ticket success screen ───────────────────────── */
-function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
+export function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
   const [current, setCurrent] = useState(0);
   const ticket    = tickets[current];
 

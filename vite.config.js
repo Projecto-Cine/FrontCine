@@ -1,19 +1,76 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  test: {
-    environment: 'node',
-    globals: true,
-  },
   plugins: [react()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.js',
+    css: true,
+    // Under coverage instrumentation jsdom + React render becomes ~3-4× slower;
+    // 5 s default is not always enough for our deep-flow tests.
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      clean: true,
+      cleanOnRerun: true,
+      include: ['src/**/*.{js,jsx}'],
+      exclude: [
+        'src/**/*.test.{js,jsx}',
+        'src/test/**',
+        'src/main.jsx',
+        'src/i18n/en.js',
+        'src/i18n/es.js',
+        'src/services/mock/**',
+        'src/services/backendModel.js',
+        'src/App.jsx',
+        // Thin service wrappers (1-line CRUD delegates) — already exercised
+        // indirectly through page integration tests.
+        'src/services/incidentsService.js',
+        'src/services/salesService.js',
+        'src/services/sessionsService.js',
+      ],
+    },
+  },
   server: {
     open: '/login',
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        // Force IPv4 (127.0.0.1) instead of "localhost" — on Windows the latter
+        // resolves to BOTH ::1 and 127.0.0.1 and Node's proxy then emits an
+        // AggregateError listing every failed attempt, which is confusing.
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
+        timeout:      10_000, // 10 s ceiling per request
+        proxyTimeout: 10_000,
+        // Friendly error handler so the dev terminal does NOT dump a stack
+        // trace every time the backend is down — it just prints a one-liner
+        // and returns a 503 with JSON the frontend can parse.
+        configure: (proxy) => {
+          proxy.on('error', (err, _req, res) => {
+            const isConnRefused = err.code === 'ECONNREFUSED' || /ECONNREFUSED/.test(String(err));
+            if (isConnRefused) {
+              // eslint-disable-next-line no-console
+              console.warn('[vite proxy] Backend no disponible en http://127.0.0.1:8080 — arranca `./mvnw spring-boot:run`');
+            } else {
+              // eslint-disable-next-line no-console
+              console.warn('[vite proxy]', err.code ?? 'error', err.message ?? err);
+            }
+            if (res && !res.headersSent) {
+              res.writeHead(503, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                status: 503,
+                error:  'Backend no disponible',
+                message: 'No se pudo conectar con http://127.0.0.1:8080. Arranca el backend con `./mvnw spring-boot:run`.',
+              }));
+            }
+          });
+        },
       },
     },
   },

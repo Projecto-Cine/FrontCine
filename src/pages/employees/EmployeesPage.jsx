@@ -103,8 +103,12 @@ export default function EmployeesPage() {
       await employeesService.remove(deleteTarget.id);
       setEmployees(prev => prev.filter(e => e.id !== deleteTarget.id));
       toast('Empleado eliminado.', 'warning');
-    } catch {
-      toast('Error al eliminar el empleado.', 'error');
+    } catch (err) {
+      if (err?.status === 409 || err?.status === 500) {
+        toast('No se puede eliminar: tiene turnos, incidencias u otros registros asociados. Puedes editarlo y marcarlo como inactivo.', 'error');
+      } else {
+        toast('Error al eliminar el empleado.', 'error');
+      }
     }
     setDeleteTarget(null);
   };

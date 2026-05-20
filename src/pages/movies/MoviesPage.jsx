@@ -32,9 +32,10 @@ const mergePosters = (list) => { const s = getStoredPosters(); return list.map(m
 const normalizeMovie = (movie) => ({
   ...movie,
   durationMin: movie.durationMin ?? movie.duration ?? '',
-  ageRating: movie.ageRating ?? movie.rating ?? '',
-  imageUrl: movie.imageUrl ?? movie.poster ?? '',
-  active: movie.active ?? movie.status === 'active',
+  ageRating:   movie.ageRating   ?? movie.rating    ?? 'ALL',
+  imageUrl:    movie.imageUrl    ?? movie.poster     ?? '',
+  format:      movie.format      ?? movie.filmFormat ?? '2D',
+  active:      movie.active      ?? movie.status === 'active',
 });
 
 const toPayload = (movie) => ({
@@ -94,14 +95,26 @@ export default function MoviesPage() {
     if (!form.title.trim() || !form.durationMin) { toast('Título y duración son obligatorios.', 'error'); return; }
     const payload = toPayload(form);
     if (editing) {
-      const saved = normalizeMovie(await moviesService.update(editing.id, payload));
-      const merged = { ...saved, imageUrl: form.imageUrl || saved.imageUrl };
+      const saved  = normalizeMovie(await moviesService.update(editing.id, payload));
+      const merged = {
+        ...saved,
+        format:   form.format   || saved.format,
+        language: form.language || saved.language,
+        ageRating: form.ageRating || saved.ageRating,
+        imageUrl: form.imageUrl  || saved.imageUrl,
+      };
       saveStoredPoster(editing.id, merged.imageUrl);
       setMovies(prev => prev.map(m => m.id === editing.id ? merged : m));
       toast(`"${form.title}" actualizada.`, 'success');
     } else {
-      const saved = normalizeMovie(await moviesService.create(payload));
-      const merged = { ...saved, imageUrl: form.imageUrl || saved.imageUrl };
+      const saved  = normalizeMovie(await moviesService.create(payload));
+      const merged = {
+        ...saved,
+        format:   form.format   || saved.format,
+        language: form.language || saved.language,
+        ageRating: form.ageRating || saved.ageRating,
+        imageUrl: form.imageUrl  || saved.imageUrl,
+      };
       saveStoredPoster(saved.id, merged.imageUrl);
       setMovies(prev => [...prev, merged]);
       toast(`"${form.title}" añadida.`, 'success');

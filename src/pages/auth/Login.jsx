@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/LanguageContext';
 import Button from '../../components/ui/Button';
@@ -15,17 +15,12 @@ const DEMO_EMPLOYEE = [
   { e: 'limpieza@lumen.es',     label: 'Limpieza' },
   { e: 'mantenimiento@lumen.es', label: 'Mantenimiento' },
 ];
-const DEMO_ADMIN = [
-  { e: 'gerencia@lumen.es',    label: 'Gerencia (acceso total)' },
-  { e: 'cajero@lumen.es',      label: 'Cajero/a' },
-];
 
 export default function Login() {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
-  const [mode, setMode]         = useState('employee');
   const { login, error, setError } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -33,7 +28,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const redirect = await login(email.trim(), password, { employeeOnly: mode === 'employee' });
+    const redirect = await login(email.trim(), password, { employeeOnly: true });
     setLoading(false);
     if (redirect) navigate(redirect, { replace: true });
   };
@@ -41,13 +36,6 @@ export default function Login() {
   const fillDemo = (email) => {
     setEmail(email);
     setPassword('lumen2026');
-    setError('');
-  };
-
-  const switchMode = (next) => {
-    setMode(next);
-    setEmail('');
-    setPassword('');
     setError('');
   };
 
@@ -67,25 +55,6 @@ export default function Login() {
             <span className={styles.brandName}>LUMEN</span>
             <span className={styles.brandSub}>{t('login.subtitle')}</span>
           </div>
-        </div>
-
-        <div className={styles.modeToggle} role="tablist" aria-label="Tipo de acceso">
-          <button
-            role="tab"
-            aria-selected={mode === 'employee'}
-            className={`${styles.modeTab} ${mode === 'employee' ? styles.modeTabActive : ''}`}
-            onClick={() => switchMode('employee')}
-          >
-            {t('login.modeEmployee')}
-          </button>
-          <button
-            role="tab"
-            aria-selected={mode === 'admin'}
-            className={`${styles.modeTab} ${mode === 'admin' ? styles.modeTabActive : ''}`}
-            onClick={() => switchMode('admin')}
-          >
-            {t('login.modeAdmin')}
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form} noValidate>
@@ -141,17 +110,10 @@ export default function Login() {
           </Button>
         </form>
 
-        {mode === 'admin' && (
-          <div className={styles.hint}>
-            <ShieldCheck size={12} aria-hidden="true" />
-            <span>{t('login.hint')} <strong>gerencia@lumen.es</strong> / <strong>lumen2026</strong></span>
-          </div>
-        )}
-
         <div className={styles.demoAccounts}>
           <p className={styles.demoTitle} id="demo-accounts-label">{t('login.demoTitle')}</p>
           <div className={styles.demoGrid} role="group" aria-labelledby="demo-accounts-label">
-            {(mode === 'employee' ? DEMO_EMPLOYEE : DEMO_ADMIN).map(({ e, label }) => (
+            {DEMO_EMPLOYEE.map(({ e, label }) => (
               <button
                 key={e}
                 className={styles.demoBtn}

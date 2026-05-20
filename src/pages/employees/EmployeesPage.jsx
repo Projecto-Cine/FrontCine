@@ -15,7 +15,7 @@ const ROLES = ['CAJERO', 'GERENCIA', 'LIMPIEZA', 'MANTENIMIENTO'];
 const ROLE_COLOR = { CAJERO: 'accent', GERENCIA: 'red', LIMPIEZA: 'green', MANTENIMIENTO: 'cyan' };
 const ROLE_LABEL = { CAJERO: 'Cajero/a', GERENCIA: 'Gerencia', LIMPIEZA: 'Limpieza', MANTENIMIENTO: 'Mantenimiento' };
 
-const EMPTY = { name: '', lastName: '', email: '', password: '', role: 'CAJERO', phoneNumber: '' };
+const EMPTY = { name: '', lastName: '', email: '', password: '', role: 'CAJERO', phoneNumber: '', active: true };
 
 const splitName = (full) => {
   const parts = (full ?? '').trim().split(' ');
@@ -60,7 +60,7 @@ export default function EmployeesPage() {
     const full = emp.name + (emp.lastName ? ' ' + emp.lastName : '');
     const parts = splitName(full);
     setEditing(emp);
-    setForm({ name: parts.firstName, lastName: parts.lastName, email: emp.email ?? '', password: '', role: emp.role ?? 'CAJERO', phoneNumber: emp.phoneNumber ?? emp.phone ?? '' });
+    setForm({ name: parts.firstName, lastName: parts.lastName, email: emp.email ?? '', password: '', role: emp.role ?? 'CAJERO', phoneNumber: emp.phoneNumber ?? emp.phone ?? '', active: emp.active !== false });
     setErrors({});
     setModal('form');
   };
@@ -80,7 +80,7 @@ export default function EmployeesPage() {
   const handleSave = async () => {
     if (!validate()) return;
     try {
-      const payload = { name: fullName(), email: form.email.trim(), role: form.role, phoneNumber: form.phoneNumber.trim() || undefined };
+      const payload = { name: fullName(), email: form.email.trim(), role: form.role, phoneNumber: form.phoneNumber.trim() || undefined, active: form.active };
       if (editing) {
         if (form.password.trim()) payload.password = form.password.trim();
         const saved = await employeesService.update(editing.id, payload);
@@ -105,7 +105,7 @@ export default function EmployeesPage() {
       toast('Empleado eliminado.', 'warning');
     } catch (err) {
       if (err?.status === 409 || err?.status === 500) {
-        toast('No se puede eliminar: tiene turnos, incidencias u otros registros asociados. Puedes editarlo y marcarlo como inactivo.', 'error');
+        toast('No se puede eliminar porque tiene registros asociados. Márcalo como Inactivo primero desde el botón de edición.', 'error');
       } else {
         toast('Error al eliminar el empleado.', 'error');
       }
@@ -198,6 +198,13 @@ export default function EmployeesPage() {
             <label className={styles.label} htmlFor="emp-phone">Teléfono</label>
             <input id="emp-phone" className={styles.input} value={form.phoneNumber}
               onChange={e => set('phoneNumber', e.target.value)} placeholder="+34 600 000 000" />
+          </div>
+          <div>
+            <label className={styles.label} htmlFor="emp-active">Estado</label>
+            <select id="emp-active" className={styles.input} value={form.active ? 'active' : 'inactive'} onChange={e => set('active', e.target.value === 'active')}>
+              <option value="active">Activo</option>
+              <option value="inactive">Inactivo</option>
+            </select>
           </div>
         </div>
       </Modal>

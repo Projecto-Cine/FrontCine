@@ -1,3 +1,4 @@
+![Uploading Capturafinal caja.PNG…]()
 <p align="center">
   <img src="./src/assets/logoLumen.png" alt="Lumen Cinema Logo" width="180"/>
 </p>
@@ -20,6 +21,9 @@
 </p>
 
 ---
+<img width="1911" height="918" alt="image" src="https://github.com/user-attachments/assets/109a406a-5412-4729-b12f-39a6b7f3e839" />
+<img width="1917" height="916" alt="Capturafinal 2" src="https://github.com/user-attachments/assets/131629f5-955a-4ee1-921e-860afb0f429b" />
+
 
 ## Tabla de contenidos
 

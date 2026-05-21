@@ -13,13 +13,14 @@ import { AppProvider } from '../contexts/AppContext';
 
 // ───── Mocked services (same pattern as pages.smoke.test) ─────
 const mkSvc = (extra = {}) => ({
-  getAll:   vi.fn().mockResolvedValue([{ id: 1, name: 'X', title: 'X' }, { id: 2, name: 'Y', title: 'Y' }]),
-  getById:  vi.fn().mockResolvedValue({ id: 1 }),
-  getActive: vi.fn().mockResolvedValue([]),
-  create:   vi.fn().mockResolvedValue({ id: 99 }),
+  getAll:         vi.fn().mockResolvedValue([{ id: 1, name: 'X', title: 'X' }, { id: 2, name: 'Y', title: 'Y' }]),
+  getAllEmployees: vi.fn().mockResolvedValue([]),
+  getById:        vi.fn().mockResolvedValue({ id: 1 }),
+  getActive:      vi.fn().mockResolvedValue([]),
+  create:         vi.fn().mockResolvedValue({ id: 99 }),
   createFormData: vi.fn().mockResolvedValue({ id: 99 }),
-  update:   vi.fn().mockResolvedValue({ id: 1 }),
-  remove:   vi.fn().mockResolvedValue(null),
+  update:         vi.fn().mockResolvedValue({ id: 1 }),
+  remove:         vi.fn().mockResolvedValue(null),
   ...extra,
 });
 

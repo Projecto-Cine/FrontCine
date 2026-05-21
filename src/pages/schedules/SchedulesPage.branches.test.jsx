@@ -153,7 +153,7 @@ describe('SchedulesPage — branch coverage', () => {
     if (selects[0]) fireEvent.change(selects[0], { target: { value: '10' } });
     if (selects[1]) fireEvent.change(selects[1], { target: { value: '20' } });
     const dtl = document.querySelector('[role="dialog"] input[type="datetime-local"]');
-    if (dtl) fireEvent.change(dtl, { target: { value: `${TODAY}T20:00` } });
+    if (dtl) fireEvent.change(dtl, { target: { value: `${TODAY}T08:00` } });
     const num = document.querySelector('[role="dialog"] input[type="number"]');
     if (num) fireEvent.change(num, { target: { value: '9.5' } });
 
@@ -224,7 +224,7 @@ describe('SchedulesPage — branch coverage', () => {
     if (selects[0]) fireEvent.change(selects[0], { target: { value: '10' } });
     if (selects[1]) fireEvent.change(selects[1], { target: { value: '20' } });
     const dtl = document.querySelector('[role="dialog"] input[type="datetime-local"]');
-    if (dtl) fireEvent.change(dtl, { target: { value: `${TODAY}T20:00` } });
+    if (dtl) fireEvent.change(dtl, { target: { value: `${TODAY}T08:00` } });
     // price stays empty
     const saveBtn = [...document.querySelectorAll('[role="dialog"] button')].find(b => /rogramar|rear/i.test(b.textContent ?? ''));
     if (saveBtn) {
@@ -241,6 +241,9 @@ describe('SchedulesPage — branch coverage', () => {
     if (rowButtons[0]) {
       fireEvent.click(rowButtons[0]);
       await waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeInTheDocument());
+      // Move to a non-conflicting slot before changing status
+      const dtl = document.querySelector('[role="dialog"] input[type="datetime-local"]');
+      if (dtl) fireEvent.change(dtl, { target: { value: `${TODAY}T08:00` } });
       // Change status to CANCELLED
       const statusSel = document.querySelector('[role="dialog"] select#scr-status');
       if (statusSel) fireEvent.change(statusSel, { target: { value: 'CANCELLED' } });

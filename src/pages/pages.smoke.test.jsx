@@ -16,13 +16,14 @@ import { renderPage } from '../test/helpers';
 // ───── Service mocks (global for the whole file) ─────
 // Default to []; some services return objects — we cover both.
 const mkSvc = (extra = {}) => ({
-  getAll:         vi.fn().mockResolvedValue([]),
-  getById:        vi.fn().mockResolvedValue({}),
-  getActive:      vi.fn().mockResolvedValue([]),
-  create:         vi.fn().mockResolvedValue({ id: 1 }),
-  createFormData: vi.fn().mockResolvedValue({ id: 1 }),
-  update:         vi.fn().mockResolvedValue({ id: 1 }),
-  remove:         vi.fn().mockResolvedValue(null),
+  getAll:           vi.fn().mockResolvedValue([]),
+  getAllEmployees:   vi.fn().mockResolvedValue([]),
+  getById:          vi.fn().mockResolvedValue({}),
+  getActive:        vi.fn().mockResolvedValue([]),
+  create:           vi.fn().mockResolvedValue({ id: 1 }),
+  createFormData:   vi.fn().mockResolvedValue({ id: 1 }),
+  update:           vi.fn().mockResolvedValue({ id: 1 }),
+  remove:           vi.fn().mockResolvedValue(null),
   ...extra,
 });
 

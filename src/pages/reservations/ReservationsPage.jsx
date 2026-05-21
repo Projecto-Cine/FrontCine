@@ -172,7 +172,7 @@ export default function ReservationsPage() {
       userId:      String(row.user?.id ?? row.userId ?? ''),
       screeningId: String(scr?.id ?? row.screeningId ?? ''),
       totalAmount: String(getAmount(row)),
-      guestEmail:  row.guestEmail ?? '',
+      guestEmail:  getClientEmail(row) ?? '',
       movieId:     String(scr?.movie?.id ?? scr?.movieId ?? ''),
       roomId:      String(scr?.theater?.id ?? scr?.theaterId ?? ''),
     });

@@ -10,15 +10,15 @@ import { useApp } from '../contexts/AppContext';
 import '../App.css';
 
 const ALT_ROUTES = [
-  '/',             // Alt+1 Dashboard
-  '/box-office',   // Alt+2 Taquilla
-  '/concession',   // Alt+3 Concesión
-  '/movies',       // Alt+4 Películas
-  '/rooms',        // Alt+5 Salas
-  '/schedules',    // Alt+6 Horarios
-  '/reservations', // Alt+7 Reservas
-  '/incidents',    // Alt+8 Incidencias
-  '/inventory',    // Alt+9 Inventario
+  '/',             // Alt+1 dashboard
+  '/box-office',   // Alt+2 box office
+  '/concession',   // Alt+3 concession
+  '/movies',       // Alt+4 movies
+  '/rooms',        // Alt+5 rooms
+  '/schedules',    // Alt+6 schedules
+  '/reservations', // Alt+7 reservations
+  '/incidents',    // Alt+8 incidents
+  '/inventory',    // Alt+9 inventory
 ];
 
 export default function MainLayout() {

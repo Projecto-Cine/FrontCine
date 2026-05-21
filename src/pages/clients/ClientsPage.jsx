@@ -184,7 +184,7 @@ export default function ClientsPage() {
 
   const handleDelete = async () => {
     try {
-      await clientsService.remove(deleteTarget.id).catch(() => null);
+      await clientsService.remove(deleteTarget.id);
       setResults(prev => prev.filter(c => c.id !== deleteTarget.id));
       if (detail?.id === deleteTarget.id) setDetail(null);
       toast(t('clients.deleteTitle') + ' ✓', 'warning');

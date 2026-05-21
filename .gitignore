@@ -13,6 +13,9 @@ dist
 dist-ssr
 *.local
 
+# Vitest coverage reports
+coverage/
+
 # Lighthouse audit reports (large HTML/JSON — keep only AUDIT-REPORT.md)
 lighthouse/*.html
 lighthouse/*.json

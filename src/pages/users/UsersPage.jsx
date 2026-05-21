@@ -60,7 +60,10 @@ export default function UsersPage() {
   };
 
   const handleSave = async () => {
-    if (!form.email.trim()) {
+    const email = String(form.email ?? '').trim();
+    const password = String(form.password ?? '').trim();
+
+    if (!email) {
       toast('Email obligatorio.', 'error');
       return;
     }
@@ -70,9 +73,9 @@ export default function UsersPage() {
     }
 
     const payload = {
-      name: form.name.trim() || undefined,
+      name: String(form.name ?? '').trim() || undefined,
       lastName: form.lastName?.trim() || undefined,
-      email: form.email.trim(),
+      email,
       role: form.role,
       birthDate: form.birthDate || null,
     };

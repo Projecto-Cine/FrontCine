@@ -1587,18 +1587,6 @@ export default function TaquillaPage() {
                 </div>
               </div>
 
-              <label className={styles.modalLabel}>Precio base (€) *</label>
-              <input type="number" className={styles.modalInput} min="0.01" step="0.50"
-                placeholder="Ej: 9.00" required
-                value={editForm.basePrice} onChange={e => setEF('basePrice', e.target.value)} />
-            </div>
-
-            <div className={styles.modalSync}>
-              <button className={styles.modalSyncBtn} onClick={handleSyncSeats} disabled={syncing}>
-                {syncing ? <Loader size={13} /> : <Film size={13} />}
-                {syncing ? 'Sincronizando…' : 'Resincronizar butacas con la sala'}
-              </button>
-              <span className={styles.modalSyncHint}>Actualiza las butacas de esta sesión si la sala cambió de capacidad</span>
             </div>
 
             <div className={styles.modalFooter}>

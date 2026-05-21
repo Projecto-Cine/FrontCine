@@ -58,6 +58,22 @@ export default function SchedulesPage() {
   };
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
+  const busyTheaterIds = useMemo(() => {
+    if (!form.dateTime) return new Set();
+    const newStart = new Date(form.dateTime);
+    const newEnd   = new Date(newStart.getTime() + 3 * 60 * 60 * 1000);
+    return new Set(
+      screenings
+        .filter(s => {
+          if (editing && s.id === editing.id) return false;
+          const sStart = new Date(s.dateTime);
+          const sEnd   = s.endDatetime ? new Date(s.endDatetime) : new Date(sStart.getTime() + 3 * 60 * 60 * 1000);
+          return newStart < sEnd && newEnd > sStart;
+        })
+        .map(s => String(s.theater?.id ?? s.theaterId))
+    );
+  }, [form.dateTime, screenings, editing]);
+
   function normalizeFromBackend(s) {
     if (!s) return s;
     const now = new Date();
@@ -77,22 +93,33 @@ export default function SchedulesPage() {
     if (!form.movieId || !form.theaterId || !form.dateTime) {
       toast('Película, sala y fecha son obligatorios.', 'error'); return;
     }
+    if (busyTheaterIds.has(String(form.theaterId))) {
+      toast('Esta sala ya tiene una sesión en ese horario. Elige otra sala u otro horario.', 'error'); return;
+    }
     const payload = {
       movieId:   Number(form.movieId),
       theaterId: Number(form.theaterId),
       startTime: form.dateTime,
       basePrice: 9.00,
     };
-    if (editing) {
-      const saved = await screeningsService.update(editing.id, payload);
-      setScreenings(prev => prev.map(s => s.id === editing.id ? normalizeFromBackend(saved) : s));
-      toast('Proyección actualizada.', 'success');
-    } else {
-      const saved = await screeningsService.create(payload);
-      setScreenings(prev => [...prev, normalizeFromBackend(saved)]);
-      toast('Proyección creada.', 'success');
+    try {
+      if (editing) {
+        const saved = await screeningsService.update(editing.id, payload);
+        setScreenings(prev => prev.map(s => s.id === editing.id ? normalizeFromBackend(saved) : s));
+        toast('Proyección actualizada.', 'success');
+      } else {
+        const saved = await screeningsService.create(payload);
+        setScreenings(prev => [...prev, normalizeFromBackend(saved)]);
+        toast('Proyección creada.', 'success');
+      }
+      setModal(null);
+    } catch (err) {
+      if (err?.status === 409) {
+        toast('La sala ya está ocupada en ese horario. Elige otra sala u otro horario.', 'error');
+      } else {
+        toast('Error al guardar la proyección.', 'error');
+      }
     }
-    setModal(null);
   };
 
   const handleDelete = async () => {
@@ -166,7 +193,14 @@ export default function SchedulesPage() {
             <label className={styles.label} htmlFor="scr-room">{t('schedules.form.room')}</label>
             <select id="scr-room" className={styles.input} value={form.theaterId} onChange={e => set('theaterId', e.target.value)}>
               <option value="">{t('schedules.form.selectRoom')}</option>
-              {theaters.map(th => <option key={th.id} value={th.id}>{th.name} ({th.capacity} but.)</option>)}
+              {theaters.map(th => {
+                const busy = busyTheaterIds.has(String(th.id));
+                return (
+                  <option key={th.id} value={th.id} disabled={busy}>
+                    {th.name} ({th.capacity} but.){busy ? ' — OCUPADA' : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div>

@@ -47,13 +47,14 @@ const PURCHASES = [
 ];
 
 const mkSvc = (extra = {}) => ({
-  getAll: vi.fn().mockResolvedValue([]),
-  getById: vi.fn().mockResolvedValue({}),
-  getActive: vi.fn().mockResolvedValue([]),
-  create: vi.fn().mockResolvedValue({ id: 99 }),
+  getAll:         vi.fn().mockResolvedValue([]),
+  getAllEmployees: vi.fn().mockResolvedValue([]),
+  getById:        vi.fn().mockResolvedValue({}),
+  getActive:      vi.fn().mockResolvedValue([]),
+  create:         vi.fn().mockResolvedValue({ id: 99 }),
   createFormData: vi.fn().mockResolvedValue({ id: 99 }),
-  update: vi.fn().mockResolvedValue({ id: 1 }),
-  remove: vi.fn().mockResolvedValue(null),
+  update:         vi.fn().mockResolvedValue({ id: 1 }),
+  remove:         vi.fn().mockResolvedValue(null),
   ...extra,
 });
 

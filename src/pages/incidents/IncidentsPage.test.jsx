@@ -20,7 +20,7 @@ vi.mock('../../services/incidentsService', () => ({
   incidentsService: { getAll: (...a) => incGet(...a), create: (...a) => incCreate(...a), update: (...a) => incUpdate(...a), remove: vi.fn(), getById: vi.fn() },
 }));
 vi.mock('../../services/usersService', () => ({
-  usersService: { getAll: (...a) => usersGetAll(...a) },
+  usersService: { getAll: (...a) => usersGetAll(...a), getAllEmployees: (...a) => usersGetAll(...a) },
 }));
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ user: { name: 'Admin', role: 'admin' }, can: () => true }),

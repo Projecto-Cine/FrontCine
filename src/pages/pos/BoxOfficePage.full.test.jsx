@@ -110,8 +110,9 @@ vi.mock('qrcode.react', () => ({
 /* ── Fixtures: today + future hour so the "hide past sessions" filter keeps them ── */
 const TODAY = new Date().toISOString().split('T')[0];
 const FUTURE_HOUR = (() => {
-  const d = new Date(); d.setHours(d.getHours() + 4);
-  return `${String(d.getHours()).padStart(2, '0')}:00:00`;
+  const h = new Date().getHours();
+  const safeH = h + 4 >= 24 ? 23 : h + 4;
+  return `${String(safeH).padStart(2, '0')}:00:00`;
 })();
 
 const MOVIE = { id: 10, title: 'Dune', durationMin: 155, genre: 'Ciencia ficción', format: 'IMAX', language: 'ES', active: true, imageUrl: '', ageRating: 'PG-13' };

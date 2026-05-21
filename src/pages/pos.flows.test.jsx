@@ -13,8 +13,9 @@ const ROOM  = { id: 1, name: 'Sala 1 — IMAX', capacity: 100, type: 'IMAX', sta
 // Use today + future hour so BoxOfficePage's "hide past sessions" filter keeps it visible
 const TODAY = new Date().toISOString().split('T')[0];
 const FUTURE_HOUR = (() => {
-  const d = new Date(); d.setHours(d.getHours() + 4);
-  return `${String(d.getHours()).padStart(2, '0')}:00:00`;
+  const h = new Date().getHours();
+  const safeH = h + 4 >= 24 ? 23 : h + 4;
+  return `${String(safeH).padStart(2, '0')}:00:00`;
 })();
 const SCREENING = {
   id: 1, startTime: `${TODAY}T${FUTURE_HOUR}`, dateTime: `${TODAY}T${FUTURE_HOUR}`,

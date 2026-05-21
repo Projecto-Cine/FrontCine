@@ -30,7 +30,7 @@ vi.mock('../../services/incidentsService', () => ({
   },
 }));
 vi.mock('../../services/usersService', () => ({
-  usersService: { getAll: (...a) => usersGetAll(...a) },
+  usersService: { getAll: (...a) => usersGetAll(...a), getAllEmployees: (...a) => usersGetAll(...a) },
 }));
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ user: { name: 'Admin', role: 'admin' }, can: () => true }),

@@ -27,8 +27,9 @@ const ROOMS = [
 // Use future times today so BoxOfficePage's "hide past sessions" filter keeps them visible
 const TODAY = new Date().toISOString().split('T')[0];
 const FUTURE_HOUR = (() => {
-  const d = new Date(); d.setHours(d.getHours() + 4);
-  return `${String(d.getHours()).padStart(2, '0')}:00:00`;
+  const h = new Date().getHours();
+  const safeH = h + 4 >= 24 ? 23 : h + 4;
+  return `${String(safeH).padStart(2, '0')}:00:00`;
 })();
 const SCREENINGS = [
   { id: 1, startTime: `${TODAY}T${FUTURE_HOUR}`, dateTime: `${TODAY}T${FUTURE_HOUR}`, price: 13.5, basePrice: 13.5, status: 'SCHEDULED', availableSeats: 70, capacity: 100, movie: MOVIES[0], theater: ROOMS[0], full: false },
@@ -77,13 +78,14 @@ const AUDIT = [
 ];
 
 const mkSvc = (extra = {}) => ({
-  getAll:   vi.fn().mockResolvedValue([]),
-  getById:  vi.fn().mockResolvedValue({}),
-  getActive: vi.fn().mockResolvedValue([]),
-  create:   vi.fn().mockResolvedValue({ id: 99 }),
+  getAll:         vi.fn().mockResolvedValue([]),
+  getAllEmployees: vi.fn().mockResolvedValue([]),
+  getById:        vi.fn().mockResolvedValue({}),
+  getActive:      vi.fn().mockResolvedValue([]),
+  create:         vi.fn().mockResolvedValue({ id: 99 }),
   createFormData: vi.fn().mockResolvedValue({ id: 99 }),
-  update:   vi.fn().mockResolvedValue({ id: 1 }),
-  remove:   vi.fn().mockResolvedValue(null),
+  update:         vi.fn().mockResolvedValue({ id: 1 }),
+  remove:         vi.fn().mockResolvedValue(null),
   ...extra,
 });
 

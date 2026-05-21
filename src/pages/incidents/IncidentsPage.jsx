@@ -19,7 +19,7 @@ const STATUS_COLOR    = { open: 'red', in_progress: 'yellow', resolved: 'green' 
 const CATEGORY_COLOR  = { Técnico: 'accent', Infraestructura: 'purple', Mobiliario: 'cyan', Software: 'green', Seguridad: 'red', Operativo: 'yellow' };
 const CATEGORIES      = ['Técnico', 'Infraestructura', 'Mobiliario', 'Software', 'Seguridad', 'Operativo'];
 
-const EMPTY = { title: '', category: 'Técnico', priority: 'medium', status: 'open', room: '', description: '', assigned_to: '' };
+const EMPTY = { title: '', category: 'Técnico', priority: 'medium', status: 'open', room: '', assigned_to: '' };
 
 export default function IncidentsPage() {
   const { toast } = useApp();
@@ -49,13 +49,10 @@ export default function IncidentsPage() {
   useEffect(() => {
     Promise.all([
       incidentsService.getAll().catch(() => []),
-      usersService.getAll().catch(() => []),
+      usersService.getAllEmployees().catch(() => []),
     ]).then(([inc, employees]) => {
       setIncidents(Array.isArray(inc) ? inc : []);
-      const staff = Array.isArray(employees)
-        ? employees.filter(u => ['MANTENIMIENTO', 'LIMPIEZA', 'CAJERO', 'ADMIN', 'GERENCIA'].includes((u.role ?? '').toUpperCase()))
-        : [];
-      setStaffUsers(staff);
+      setStaffUsers(Array.isArray(employees) ? employees : []);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -67,7 +64,8 @@ export default function IncidentsPage() {
 
   const enrichWithEmployee = (incident) => {
     const employee = staffUsers.find(u => String(u.id) === String(incident.assigned_to));
-    return { ...incident, assigned_to_name: employee ? employee.name : '' };
+    const fullName = employee ? [employee.name, employee.lastName].filter(Boolean).join(' ') : '';
+    return { ...incident, assigned_to_name: fullName };
   };
 
   const handleSave = async () => {
@@ -214,7 +212,9 @@ export default function IncidentsPage() {
             <select id="inc-assign" className={styles.input} value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)}>
               <option value="">{t('incidents.form.unassigned')}</option>
               {staffUsers.map(u => (
-                <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                <option key={u.id} value={u.id}>
+                  {[u.name, u.lastName].filter(Boolean).join(' ')} ({u.role})
+                </option>
               ))}
             </select>
           </div>
@@ -223,10 +223,6 @@ export default function IncidentsPage() {
             <select id="inc-status" className={styles.input} value={form.status} onChange={e => set('status', e.target.value)}>
               {Object.entries(STATUS_MAP).map(([k, { label }]) => <option key={k} value={k}>{label}</option>)}
             </select>
-          </div>
-          <div className={styles.fieldFull}>
-            <label className={styles.label} htmlFor="inc-desc">{t('incidents.form.description')}</label>
-            <textarea id="inc-desc" className={`${styles.input} ${styles.textarea}`} value={form.description} onChange={e => set('description', e.target.value)} placeholder={t('incidents.form.descPh')} rows={4} />
           </div>
         </div>
       </Modal>

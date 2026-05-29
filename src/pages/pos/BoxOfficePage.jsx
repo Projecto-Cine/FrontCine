@@ -424,12 +424,16 @@ export default function TaquillaPage() {
   }, [clientQuery]);
 
   const filteredSessions = sessions.filter(s => {
-    // For today: hide sessions that ended more than 3 h ago (backend may return past ones)
+    // For today: hide sessions that have already ended (startTime + durationMin)
     if (selectedDate === new Date().toISOString().split('T')[0]) {
       const dt = s.startTime ?? s.dateTime ?? null;
       if (dt) {
         const started = new Date(dt);
-        if (Date.now() - started.getTime() > 3 * 60 * 60 * 1000) return false;
+        const durationMin = s.movie?.durationMin ?? null;
+        const endTime = durationMin
+          ? new Date(started.getTime() + durationMin * 60 * 1000)
+          : new Date(started.getTime() + 3 * 60 * 60 * 1000);
+        if (Date.now() > endTime.getTime()) return false;
       }
     }
     if (!searchQuery) return true;
@@ -582,6 +586,19 @@ export default function TaquillaPage() {
 
   const handlePay = useCallback(async () => {
     if (!selectedSeats.length) { toast('Selecciona al menos una butaca.', 'error'); return; }
+
+    // Guard: check client-side if screening has already ended
+    const dt = selectedSession?.startTime ?? selectedSession?.dateTime ?? null;
+    if (dt) {
+      const durationMin = selectedSession?.movie?.durationMin ?? null;
+      const endTime = durationMin
+        ? new Date(new Date(dt).getTime() + durationMin * 60 * 1000)
+        : null;
+      if (endTime && Date.now() > endTime.getTime()) {
+        toast('Esta sesión ya ha finalizado. Selecciona otra sesión.', 'error');
+        return;
+      }
+    }
 
     setPaying(true);
     try {
@@ -760,6 +777,8 @@ export default function TaquillaPage() {
       }
       const rawLower = rawBody.toLowerCase();
       const msg =
+        status === 400 && (rawLower.includes('ended') || rawLower.includes('finaliz') || rawLower.includes('already ended'))
+          ? 'Esta sesión ya ha finalizado. Selecciona otra sesión.' :
         status === 404 && (rawLower.includes('seat') || rawLower.includes('butaca'))
           ? 'Butaca no encontrada. Vuelve al mapa y selecciona las butacas de nuevo.' :
         status === 404 ? 'Recurso no encontrado. Recarga la página e inténtalo de nuevo.' :

@@ -13,6 +13,7 @@ import { clientsService }     from '../../services/clientsService';
 import { roomsService }       from '../../services/roomsService';
 import { moviesService }      from '../../services/moviesService';
 import { useApp }  from '../../contexts/AppContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 import { useLanguage } from '../../i18n/LanguageContext';
 import Badge      from '../../components/ui/Badge';
@@ -86,6 +87,8 @@ function generateOfflineSeats(sessionId, capacity = 100, roomName = '') {
 export default function TaquillaPage() {
   const { toast } = useApp();
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const isCajero = user?.role === 'CAJERO';
 
 
   const [step, setStep]                   = useState('sessions');
@@ -100,6 +103,7 @@ export default function TaquillaPage() {
   const [payMethod, setPayMethod]         = useState('card');
   const [cashGiven, setCashGiven]         = useState('');
   const [tickets, setTickets]             = useState([]);
+  const [fidelityApplied, setFidelityApplied] = useState(false);
   const [paying, setPaying]               = useState(false);
   const [searchQuery, setSearchQuery]     = useState('');
   const [selectedDate, setSelectedDate]   = useState(() => new Date().toISOString().split('T')[0]);
@@ -226,8 +230,6 @@ export default function TaquillaPage() {
   const [editSaving, setEditSaving]         = useState(false);
   const [syncing, setSyncing]               = useState(false);
   const [deleteSession, setDeleteSession]   = useState(null);
-  const [showResetConfirm, setShowResetConfirm]         = useState(false);
-  const [resetting, setResetting]                       = useState(false);
   const [showFullResetConfirm, setShowFullResetConfirm] = useState(false);
   const [fullResetting, setFullResetting]               = useState(false);
   const [fullResetProgress, setFullResetProgress]       = useState('');
@@ -360,29 +362,6 @@ export default function TaquillaPage() {
     }
   };
 
-  const handleResetSessions = async () => {
-    setResetting(true);
-    const toDelete = [...filteredSessions];
-    let deleted = 0;
-    let failed  = 0;
-    for (const s of toDelete) {
-      try {
-        await sessionsService.remove(s.id);
-        setSessions(prev => prev.filter(x => x.id !== s.id));
-        deleted++;
-      } catch {
-        failed++;
-      }
-    }
-    setShowResetConfirm(false);
-    setResetting(false);
-    if (failed === 0) {
-      toast(`${deleted} sesión${deleted !== 1 ? 'es' : ''} eliminada${deleted !== 1 ? 's' : ''}. Ahora puedes crear las nuevas.`, 'success');
-    } else {
-      toast(`${deleted} eliminada${deleted !== 1 ? 's' : ''}, ${failed} no se pudo${failed !== 1 ? 'n' : ''} borrar (tienen entradas vendidas).`, 'warning');
-    }
-  };
-
   useEffect(() => {
     if (!showNewSession && !editSession) return;
     if (showNewSession) setNewForm(prev => ({ ...prev, date: selectedDate, time: '' }));
@@ -445,12 +424,16 @@ export default function TaquillaPage() {
   }, [clientQuery]);
 
   const filteredSessions = sessions.filter(s => {
-    // For today: hide sessions that ended more than 3 h ago (backend may return past ones)
+    // For today: hide sessions that have already ended (startTime + durationMin)
     if (selectedDate === new Date().toISOString().split('T')[0]) {
       const dt = s.startTime ?? s.dateTime ?? null;
       if (dt) {
         const started = new Date(dt);
-        if (Date.now() - started.getTime() > 3 * 60 * 60 * 1000) return false;
+        const durationMin = s.movie?.durationMin ?? null;
+        const endTime = durationMin
+          ? new Date(started.getTime() + durationMin * 60 * 1000)
+          : new Date(started.getTime() + 3 * 60 * 60 * 1000);
+        if (Date.now() > endTime.getTime()) return false;
       }
     }
     if (!searchQuery) return true;
@@ -574,13 +557,16 @@ export default function TaquillaPage() {
   const is4D  = /4D|4DX/i.test(theater?.name ?? movie?.format ?? '');
   const extra = is4D ? { price: 3.00, label: '4D' } : null;
   const clientVisits     = Number(selectedClient?.annualVisits ?? selectedClient?.visitsPerYear ?? 0);
-  const fidelityEligible = !!(selectedClient && clientVisits > 10 && ticketType === 'adult');
+  // fidelityDiscountEligible viene del backend (annualVisits >= 10), o lo calculamos localmente como fallback
+  const clientEligible   = !!(selectedClient?.fidelityDiscountEligible || clientVisits >= 10);
+  // Descuento en la compra 11: aplica a TODOS los tipos de entrada
+  const fidelityEligible = !!(selectedClient && clientEligible && selectedSeats.length > 0);
   const discountedBase   = fidelityEligible ? +(basePrice * 0.9).toFixed(2) : basePrice;
   // Per-seat total: tipo por butaca + VIP automático si el asiento es VIP + suplemento 4D
   const total = selectedSeats.reduce((sum, seatId) => {
     const typeId = seatTypes[seatId] || ticketType;
     const type   = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
-    const isFidelity = !!(selectedClient && (Number(selectedClient?.annualVisits ?? selectedClient?.visitsPerYear ?? 0)) > 10 && typeId === 'adult');
+    const isFidelity = !!(selectedClient && clientEligible);
     const price  = isFidelity ? +(type.price * 0.9).toFixed(2) : type.price;
     const seat   = realSeats?.find(s => s.id === seatId);
     const isVip  = (seat?.seatType ?? '').toUpperCase() === 'VIP';
@@ -601,34 +587,55 @@ export default function TaquillaPage() {
   const handlePay = useCallback(async () => {
     if (!selectedSeats.length) { toast('Selecciona al menos una butaca.', 'error'); return; }
 
+    // Guard: check client-side if screening has already ended
+    const dt = selectedSession?.startTime ?? selectedSession?.dateTime ?? null;
+    if (dt) {
+      const durationMin = selectedSession?.movie?.durationMin ?? null;
+      const endTime = durationMin
+        ? new Date(new Date(dt).getTime() + durationMin * 60 * 1000)
+        : null;
+      if (endTime && Date.now() > endTime.getTime()) {
+        toast('Esta sesión ya ha finalizado. Selecciona otra sesión.', 'error');
+        return;
+      }
+    }
+
     setPaying(true);
     try {
-      // Always fetch fresh screening seats from the API to avoid stale IDs
-      const freshData = await sessionsService.syncSeats(selectedSession.id);
-      const raw = Array.isArray(freshData) ? freshData
-        : Array.isArray(freshData?.content) ? freshData.content
-        : Array.isArray(freshData?.data)    ? freshData.data
-        : Array.isArray(freshData?.seats)   ? freshData.seats
-        : [];
-      const seen = new Set();
-      const normalized = [];
-      for (const ss of raw) {
-        if (ss?.id == null) continue;
-        const seatObj = ss.seat ?? ss;
-        const row     = ss.row    ?? seatObj.row;
-        const number  = ss.number ?? seatObj.number ?? seatObj.seatNumber ?? seatObj.col;
-        if (!row || number == null) continue;
-        const displayId = `${String(row).toUpperCase()}${String(number).padStart(2, '0')}`;
-        if (seen.has(displayId)) continue;
-        seen.add(displayId);
-        const statusLow = (ss.status ?? '').toLowerCase();
-        normalized.push({
-          id: displayId, row: String(row).toUpperCase(), number,
-          status: (statusLow !== '' && statusLow !== 'available') ? 'occupied' : 'available',
-          screeningSeatId: ss.id,
-        });
+      // Fetch fresh screening seats — fall back to already-loaded realSeats if sync fails
+      let normalized = [];
+      try {
+        const freshData = await sessionsService.syncSeats(selectedSession.id);
+        const raw = Array.isArray(freshData) ? freshData
+          : Array.isArray(freshData?.content) ? freshData.content
+          : Array.isArray(freshData?.data)    ? freshData.data
+          : Array.isArray(freshData?.seats)   ? freshData.seats
+          : [];
+        const seen = new Set();
+        for (const ss of raw) {
+          if (ss?.id == null) continue;
+          const seatObj = ss.seat ?? ss;
+          const row     = ss.row    ?? seatObj.row;
+          const number  = ss.number ?? seatObj.number ?? seatObj.seatNumber ?? seatObj.col;
+          if (!row || number == null) continue;
+          const displayId = `${String(row).toUpperCase()}${String(number).padStart(2, '0')}`;
+          if (seen.has(displayId)) continue;
+          seen.add(displayId);
+          const statusLow = (ss.status ?? '').toLowerCase();
+          normalized.push({
+            id: displayId, row: String(row).toUpperCase(), number,
+            status: (statusLow !== '' && statusLow !== 'available') ? 'occupied' : 'available',
+            screeningSeatId: ss.id,
+          });
+        }
+        if (normalized.length) setRealSeats(normalized);
+      } catch {
+        // syncSeats failed — use already-loaded seat map data
+        normalized = realSeats ?? [];
       }
-      if (normalized.length) setRealSeats(normalized);
+
+      // If sync returned nothing, fall back to realSeats
+      if (!normalized.length) normalized = realSeats ?? [];
 
       let screeningSeatIds = selectedSeats
         .map(seatStr => normalized.find(s => s.id === seatStr)?.screeningSeatId)
@@ -675,7 +682,7 @@ export default function TaquillaPage() {
           const seat   = realSeats?.find(s => s.screeningSeatId === screeningSeatId);
           const typeId = seat ? (seatTypes[seat.id] || ticketType) : ticketType;
           const type   = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
-          return { screeningSeatId, seatId: screeningSeatId, ticketType: type.backendType ?? 'ADULT' };
+          return { screeningSeatId, ticketType: type.backendType ?? 'ADULT' };
         }),
       };
       if (resolvedUserId) purchaseBody.userId = resolvedUserId;
@@ -686,6 +693,9 @@ export default function TaquillaPage() {
       if (res?.id) {
         try {
           const confirmed = await salesService.confirmPurchase(res.id);
+          if (confirmed?.discountApplied) {
+            toast(`🎉 Descuento fidelidad aplicado: −€${Number(confirmed.discountAmount ?? 0).toFixed(2)} (compra 11)`, 'success');
+          }
           if (resolvedGuestEmail) {
             if (confirmed?.emailSent === false) {
               toast('Compra confirmada, pero el email no se pudo enviar. Revisa la configuración SMTP del servidor.', 'warning');
@@ -765,13 +775,18 @@ export default function TaquillaPage() {
       } catch {
         backendMsg = jsonText.slice(0, 150);
       }
+      const rawLower = rawBody.toLowerCase();
       const msg =
-        status === 404 && (rawBody.toLowerCase().includes('seat') || rawBody.toLowerCase().includes('butaca'))
+        status === 400 && (rawLower.includes('ended') || rawLower.includes('finaliz') || rawLower.includes('already ended'))
+          ? 'Esta sesión ya ha finalizado. Selecciona otra sesión.' :
+        status === 404 && (rawLower.includes('seat') || rawLower.includes('butaca'))
           ? 'Butaca no encontrada. Vuelve al mapa y selecciona las butacas de nuevo.' :
         status === 404 ? 'Recurso no encontrado. Recarga la página e inténtalo de nuevo.' :
         status === 409 ? 'Esa butaca ya no está disponible.' :
-        status === 422 && rawBody.toLowerCase().includes('minor') ? 'Un menor debe ir acompañado de un adulto.' :
-        status === 422 ? 'Esta compra ya fue procesada.' :
+        status === 422 && (rawLower.includes('minor') || rawLower.includes('child') || rawLower.includes('menor') || rawLower.includes('infantil'))
+          ? `Entrada de menor no permitida: ${backendMsg || 'la película no admite entradas infantiles o se requiere acompañante adulto.'}` :
+        status === 422 && backendMsg ? `Compra rechazada: ${backendMsg}` :
+        status === 422 ? 'Compra rechazada por el servidor (422). Revisa el tipo de entrada.' :
         backendMsg ? `Error ${status}: ${backendMsg}` : `Error ${status ?? '?'}: no se pudo procesar el cobro.`;
       toast(msg, 'error');
     } finally {
@@ -925,18 +940,22 @@ export default function TaquillaPage() {
                   placeholder={t('box_office.search')}
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
               </div>
-              <button className={styles.newSessionBtn} onClick={() => setShowNewSession(true)} title="Nueva sesión">
-                <Plus size={14} />
-                <span>Nueva sesión</span>
-              </button>
-              <button className={styles.refundHeaderBtn} onClick={() => { setShowRefund(true); setRefundInput(''); }} title="Devolución de entrada">
-                <RotateCcw size={14} />
+              {!isCajero && (
+                <button className={styles.newSessionBtn} onClick={() => setShowNewSession(true)} title="Nueva sesión">
+                  <Plus size={14} />
+                  <span>Nueva sesión</span>
+                </button>
+              )}
+              <button className={styles.refundBtn} onClick={() => setShowRefund(true)} title="Devolución de entrada">
+                <RotateCcw size={12} />
                 <span>Devolución</span>
               </button>
-              <button className={styles.fullResetBtn} onClick={() => setShowFullResetConfirm(true)} title="Reset total — borrar TODAS las sesiones">
-                <Trash2 size={12} />
-                <span>Reset total</span>
-              </button>
+              {!isCajero && (
+                <button className={styles.fullResetBtn} onClick={() => setShowFullResetConfirm(true)} title="Reset total — borrar TODAS las sesiones">
+                  <Trash2 size={12} />
+                  <span>Reset total</span>
+                </button>
+              )}
             </div>
 
             {loadingSessions ? (
@@ -975,17 +994,19 @@ export default function TaquillaPage() {
                               || s.dateTime?.split('T')[1]?.substring(0, 5)
                               || '--:--';
 
+                            const isPrivate = (s.basePrice ?? s.price ?? 9) === 0;
                             return (
                               <div key={s.id} className={styles.timeBtnWrap}>
                                 <button
                                   className={`${styles.timeBtn} ${isFull ? styles.timeBtnFull : ''}`}
-                                  onClick={() => handleTimeClick(s)}
-                                  disabled={isFull}
+                                  onClick={() => !isPrivate && handleTimeClick(s)}
+                                  disabled={isFull || isPrivate}
+                                  title={isPrivate ? 'Sala reservada — evento privado' : undefined}
                                 >
                                   <span className={styles.timeBtnHour}>{time}</span>
                                   <span className={styles.timeBtnRoom}>{rm.name?.split('—')[0]?.trim() ?? `Sala ${s.room_id ?? ''}`}</span>
-                                  <span className={styles.timeBtnOcc} style={{ color: OCC_COLOR(occPct) }}>
-                                    {isFull ? t('box_office.full') : `${soldCnt}/${cap}`}
+                                  <span className={styles.timeBtnOcc} style={{ color: isPrivate ? 'var(--yellow)' : OCC_COLOR(occPct) }}>
+                                    {isPrivate ? '🔒 Reserva privada' : isFull ? t('box_office.full') : `${soldCnt}/${cap}`}
                                   </span>
                                 </button>
                                 <div className={styles.timeBtnActions}>
@@ -1086,8 +1107,8 @@ export default function TaquillaPage() {
                     <span className={styles.clientChipName}>{selectedClient.name ?? selectedClient.username}</span>
                     <span className={styles.clientChipEmail}>{selectedClient.email ?? ''}</span>
                   </div>
-                  {clientVisits > 10
-                    ? <span className={styles.fidelityBadge}><Star size={10} /> −10%</span>
+                  {clientEligible
+                    ? <span className={styles.fidelityBadge}><Star size={10} /> ¡Compra 11 −10%!</span>
                     : <span className={styles.fidelityBadge} style={{ opacity: 0.55 }}><Star size={10} /> {clientVisits}/10 visitas</span>
                   }
                 </div>
@@ -1180,18 +1201,25 @@ export default function TaquillaPage() {
                 <span className={styles.cartTypeLabel}>{baseType.label}</span>
                 <span className={styles.cartTypePrice}>€{basePrice.toFixed(2)} / ud.</span>
               </div>
-              {fidelityEligible && (
-                <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(201,168,76,0.2)' }}>
-                  <span className={styles.cartTypeLabel} style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Star size={10} /> {t('box_office.fidelity')}
-                  </span>
-                  <span className={styles.cartTypePrice} style={{ color: 'var(--accent)' }}>−€{(basePrice * 0.1).toFixed(2)} / ud.</span>
-                </div>
-              )}
-              {selectedClient && !fidelityEligible && (
+              {fidelityEligible && (() => {
+                const totalDiscount = selectedSeats.reduce((sum, s) => {
+                  const tid  = seatTypes[s] ?? ticketType;
+                  const typ  = ticketTypes.find(t => t.id === tid) || ticketTypes[0];
+                  return sum + typ.price * 0.1;
+                }, 0);
+                return (
+                  <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(201,168,76,0.2)' }}>
+                    <span className={styles.cartTypeLabel} style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Star size={10} /> Descuento fidelidad · compra 11 (−10% todas las entradas)
+                    </span>
+                    <span className={styles.cartTypePrice} style={{ color: 'var(--accent)' }}>−€{totalDiscount.toFixed(2)}</span>
+                  </div>
+                );
+              })()}
+              {selectedClient && !clientEligible && selectedSeats.length > 0 && (
                 <div className={styles.cartTypeRow} style={{ borderColor: 'rgba(100,100,100,0.15)' }}>
                   <span className={styles.cartTypeLabel} style={{ color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Star size={10} /> Club Lumen · {clientVisits}/10 visitas — sin descuento aún
+                    <Star size={10} /> Club Lumen · {clientVisits}/10 — descuento en compra 11
                   </span>
                 </div>
               )}
@@ -1205,7 +1233,7 @@ export default function TaquillaPage() {
                 {selectedSeats.map(s => {
                   const typeId    = seatTypes[s] || ticketType;
                   const type      = ticketTypes.find(t => t.id === typeId) || ticketTypes[0];
-                  const isFid     = !!(selectedClient && (Number(selectedClient?.annualVisits ?? selectedClient?.visitsPerYear ?? 0)) > 10 && typeId === 'adult');
+                  const isFid     = !!(selectedClient && clientEligible);
                   const seat      = realSeats?.find(r => r.id === s);
                   const isVip     = (seat?.seatType ?? '').toUpperCase() === 'VIP';
                   const seatPrice = (isFid ? +(type.price * 0.9).toFixed(2) : type.price) + (isVip ? VIP_SEAT_SUPPLEMENT : 0) + (extra?.price ?? 0);
@@ -1449,7 +1477,7 @@ export default function TaquillaPage() {
             </div>
 
             <div className={styles.modalFooter}>
-              <button className={styles.modalCancel} onClick={handleClientDiscard}>Saltar</button>
+              <button className={styles.modalCancel} onClick={handleClientDiscard}>Omitir</button>
               <button className={styles.modalSave} disabled={(isMember === true && !selectedClient) || showRegisterForm} onClick={handleClientSubmit}>
                 <ChevronRight size={14} aria-hidden="true" /> Continuar
               </button>
@@ -1578,18 +1606,6 @@ export default function TaquillaPage() {
                 </div>
               </div>
 
-              <label className={styles.modalLabel}>Precio base (€) *</label>
-              <input type="number" className={styles.modalInput} min="0.01" step="0.50"
-                placeholder="Ej: 9.00" required
-                value={editForm.basePrice} onChange={e => setEF('basePrice', e.target.value)} />
-            </div>
-
-            <div className={styles.modalSync}>
-              <button className={styles.modalSyncBtn} onClick={handleSyncSeats} disabled={syncing}>
-                {syncing ? <Loader size={13} /> : <Film size={13} />}
-                {syncing ? 'Sincronizando…' : 'Resincronizar butacas con la sala'}
-              </button>
-              <span className={styles.modalSyncHint}>Actualiza las butacas de esta sesión si la sala cambió de capacidad</span>
             </div>
 
             <div className={styles.modalFooter}>
@@ -1633,33 +1649,6 @@ export default function TaquillaPage() {
               <button className={styles.modalSave} style={{ background: 'var(--red)' }} onClick={handleFullReset} disabled={fullResetting}>
                 {fullResetting ? <Loader size={14} /> : <Trash2 size={14} />}
                 {fullResetting ? fullResetProgress : 'Borrar todo'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Confirm reset todas las sesiones del día ──── */}
-      {showResetConfirm && (
-        <div className={styles.modalBackdrop} role="dialog" aria-modal="true">
-          <div className={styles.modalBox} style={{ maxWidth: 400 }}>
-            <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}><Trash2 size={15} /> Borrar sesiones del día</h3>
-              <button className={styles.modalClose} onClick={() => setShowResetConfirm(false)}><X size={15} /></button>
-            </div>
-            <div className={styles.modalBody}>
-              <p style={{ color: 'var(--text-2)', fontSize: 'var(--fs-md)', lineHeight: 1.6 }}>
-                Se eliminarán <strong>{filteredSessions.length} sesión{filteredSessions.length !== 1 ? 'es' : ''}</strong> del {selectedDate}.
-              </p>
-              <p style={{ color: 'var(--text-3)', fontSize: 'var(--fs-sm)', marginTop: 8, lineHeight: 1.5 }}>
-                Las sesiones con entradas vendidas no se podrán borrar y se te avisará. El resto se eliminarán permanentemente.
-              </p>
-            </div>
-            <div className={styles.modalFooter}>
-              <button className={styles.modalCancel} onClick={() => setShowResetConfirm(false)} disabled={resetting}>Cancelar</button>
-              <button className={styles.modalSave} style={{ background: 'var(--red)' }} onClick={handleResetSessions} disabled={resetting}>
-                {resetting ? <Loader size={14} /> : <Trash2 size={14} />}
-                {resetting ? 'Borrando…' : 'Sí, borrar todas'}
               </button>
             </div>
           </div>
@@ -1759,7 +1748,7 @@ function RefundReceipt({ receipt, onClose, t }) {
 }
 
 /* ── Ticket success screen ───────────────────────── */
-function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
+export function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
   const [current, setCurrent] = useState(0);
   const ticket    = tickets[current];
 
@@ -1831,7 +1820,7 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
           <div><span className={styles.tcLabel}>{t('box_office.ticket.date')}</span><span className={styles.tcVal}>{ticket.date}</span></div>
           <div><span className={styles.tcLabel}>{t('box_office.ticket.time')}</span><span className={styles.tcVal}>{ticket.time} h</span></div>
           <div><span className={styles.tcLabel}>{t('box_office.ticket.room')}</span><span className={styles.tcVal}>{ticket.room}</span></div>
-          <div><span className={styles.tcLabel}>{t('box_office.ticket.seat')}</span><span className={styles.tcVal}>{ticket.seat}</span></div>
+          <div><span className={styles.tcLabel}>{tickets.length > 1 ? 'BUTACAS' : t('box_office.ticket.seat')}</span><span className={styles.tcVal}>{tickets.map(tk => tk.seat).join(' · ')}</span></div>
         </div>
         <div className={styles.ticketCardDivider} />
         <div className={styles.ticketCardTotal}>
@@ -1846,7 +1835,7 @@ function TicketSuccess({ tickets, total, payMethod, onReset, t }) {
           <div className={styles.ticketQRInfo}>
             <span className={styles.ticketQRLabel}>{t('box_office.ticket.scan')}</span>
             <span className={styles.ticketId}>{ticket.id}</span>
-            <span className={styles.ticketIdSeat}>Butaca {ticket.seat}</span>
+            <span className={styles.ticketIdSeat}>Butaca {ticket.seat} {tickets.length > 1 ? `(${current + 1}/${tickets.length})` : ''}</span>
           </div>
         </div>
         <div className={styles.ticketCardDivider} />

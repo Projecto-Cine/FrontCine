@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  Minus, Plus, X, CreditCard, Banknote, Smartphone,
+  Minus, Plus, X, CreditCard, Banknote,
   ShoppingCart, CheckCircle, Printer, Trash2, Search,
   RotateCcw, Loader, Settings, Edit2, Save, Upload,
 } from 'lucide-react';
@@ -13,14 +13,14 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import EmptyState from '../../components/shared/EmptyState';
 import styles from './ConcessionPage.module.css';
 
-const CAT_LABEL = { Todo: 'Todo', FOOD: 'Comida', DRINK: 'Bebida', MERCHANDISE: 'Merchandising' };
-const CAT_EMOJI = { FOOD: '🍿', DRINK: '🥤', MERCHANDISE: '🛒' };
-const FIXED_CATS = ['Todo', 'FOOD', 'DRINK', 'MERCHANDISE'];
+const CAT_LABEL = { Todo: 'Todo', Comida: 'Comida', Bebida: 'Bebida', Merchandise: 'Merchandising' };
+const CAT_EMOJI = { Comida: '🍿', Bebida: '🥤', Merchandise: '🛒' };
+const FIXED_CATS = ['Todo', 'Comida', 'Bebida', 'Merchandise'];
 
 const getEmoji = (p) => p.emoji ?? CAT_EMOJI[p.category] ?? '🔲';
 const getPrice = (p) => p.price ?? p.price_unit ?? 0;
 
-const EMPTY_PRODUCT = { name: '', category: 'FOOD', price: '', description: '', emoji: '', imageUrl: '', stock: '' };
+const EMPTY_PRODUCT = { name: '', category: 'Comida', price: '', description: '', emoji: '', imageUrl: '', stock: '' };
 
 
 const IMG_KEY = 'lumen_product_images';
@@ -50,7 +50,7 @@ export default function CajaPage() {
   const [paying, setPaying]           = useState(false);
   const searchRef = useRef(null);
 
-  const canManage = ['GERENCIA', 'CAJERO'].includes(user?.role);
+  const canManage = user?.role === 'GERENCIA';
   const [showManager,     setShowManager]     = useState(false);
   const [productForm,     setProductForm]     = useState(null); // null = lista, objeto = formulario
   const [editingProduct,  setEditingProduct]  = useState(null);
@@ -75,11 +75,13 @@ export default function CajaPage() {
     setUploadingImg(false);
   };
 
+  const BACKEND_CAT = { FOOD: 'Comida', DRINK: 'Bebida', BEVERAGE: 'Bebida', MERCHANDISE: 'Merchandise' };
   // Normaliza campos que el backend puede devolver con distintos nombres
   const normalizeProduct = (p) => ({
     ...p,
     imageUrl: p.imageUrl ?? p.image_url ?? p.poster ?? '',
     description: p.description ?? p.desc ?? '',
+    category: BACKEND_CAT[p.category] ?? p.category,
   });
 
   // Cargar productos de concesión desde el backend
@@ -112,6 +114,13 @@ export default function CajaPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [cart, showPayModal, receipt]);
 
+  // Auto-impresión al aparecer el recibo
+  useEffect(() => {
+    if (!receipt) return;
+    const id = setTimeout(() => window.print(), 600);
+    return () => clearTimeout(id);
+  }, [receipt]);
+
   const filteredProducts = products.filter(p => {
     if (category !== 'Todo' && p.category !== category) return false;
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -121,6 +130,9 @@ export default function CajaPage() {
   const addToCart = useCallback((product) => {
     setCart(prev => {
       const existing = prev.find(i => i.product.id === product.id);
+      const inCartQty = existing ? existing.qty : 0;
+      const available = product.quantity ?? Infinity;
+      if (inCartQty >= available) return prev; // sin stock suficiente
       if (existing) return prev.map(i => i.product.id === product.id ? { ...i, qty: i.qty + 1 } : i);
       return [...prev, { product, qty: 1 }];
     });
@@ -128,8 +140,12 @@ export default function CajaPage() {
 
   const changeQty = useCallback((productId, delta) => {
     setCart(prev =>
-      prev.map(i => i.product.id === productId ? { ...i, qty: Math.max(0, i.qty + delta) } : i)
-          .filter(i => i.qty > 0)
+      prev.map(i => {
+        if (i.product.id !== productId) return i;
+        const available = i.product.quantity ?? Infinity;
+        const newQty = Math.max(0, Math.min(i.qty + delta, available));
+        return { ...i, qty: newQty };
+      }).filter(i => i.qty > 0)
     );
   }, []);
 
@@ -147,20 +163,50 @@ export default function CajaPage() {
       return;
     }
     setPaying(true);
+    let saleResults = [];
     try {
-      await Promise.all(
+      saleResults = await Promise.all(
         cart.map(({ product, qty }) =>
           salesService.createMerchandiseSale({
-            userId:        user?.id,
-            merchandiseId: product.id,
-            quantity:      qty,
+            merchandiseId: Number(product.id),
+            quantity:      Number(qty),
           })
         )
       );
-    } catch {
-      // Si el endpoint aún no existe, continuamos igualmente con el recibo local
+    } catch (err) {
+      console.error('[ConcessionPage] POST /merchandisesales error:', err);
+      toast(`Error al registrar venta: ${err?.message ?? 'desconocido'}`, 'error');
+      setPaying(false);
+      return;
     } finally {
       setPaying(false);
+    }
+
+    // remainingStock exacto del backend (mismo orden que cart)
+    const remainingMap = {};
+    saleResults.forEach((res, idx) => {
+      if (res && res.remainingStock !== undefined) {
+        remainingMap[cart[idx].product.id] = res.remainingStock;
+      }
+    });
+    const cartMap = Object.fromEntries(cart.map(({ product, qty }) => [product.id, qty]));
+    const lowStock = [];
+    const updatedProducts = products
+      .map(p => {
+        const soldQty = cartMap[p.id];
+        if (!soldQty) return p;
+        const newQty = remainingMap[p.id] !== undefined
+          ? remainingMap[p.id]
+          : Math.max(0, (p.quantity ?? 0) - soldQty);
+        const minS = p.min_stock ?? 0;
+        if (newQty > 0 && minS > 0 && newQty <= minS) lowStock.push(`${p.name} (${newQty} uds.)`);
+        return { ...p, quantity: newQty, stock: newQty };
+      })
+      .filter(p => p.quantity === undefined || p.quantity > 0);
+    setProducts(updatedProducts);
+    window.dispatchEvent(new CustomEvent('merchandise:updated'));
+    if (lowStock.length > 0) {
+      setTimeout(() => toast(`Stock bajo: ${lowStock.join(', ')}`, 'warning'), 700);
     }
 
     const rec = {
@@ -192,26 +238,26 @@ export default function CajaPage() {
   const handleSaveProduct = async () => {
     if (!productForm.name.trim() || !productForm.price) { toast('Nombre y precio son obligatorios.', 'error'); return; }
     setSavingProduct(true);
+    const imageUrl = productForm.imageUrl || '';
+    // Solo campos que el backend conoce — imagen/emoji se guardan en localStorage
     const payload = {
-      name:        productForm.name.trim(),
-      category:    productForm.category,
-      price:       Number(productForm.price),
-      description: productForm.description,
-      emoji:       productForm.emoji,
-      imageUrl:    productForm.imageUrl,
-      stock:       productForm.stock !== '' ? Number(productForm.stock) : 0,
+      name:     productForm.name.trim(),
+      category: productForm.category,
+      price:    Number(productForm.price),
+      stock:    productForm.stock !== '' ? Number(productForm.stock) : 0,
+      minStock: 0,
     };
     try {
       if (editingProduct) {
-        if (payload.imageUrl) saveStoredImg(editingProduct.id, payload.imageUrl);
+        if (imageUrl) saveStoredImg(editingProduct.id, imageUrl);
         const saved = await inventoryService.update(editingProduct.id, payload);
-        const merged = { ...editingProduct, ...payload, ...(saved ?? {}), imageUrl: payload.imageUrl || saved?.imageUrl || editingProduct.imageUrl };
+        const merged = { ...editingProduct, ...payload, ...(saved ?? {}), imageUrl: imageUrl || saved?.imageUrl || editingProduct.imageUrl, emoji: productForm.emoji };
         setProducts(prev => prev.map(p => p.id === editingProduct.id ? merged : p));
         toast(`"${payload.name}" actualizado.`, 'success');
       } else {
         const saved = await inventoryService.create(payload);
-        const created = { ...payload, ...(saved ?? {}), id: saved?.id ?? Date.now(), imageUrl: payload.imageUrl || saved?.imageUrl || '' };
-        if (created.imageUrl) saveStoredImg(created.id, created.imageUrl);
+        const created = { ...payload, ...(saved ?? {}), id: saved?.id ?? Date.now(), imageUrl: imageUrl || saved?.imageUrl || '', emoji: productForm.emoji };
+        if (imageUrl) saveStoredImg(created.id, imageUrl);
         setProducts(prev => [...prev, created]);
         toast(`"${payload.name}" añadido.`, 'success');
       }
@@ -238,14 +284,12 @@ export default function CajaPage() {
   };
 
   const PAY_METHODS = [
-    { id: 'card',   label: t('concession.pay_methods.card'),   Icon: CreditCard },
-    { id: 'cash',   label: t('concession.pay_methods.cash'),   Icon: Banknote   },
-    { id: 'online', label: t('concession.pay_methods.online'), Icon: Smartphone },
+    { id: 'card', label: t('concession.pay_methods.card'), Icon: CreditCard },
+    { id: 'cash', label: t('concession.pay_methods.cash'), Icon: Banknote   },
   ];
   const PAY_LABEL = {
-    card:   t('concession.pay_methods.card'),
-    cash:   t('concession.pay_methods.cash'),
-    online: t('concession.pay_methods.online'),
+    card: t('concession.pay_methods.card'),
+    cash: t('concession.pay_methods.cash'),
   };
 
   return (
@@ -469,6 +513,12 @@ export default function CajaPage() {
       {receipt && (
         <div className={styles.modalOverlay}>
           <div className={styles.receiptModal} role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
+            {/* Cabecera solo visible en impresión */}
+            <div className={styles.printHeader}>
+              <div className={styles.printLogo}>LUMEN CINEMA</div>
+              <div className={styles.printSub}>Comprobante de compra</div>
+              <div className={styles.printDivider} />
+            </div>
             <div className={styles.receiptHeader}>
               <CheckCircle size={22} className={styles.receiptOk} aria-hidden="true" />
               <span id="receipt-modal-title">{t('concession.paid')}</span>
@@ -481,7 +531,10 @@ export default function CajaPage() {
               <div className={styles.receiptLines}>
                 {receipt.lines.map(({ product, qty }) => (
                   <div key={product.id} className={styles.receiptLine}>
-                    <span>{getEmoji(product)} {qty}× {product.name}</span>
+                    <span>
+                      <span className={styles.receiptEmoji}>{getEmoji(product)} </span>
+                      {qty}× {product.name}
+                    </span>
                     <span>€{(getPrice(product) * qty).toFixed(2)}</span>
                   </div>
                 ))}
@@ -500,6 +553,7 @@ export default function CajaPage() {
                   </>
                 )}
               </div>
+              <div className={styles.printFooter}>¡GRACIAS POR SU VISITA!</div>
             </div>
             <div className={styles.receiptFooter}>
               <button className={styles.receiptPrint} onClick={() => window.print()}>
@@ -572,9 +626,9 @@ export default function CajaPage() {
                   <div>
                     <label className={styles.managerLabel} htmlFor="pf-category">{t('concession.form.category')}</label>
                     <select id="pf-category" className={styles.managerInput} value={productForm.category} onChange={e => setField('category', e.target.value)}>
-                      <option value="FOOD">Comida</option>
-                      <option value="DRINK">Bebida</option>
-                      <option value="MERCHANDISE">Merchandising</option>
+                      <option value="Comida">Comida</option>
+                      <option value="Bebida">Bebida</option>
+                      <option value="Merchandise">Merchandising</option>
                     </select>
                   </div>
                   <div>

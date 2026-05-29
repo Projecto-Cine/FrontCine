@@ -1,5 +1,8 @@
 import { api } from './api';
 
+const CAT_BE_TO_FE = { FOOD: 'Comida', DRINK: 'Bebida', MERCHANDISE: 'Merchandise' };
+const CAT_FE_TO_BE = { Comida: 'FOOD', Bebida: 'DRINK', Merchandise: 'MERCHANDISE' };
+
 const toInventory = (item) => ({
   ...item,
   quantity:   item.quantity ?? item.stock ?? 0,
@@ -7,22 +10,28 @@ const toInventory = (item) => ({
   price_unit: item.price_unit ?? item.price ?? 0,
   unit:       item.unit ?? 'ud',
   location:   item.location ?? '',
+  category:   CAT_BE_TO_FE[item.category] || item.category,
 });
 
 const fromInventory = (data) => {
   const hasFrontendNames = 'quantity' in data;
-  return {
+  const base = {
+    minStock: 0,
+    supplier: '',
     ...data,
-    ...(hasFrontendNames ? {
-      quantity: undefined,
-      min_stock: undefined,
-      price_unit: undefined,
-      unit: undefined,
-      location: undefined,
-      stock: Number(data.quantity),
-      minStock: Number(data.min_stock),
-      price: Number(data.price_unit),
-    } : {}),
+  };
+  if (!hasFrontendNames) return { ...data };
+  return {
+    ...base,
+    quantity:   undefined,
+    min_stock:  undefined,
+    price_unit: undefined,
+    unit:       undefined,
+    location:   undefined,
+    stock:      Number(data.quantity),
+    minStock:   Number(data.min_stock) || 0,
+    price:      Number(data.price_unit),
+    category:   CAT_FE_TO_BE[data.category] || data.category,
   };
 };
 

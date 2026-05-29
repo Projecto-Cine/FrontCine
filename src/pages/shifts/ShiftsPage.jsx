@@ -219,7 +219,8 @@ export default function CuadrantePage() {
   const { toast } = useApp();
   const { user }  = useAuth();
   const { t, language } = useLanguage();
-  const readOnly = ['LIMPIEZA', 'MANTENIMIENTO'].includes(user?.role);
+  const readOnly   = ['LIMPIEZA', 'MANTENIMIENTO'].includes(user?.role);
+  const canGenerate = !readOnly;
   const [mode, setMode] = useState('week');
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [monthStart, setMonthStart] = useState(() => {
@@ -264,7 +265,7 @@ export default function CuadrantePage() {
           return { ...e, id: e.id ?? e.workerId, name: fullName || e.username || e.email || '-', role };
         });
         setAllUsers(list);
-        const active = list.filter(e => VALID_ROLES.has(e.role));
+        const active = list.filter(e => VALID_ROLES.has(e.role) && e.active !== false);
         return loadWeekIntoMap(weekStart, active);
       })
       .catch(() => setAllUsers([]))
@@ -296,11 +297,11 @@ export default function CuadrantePage() {
   };
 
   const activeEmployees = useMemo(
-    () => allUsers.filter(e => VALID_ROLES.has(String(e.role).toUpperCase())),
+    () => allUsers.filter(e => VALID_ROLES.has(String(e.role).toUpperCase()) && e.active !== false),
     [allUsers]
   );
 
-  const filterRows = (rows) => rows.filter(emp => VALID_ROLES.has(String(emp.role).toUpperCase()));
+  const filterRows = (rows) => rows.filter(emp => VALID_ROLES.has(String(emp.role).toUpperCase()) && emp.active !== false);
 
   const currentKey = weekKey(weekStart);
   const weekRows = useMemo(() => {
@@ -496,7 +497,7 @@ export default function CuadrantePage() {
             <button className={styles.navBtn} onClick={nextPeriod}><ChevronRight size={14} /></button>
           </div>
 
-          {!readOnly && (
+          {canGenerate && (
             <button className={styles.generateBtn} onClick={handleGenerate} disabled={saving || loading}>
               {saving ? <Loader size={13} className={styles.spinner} /> : <RefreshCw size={13} />}
               {saving ? 'Guardando...' : (mode === 'week' ? t('shifts.generate.week') : t('shifts.generate.month'))}

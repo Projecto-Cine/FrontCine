@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, CheckCircle, Eye } from 'lucide-react';
+import { Plus, Edit2, CheckCircle, Eye, Trash2 } from 'lucide-react';
 import PageHeader  from '../../components/shared/PageHeader';
 import DataTable   from '../../components/shared/DataTable';
 import Badge       from '../../components/ui/Badge';
@@ -9,8 +9,8 @@ import KPICard     from '../../components/shared/KPICard';
 import { AlertTriangle, Clock, CheckSquare } from 'lucide-react';
 import { useApp }  from '../../contexts/AppContext';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { incidentsService } from '../../services/incidentsService';
-import { usersService }     from '../../services/usersService';
+import { incidentsService }  from '../../services/incidentsService';
+import { usersService } from '../../services/usersService';
 import SkeletonPage from '../../components/shared/Skeleton';
 import styles from './IncidentsPage.module.css';
 
@@ -19,7 +19,7 @@ const STATUS_COLOR    = { open: 'red', in_progress: 'yellow', resolved: 'green' 
 const CATEGORY_COLOR  = { Técnico: 'accent', Infraestructura: 'purple', Mobiliario: 'cyan', Software: 'green', Seguridad: 'red', Operativo: 'yellow' };
 const CATEGORIES      = ['Técnico', 'Infraestructura', 'Mobiliario', 'Software', 'Seguridad', 'Operativo'];
 
-const EMPTY = { title: '', category: 'Técnico', priority: 'medium', status: 'open', room: '', description: '', assigned_to: '' };
+const EMPTY = { title: '', category: 'Técnico', priority: 'medium', status: 'open', room: '', assigned_to: '' };
 
 export default function IncidentsPage() {
   const { toast } = useApp();
@@ -32,6 +32,7 @@ export default function IncidentsPage() {
   const [form, setForm]               = useState(EMPTY);
   const [detail, setDetail]           = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const PRIORITY_MAP = {
     critical: { label: t('incidents.priority.critical'), v: 'red' },
@@ -48,13 +49,10 @@ export default function IncidentsPage() {
   useEffect(() => {
     Promise.all([
       incidentsService.getAll().catch(() => []),
-      usersService.getAll().catch(() => []),
-    ]).then(([inc, users]) => {
+      usersService.getAllEmployees().catch(() => []),
+    ]).then(([inc, employees]) => {
       setIncidents(Array.isArray(inc) ? inc : []);
-      const staff = Array.isArray(users)
-        ? users.filter(u => ['maintenance', 'operator', 'supervisor', 'admin'].includes((u.role ?? '').toLowerCase()))
-        : [];
-      setStaffUsers(staff);
+      setStaffUsers(Array.isArray(employees) ? employees : []);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -64,21 +62,42 @@ export default function IncidentsPage() {
 
   const filtered = filterStatus === 'all' ? incidents : incidents.filter(i => i.status === filterStatus);
 
+  const enrichWithEmployee = (incident) => {
+    const employee = staffUsers.find(u => String(u.id) === String(incident.assigned_to));
+    const fullName = employee ? [employee.name, employee.lastName].filter(Boolean).join(' ') : '';
+    return { ...incident, assigned_to_name: fullName };
+  };
+
   const handleSave = async () => {
     if (!form.title.trim()) { toast(t('incidents.form.title') + ' ' + t('common.confirmDelete'), 'error'); return; }
     try {
       if (editing) {
         const updated = await incidentsService.update(editing.id, form).catch(() => null);
-        setIncidents(p => p.map(i => i.id === editing.id ? (updated ?? { ...i, ...form }) : i));
+        const enriched = enrichWithEmployee(updated ?? { ...editing, ...form });
+        setIncidents(p => p.map(i => i.id === editing.id ? enriched : i));
         toast(t('incidents.modalEdit') + ' ✓', 'success');
       } else {
         const created = await incidentsService.create(form);
-        setIncidents(p => [...p, created]);
+        const enriched = enrichWithEmployee(created);
+        setIncidents(p => [...p, enriched]);
         toast(t('incidents.register') + ' ✓', 'success');
       }
       setModal(null);
     } catch (err) {
       toast(err?.status === 401 ? 'Sesión expirada.' : 'Error al guardar la incidencia.', 'error');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await incidentsService.remove(deleteTarget.id);
+      setIncidents(p => p.filter(i => i.id !== deleteTarget.id));
+      toast('Incidencia eliminada.', 'success');
+    } catch {
+      toast('Error al eliminar la incidencia.', 'error');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -95,10 +114,12 @@ export default function IncidentsPage() {
   const columns = [
     { key: 'id',          label: t('incidents.col.id'),         width: 90,  render: v => <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>{v}</span> },
     { key: 'title',       label: t('incidents.col.title'),                   render: v => <span style={{ fontWeight: 500 }}>{v}</span> },
-    { key: 'category',    label: t('incidents.col.category'),   width: 120, render: v => <Badge variant={CATEGORY_COLOR[v] || 'default'}>{v ? (t(`incidents.categories.${v}`) || v) : '—'}</Badge> },
     { key: 'priority',    label: t('incidents.col.priority'),   width: 100, render: v => <Badge variant={PRIORITY_MAP[v]?.v || 'default'}>{PRIORITY_MAP[v]?.label}</Badge> },
     { key: 'room',        label: t('incidents.col.location'),   width: 160, render: v => <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v || '—'}</span> },
-    { key: 'assigned_to', label: t('incidents.col.assignedTo'), width: 140, render: v => v ? <span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{v}</span> : <span style={{ color: 'var(--text-3)' }}>{t('incidents.form.unassigned')}</span> },
+    { key: 'assigned_to_name', label: t('incidents.col.assignedTo'), width: 160, render: v =>
+      v ? <span style={{ fontSize: 11, color: 'var(--text-2)' }}>{v}</span>
+        : <span style={{ color: 'var(--text-3)' }}>{t('incidents.form.unassigned')}</span>
+    },
     { key: 'status',      label: t('incidents.col.status'),     width: 120, render: v => <Badge variant={STATUS_MAP[v]?.v || 'default'} dot>{STATUS_MAP[v]?.label}</Badge> },
     { key: 'updated_at',  label: t('incidents.col.updated'),    width: 130, render: v => {
       if (!v) return <span style={{ color: 'var(--text-3)' }}>—</span>;
@@ -152,6 +173,7 @@ export default function IncidentsPage() {
             <Button variant="ghost" size="sm" icon={Eye}         onClick={() => setDetail(row)} />
             <Button variant="ghost" size="sm" icon={Edit2}       onClick={() => openEdit(row)} />
             {row.status !== 'resolved' && <Button variant="ghost" size="sm" icon={CheckCircle} onClick={() => resolve(row)} title={t('incidents.markResolved')} />}
+            <Button variant="ghost" size="sm" icon={Trash2}      onClick={() => setDeleteTarget(row)} style={{ color: 'var(--red)' }} />
           </div>
         )}
       />
@@ -190,7 +212,9 @@ export default function IncidentsPage() {
             <select id="inc-assign" className={styles.input} value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)}>
               <option value="">{t('incidents.form.unassigned')}</option>
               {staffUsers.map(u => (
-                <option key={u.id ?? u.username} value={u.username ?? u.name}>{u.name} ({u.role})</option>
+                <option key={u.id} value={u.id}>
+                  {[u.name, u.lastName].filter(Boolean).join(' ')} ({u.role})
+                </option>
               ))}
             </select>
           </div>
@@ -200,11 +224,20 @@ export default function IncidentsPage() {
               {Object.entries(STATUS_MAP).map(([k, { label }]) => <option key={k} value={k}>{label}</option>)}
             </select>
           </div>
-          <div className={styles.fieldFull}>
-            <label className={styles.label} htmlFor="inc-desc">{t('incidents.form.description')}</label>
-            <textarea id="inc-desc" className={`${styles.input} ${styles.textarea}`} value={form.description} onChange={e => set('description', e.target.value)} placeholder={t('incidents.form.descPh')} rows={4} />
-          </div>
         </div>
+      </Modal>
+
+      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Eliminar incidencia"
+        footer={
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
+            <Button variant="primary"   onClick={handleDelete} style={{ background: 'var(--red)', borderColor: 'var(--red)' }}>Eliminar</Button>
+          </div>
+        }
+      >
+        <p style={{ color: 'var(--text-2)', fontSize: 14 }}>
+          ¿Seguro que quieres eliminar la incidencia <strong style={{ color: 'var(--text-1)' }}>{deleteTarget?.title}</strong>? Esta acción no se puede deshacer.
+        </p>
       </Modal>
 
       <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.id || 'Detalle'} size="md">
@@ -221,7 +254,7 @@ export default function IncidentsPage() {
             <div className={styles.detailGrid}>
               <div><span className={styles.detailLbl}>{t('incidents.detail.location')}</span><span>{detail.room || '—'}</span></div>
               <div><span className={styles.detailLbl}>{t('incidents.detail.reportedBy')}</span><span style={{ fontFamily: 'var(--mono)' }}>{detail.reported_by}</span></div>
-              <div><span className={styles.detailLbl}>{t('incidents.detail.assignedTo')}</span><span style={{ fontFamily: 'var(--mono)' }}>{detail.assigned_to || '—'}</span></div>
+              <div><span className={styles.detailLbl}>{t('incidents.detail.assignedTo')}</span><span style={{ fontFamily: 'var(--mono)' }}>{detail.assigned_to_name || detail.assigned_to || '—'}</span></div>
               <div><span className={styles.detailLbl}>{t('incidents.detail.created')}</span><span style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>{detail.created_at}</span></div>
             </div>
             {detail.description && (

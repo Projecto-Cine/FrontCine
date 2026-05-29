@@ -350,6 +350,15 @@ export default {
       amount:        'Importe total (€)',
       saveHint:      'Al guardar se abrirá el cobro para elegir el método de pago y generar las entradas.',
     },
+    col: {
+      ref:      'Referencia',
+      client:   'Cliente',
+      screening:'Proyección',
+      room:     'Sala',
+      seats:    'Asientos',
+      amount:   'Importe',
+      payment:  'Pago',
+    },
     refund: {
       title:   'Procesar reembolso',
       msg:     '¿Reembolsar €{amount} a {name}? El estado cambiará a Reembolsada.',

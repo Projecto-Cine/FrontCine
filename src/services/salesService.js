@@ -5,5 +5,7 @@ export const salesService = {
   getById:              (id)   => api.get(`/purchases/${id}`),
   confirmPurchase:      (id)   => api.post(`/purchases/${id}/confirm`, {}),
   cancelPurchase:       (id)   => api.post(`/purchases/${id}/cancel`, {}),
-  createMerchandiseSale:(data) => api.post('/merchandisesales', data),
+  createMerchandiseSale: (data) => api.post('/merchandisesales', data),
+  createTicketSale:     (data) => api.post('/purchases', data),
+  createConcessionSale: (data) => api.post('/merchandise/sales', data),
 };

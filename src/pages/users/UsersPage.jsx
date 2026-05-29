@@ -53,40 +53,47 @@ export default function UsersPage() {
   }, [toast]);
 
   const openCreate = () => { if (!isAdmin) return; setEditing(null); setForm(EMPTY); setErrors({}); setModal('form'); };
-  const openEdit = (user) => { if (!isAdmin) return; setEditing(user); setForm(normalizeUser(user)); setErrors({}); setModal('form'); };
+  const openEdit = (user) => { if (!isAdmin) return; setEditing(user); setForm({ ...normalizeUser(user), password: '' }); setErrors({}); setModal('form'); };
   const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
   const validateField = (name, value) => {
     setErrors(e => ({ ...e, [name]: !String(value).trim() ? t('common.fieldRequired') : undefined }));
   };
 
   const handleSave = async () => {
-    if (!form.email.trim()) {
+    const email = String(form.email ?? '').trim();
+    const password = String(form.password ?? '').trim();
+
+    if (!email) {
       toast('Email obligatorio.', 'error');
       return;
     }
-    if (!editing && !form.password.trim()) {
+    if (!editing && !form.password?.trim()) {
       toast('Contraseña obligatoria.', 'error');
       return;
     }
 
     const payload = {
-      name: form.name.trim() || undefined,
+      name: String(form.name ?? '').trim() || undefined,
       lastName: form.lastName?.trim() || undefined,
-      email: form.email.trim(),
+      email,
       role: form.role,
       birthDate: form.birthDate || null,
     };
     if (form.password.trim()) payload.password = form.password.trim();
-    if (editing) {
-      const saved = normalizeUser(await usersService.update(editing.id, payload));
-      setUsers(prev => prev.map(user => user.id === editing.id ? saved : user));
-      toast(t('users.modalEdit') + ' ✓', 'success');
-    } else {
-      const saved = normalizeUser(await usersService.create(payload));
-      setUsers(prev => [...prev, saved]);
-      toast(t('users.modalCreate') + ' ✓', 'success');
+    try {
+      if (editing) {
+        const saved = normalizeUser(await usersService.update(editing.id, payload));
+        setUsers(prev => prev.map(user => user.id === editing.id ? saved : user));
+        toast(t('users.modalEdit') + ' ✓', 'success');
+      } else {
+        const saved = normalizeUser(await usersService.create(payload));
+        setUsers(prev => [...prev, saved]);
+        toast(t('users.modalCreate') + ' ✓', 'success');
+      }
+      setModal(null);
+    } catch {
+      toast('Error al guardar el usuario.', 'error');
     }
-    setModal(null);
   };
 
   const handleDelete = async () => {

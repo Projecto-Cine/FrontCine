@@ -350,6 +350,15 @@ export default {
       amount:        'Total amount (€)',
       saveHint:      'After saving, a payment modal will open to choose the payment method and generate tickets.',
     },
+    col: {
+      ref:      'Ref',
+      client:   'Client',
+      screening:'Screening',
+      room:     'Room',
+      seats:    'Seats',
+      amount:   'Amount',
+      payment:  'Payment',
+    },
     refund: {
       title:   'Process refund',
       msg:     'Refund €{amount} to {name}? Status will change to Refunded.',

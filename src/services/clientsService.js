@@ -2,7 +2,7 @@ import { api } from './api';
 
 // Los clientes son usuarios con role CLIENTE — se gestiona desde /api/users
 export const clientsService = {
-  getAll:  ()         => api.get('/clients'),
+  getAll:  (membersOnly = false) => api.get(membersOnly ? '/clients?member=true' : '/clients'),
   getById: (id)       => api.get(`/clients/${id}`),
   create:  (data)     => api.post('/users', data),
   update:  (id, data) => api.put(`/clients/${id}`, data),

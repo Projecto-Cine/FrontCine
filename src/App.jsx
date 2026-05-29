@@ -3,8 +3,14 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppProvider } from './contexts/AppContext';
 import { LanguageProvider } from './i18n/LanguageContext';
+import { ShopAuthProvider } from './contexts/ShopAuthContext';
 import MainLayout from './layouts/MainLayout';
+import ShopLayout from './layouts/ShopLayout';
 import Login from './pages/auth/Login';
+
+const ShopHomePage    = lazy(() => import('./pages/shop/ShopHomePage'));
+const ShopSeatsPage   = lazy(() => import('./pages/shop/ShopSeatsPage'));
+const ShopConfirmPage = lazy(() => import('./pages/shop/ShopConfirmPage'));
 
 const Dashboard       = lazy(() => import('./pages/dashboard/Dashboard'));
 const MoviesPage      = lazy(() => import('./pages/movies/MoviesPage'));
@@ -60,6 +66,13 @@ export default function App() {
         <LanguageProvider>
         <AppProvider>
           <Routes>
+            {/* ── Shop app (clientes y socios) ──────────────────────── */}
+            <Route path="/shop" element={<ShopAuthProvider><ShopLayout /></ShopAuthProvider>}>
+              <Route index element={<Suspense fallback={<PageLoader />}><ShopHomePage /></Suspense>} />
+              <Route path="session/:screeningId" element={<Suspense fallback={<PageLoader />}><ShopSeatsPage /></Suspense>} />
+              <Route path="confirm" element={<Suspense fallback={<PageLoader />}><ShopConfirmPage /></Suspense>} />
+            </Route>
+
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/" element={<RoleRoute><MainLayout /></RoleRoute>}>
               <Route index element={

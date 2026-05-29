@@ -17,6 +17,7 @@
 @media (min-width: 480px) { .guestHint { display: block; } }
 
 .userChip { display: flex; align-items: center; gap: 6px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 99px; padding: 5px 10px 5px 8px; font-size: var(--fs-sm); color: var(--text-1); }
+.starIcon { color: var(--accent); }
 .logoutBtn { display: flex; align-items: center; background: none; border: none; color: var(--text-3); cursor: pointer; padding: 2px; margin-left: 2px; border-radius: 4px; transition: color var(--t); }
 .logoutBtn:hover { color: var(--red); }
 

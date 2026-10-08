@@ -11,12 +11,11 @@ export default defineConfig({
     setupFiles: './src/test/setup.js',
     css: true,
     pool: 'threads',
-    poolOptions: {
-      threads: {
-        minThreads: 1,
-        maxThreads: 2,
-      },
-    },
+    // Vitest 4 eliminó poolOptions: ahora estas opciones van al nivel superior.
+    // Con la forma antigua la configuración se ignoraba en silencio y cada
+    // ejecución avisaba del cambio.
+    minWorkers: 1,
+    maxWorkers: 2,
     testTimeout: 15_000,
     hookTimeout: 15_000,
     coverage: {

@@ -50,6 +50,16 @@ export default function Modal({ open, onClose, title, children, footer, size = '
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open]);
 
+  // Bloquea el scroll del fondo mientras el modal esta abierto. Sin esto, la
+  // pagina de detras se desplaza con la rueda y el modal queda flotando sobre
+  // un contenido en movimiento.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previous; };
+  }, [open]);
+
   if (!open) return null;
 
   return (

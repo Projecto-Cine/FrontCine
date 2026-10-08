@@ -31,7 +31,10 @@ function AuthPanel({ onLogin, onRegister, error, loading }) {
   const [email, setEmail]   = useState('');
   const [pass, setPass]     = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [form, setForm]     = useState({ name: '', lastName: '', email: '', password: '', dateOfBirth: '' });
+  // birthDate, no dateOfBirth: es el nombre que espera el backend. Con el
+  // anterior la fecha se perdia, y de ella depende el control de calificacion
+  // por edad al comprar entradas.
+  const [form, setForm]     = useState({ name: '', lastName: '', email: '', password: '', birthDate: '' });
 
   return (
     <div className={styles.authPanel}>
@@ -99,8 +102,14 @@ function AuthPanel({ onLogin, onRegister, error, loading }) {
               {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
-          <input className={styles.authInput} type="date" placeholder="Fecha de nacimiento"
-            value={form.dateOfBirth} onChange={e => setForm(f => ({ ...f, dateOfBirth: e.target.value }))} />
+          <label className={styles.authLabel} htmlFor="shop-birthdate">Fecha de nacimiento *</label>
+          <input className={styles.authInput} id="shop-birthdate" type="date" required
+            max={new Date().toISOString().split('T')[0]}
+            aria-describedby="shop-birthdate-hint"
+            value={form.birthDate} onChange={e => setForm(f => ({ ...f, birthDate: e.target.value }))} />
+          <span className={styles.authHint} id="shop-birthdate-hint">
+            La pedimos para aplicar la calificación por edad de cada película.
+          </span>
           <button type="submit" className={styles.authSubmit} disabled={loading}>
             {loading ? <Loader size={14} className={styles.spin} aria-hidden="true" /> : <><Star size={14} aria-hidden="true" /> Crear cuenta de socio</>}
           </button>

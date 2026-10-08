@@ -13,8 +13,27 @@
 
 .headerRight { display: flex; align-items: center; gap: 10px; }
 
-.guestHint { font-size: var(--fs-sm); color: var(--text-3); display: none; }
-@media (min-width: 480px) { .guestHint { display: block; } }
+/* Era un texto decorativo oculto en movil. Ahora es el acceso al registro,
+   asi que debe verse en cualquier ancho: en pantalla estrecha se acorta el
+   rotulo en lugar de esconderlo. */
+.guestHint {
+  font-size: var(--fs-sm);
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  transition: border-color var(--t);
+}
+.guestHint:hover { border-color: var(--accent); }
+.guestHint:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.guestHintLong { display: none; }
+@media (min-width: 480px) {
+  .guestHintLong { display: inline; }
+  .guestHintShort { display: none; }
+}
 
 .userChip { display: flex; align-items: center; gap: 6px; background: var(--bg-3); border: 1px solid var(--border); border-radius: 99px; padding: 5px 10px 5px 8px; font-size: var(--fs-sm); color: var(--text-1); }
 .starIcon { color: var(--accent); }

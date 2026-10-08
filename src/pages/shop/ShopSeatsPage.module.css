@@ -100,3 +100,9 @@
 /* Spinner */
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Etiqueta y aclaración del campo de fecha de nacimiento. El resto del
+   formulario usa placeholders, pero un input de tipo date no los muestra, así
+   que sin etiqueta el campo quedaba sin nombre accesible. */
+.authLabel { font-size: var(--fs-xs); color: var(--text-2); font-weight: 600; }
+.authHint { font-size: var(--fs-xs); color: var(--text-3); line-height: 1.4; }

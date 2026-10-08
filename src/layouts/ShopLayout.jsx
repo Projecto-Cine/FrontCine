@@ -37,7 +37,10 @@ export default function ShopLayout() {
               </button>
             </div>
           ) : (
-            <span className={styles.guestHint}>Regístrate para descuentos de socio</span>
+            <Link to="/shop/register" className={styles.guestHint}>
+              <span className={styles.guestHintLong}>Regístrate para descuentos de socio</span>
+              <span className={styles.guestHintShort}>Crear cuenta</span>
+            </Link>
           )}
         </div>
       </header>

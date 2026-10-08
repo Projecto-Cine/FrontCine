@@ -11,6 +11,7 @@ import Login from './pages/auth/Login';
 const ShopHomePage    = lazy(() => import('./pages/shop/ShopHomePage'));
 const ShopSeatsPage   = lazy(() => import('./pages/shop/ShopSeatsPage'));
 const ShopConfirmPage = lazy(() => import('./pages/shop/ShopConfirmPage'));
+const ShopRegisterPage = lazy(() => import('./pages/shop/ShopRegisterPage'));
 
 const Dashboard       = lazy(() => import('./pages/dashboard/Dashboard'));
 const MoviesPage      = lazy(() => import('./pages/movies/MoviesPage'));
@@ -71,6 +72,7 @@ export default function App() {
               <Route index element={<Suspense fallback={<PageLoader />}><ShopHomePage /></Suspense>} />
               <Route path="session/:screeningId" element={<Suspense fallback={<PageLoader />}><ShopSeatsPage /></Suspense>} />
               <Route path="confirm" element={<Suspense fallback={<PageLoader />}><ShopConfirmPage /></Suspense>} />
+              <Route path="register" element={<Suspense fallback={<PageLoader />}><ShopRegisterPage /></Suspense>} />
             </Route>
 
             <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />

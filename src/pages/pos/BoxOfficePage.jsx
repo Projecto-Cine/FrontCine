@@ -515,7 +515,10 @@ export default function TaquillaPage() {
     const sessionCapacity = sessionRoom?.capacity ?? 100;
     const sessionRoomName = sessionRoom?.name ?? '';
 
-    sessionsService.syncSeats(session.id)
+    // Lectura del mapa: el endpoint publico lo materializa si aun no existe.
+    // Antes se usaba syncSeats, que es una operacion de gestion y por tanto
+    // devuelve 403 a un cajero.
+    sessionsService.getSeats(session.id)
       .catch(() => seatsService.getByScreening(session.id))
       .then(data => {
         if (activeSessionRef.current !== session.id) return;
@@ -605,7 +608,7 @@ export default function TaquillaPage() {
       // Fetch fresh screening seats — fall back to already-loaded realSeats if sync fails
       let normalized = [];
       try {
-        const freshData = await sessionsService.syncSeats(selectedSession.id);
+        const freshData = await sessionsService.getSeats(selectedSession.id);
         const raw = Array.isArray(freshData) ? freshData
           : Array.isArray(freshData?.content) ? freshData.content
           : Array.isArray(freshData?.data)    ? freshData.data

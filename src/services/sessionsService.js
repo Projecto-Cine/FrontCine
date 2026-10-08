@@ -8,6 +8,7 @@ export const sessionsService = {
   getUpcoming:   ()              => api.get('/screenings/upcoming'),
   getById:       (id)            => api.get(`/screenings/${id}`),
   getByMovie:    (movieId)       => api.get(`/screenings/movie/${movieId}`),
+  getSeats:      (id)            => api.get(`/screenings/${id}/seats`),
   getPurchases:  (id)            => api.get(`/screenings/${id}/purchases`),
   create:        (data)          => api.post('/screenings', data),
   update:        (id, data)      => api.put(`/screenings/${id}`, data),

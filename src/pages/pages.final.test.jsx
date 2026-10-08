@@ -90,6 +90,7 @@ vi.mock('../services/reservationsService', () => ({
   }),
 }));
 vi.mock('../services/sessionsService', () => ({
+  getSeats: vi.fn().mockResolvedValue([]),
   sessionsService:   mkSvc({ getAll: vi.fn().mockResolvedValue([]) }),
   screeningsService: mkSvc({ getAll: vi.fn().mockResolvedValue([]) }),
 }));

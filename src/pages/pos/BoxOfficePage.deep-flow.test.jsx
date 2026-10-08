@@ -41,6 +41,7 @@ vi.mock('../../services/sessionsService', () => ({
   sessionsService: {
     getAll:    (...a) => sessionsGetAll(...a),
     syncSeats: (...a) => sessionsSyncSeats(...a),
+    getSeats: (...a) => sessionsSyncSeats(...a),
     create:    vi.fn().mockResolvedValue({ id: 99 }),
     update:    vi.fn().mockResolvedValue({ id: 1 }),
     remove:    vi.fn().mockResolvedValue({}),

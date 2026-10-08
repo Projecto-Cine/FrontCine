@@ -35,6 +35,10 @@ vi.mock('../services/sessionsService', () => ({
       { id: 1, seat: { id: 1, row: 'A', number: 1 }, occupied: false },
       { id: 2, seat: { id: 2, row: 'A', number: 2 }, occupied: false },
     ]),
+    getSeats: vi.fn().mockResolvedValue([
+      { id: 1, seat: { id: 1, row: 'A', number: 1 }, occupied: false },
+      { id: 2, seat: { id: 2, row: 'A', number: 2 }, occupied: false },
+    ]),
   },
 }));
 vi.mock('../services/moviesService', () => ({

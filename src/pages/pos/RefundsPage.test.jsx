@@ -13,6 +13,7 @@ const merchSalesGetAll = vi.fn();
 const merchSalesRemove = vi.fn();
 
 vi.mock('../../services/sessionsService', () => ({
+  getSeats: vi.fn().mockResolvedValue([]),
   sessionsService: {
     getAll: (...a) => sessionsGetAll(...a),
     getPurchases: (...a) => sessionsGetPurchases(...a),

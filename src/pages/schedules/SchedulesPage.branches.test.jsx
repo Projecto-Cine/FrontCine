@@ -24,6 +24,7 @@ const moviesGetAll = vi.fn();
 const theatersGetAll = vi.fn();
 
 vi.mock('../../services/sessionsService', () => ({
+  getSeats: vi.fn().mockResolvedValue([]),
   screeningsService: {
     getAll: (...a) => scrGetAll(...a),
     create: (...a) => scrCreate(...a),

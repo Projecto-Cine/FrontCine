@@ -40,6 +40,7 @@ vi.mock('../../services/reportsService', () => ({
   },
 }));
 vi.mock('../../services/sessionsService', () => ({
+  getSeats: vi.fn().mockResolvedValue([]),
   sessionsService: {
     getUpcoming: (...a) => sessionsGetUpcoming(...a),
     getAll:      (...a) => sessionsGetAll(...a),

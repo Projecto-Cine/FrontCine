@@ -15,6 +15,7 @@ const moviesGetActive = vi.fn();
 const theatersGetAll = vi.fn();
 
 vi.mock('../../services/sessionsService', () => ({
+  getSeats: vi.fn().mockResolvedValue([]),
   screeningsService: { getAll: (...a) => scrGetAll(...a), create: (...a) => scrCreate(...a), update: (...a) => scrUpdate(...a), remove: (...a) => scrRemove(...a), getById: (...a) => scrGetById(...a) },
   sessionsService:   { getAll: (...a) => scrGetAll(...a), create: (...a) => scrCreate(...a), update: (...a) => scrUpdate(...a), remove: (...a) => scrRemove(...a), getById: (...a) => scrGetById(...a), getUpcoming: (...a) => scrGetUpcoming(...a) },
 }));

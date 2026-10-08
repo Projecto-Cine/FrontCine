@@ -11,6 +11,7 @@ import { AppProvider } from '../../contexts/AppContext';
 
 // Mock services with realistic data so a clickable session is rendered.
 vi.mock('../../services/sessionsService', () => ({
+  getSeats: vi.fn().mockResolvedValue([]),
   sessionsService: {
     getAll: vi.fn().mockResolvedValue([
       {

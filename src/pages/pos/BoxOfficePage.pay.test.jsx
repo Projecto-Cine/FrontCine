@@ -29,6 +29,7 @@ vi.mock('../../services/sessionsService', () => ({
   sessionsService: {
     getAll:    (...a) => sessionsGetAll(...a),
     syncSeats: (...a) => sessionsSyncSeats(...a),
+    getSeats: (...a) => sessionsSyncSeats(...a),
     create:    vi.fn(),
     update:    vi.fn(),
     remove:    vi.fn(),

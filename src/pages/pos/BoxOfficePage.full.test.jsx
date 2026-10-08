@@ -45,6 +45,9 @@ vi.mock('../../services/sessionsService', () => ({
     getAll:      (...a) => sessionsGetAll(...a),
     getUpcoming: (...a) => sessionsGetUpcoming(...a),
     syncSeats:   (...a) => sessionsSyncSeats(...a),
+    // La lectura del mapa usa el endpoint publico; comparte espia con
+    // syncSeats para que las aserciones existentes sigan valiendo.
+    getSeats:    (...a) => sessionsSyncSeats(...a),
     create:      (...a) => sessionsCreate(...a),
     update:      (...a) => sessionsUpdate(...a),
     remove:      (...a) => sessionsRemove(...a),

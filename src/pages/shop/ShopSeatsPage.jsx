@@ -9,6 +9,7 @@ import { sessionsService } from '../../services/sessionsService';
 import { shopApi }         from '../../services/shopApi';
 import { useShopAuth }     from '../../contexts/ShopAuthContext';
 import SeatMap             from '../../components/shared/SeatMap';
+import StripePaymentModal  from '../../components/shared/StripePaymentModal';
 import styles              from './ShopSeatsPage.module.css';
 
 const TICKET_TYPES = [
@@ -119,6 +120,40 @@ function AuthPanel({ onLogin, onRegister, error, loading }) {
   );
 }
 
+/**
+ * Traduce un fallo de la API a algo que el cliente pueda accionar. Estaba
+ * incrustado en el catch de handlePay; al partir el flujo en dos fases se
+ * extrae para que ambas lo compartan.
+ */
+function describePurchaseError(err) {
+  const raw = err?.message ?? '';
+  const lower = raw.toLowerCase();
+  const status = err?.status ?? null;
+
+  if (status === 400 && (lower.includes('ended') || lower.includes('finaliz'))) {
+    return 'Esta sesión ya ha finalizado. Vuelve a la cartelera.';
+  }
+  if (status === 400) {
+    return err?.body?.message ?? 'El servidor rechazó la compra. Revisa los datos.';
+  }
+  if (status === 409) {
+    return 'Una de las butacas ya no está disponible. Vuelve al mapa y elige otras.';
+  }
+  if (status === 422) {
+    const jsonText = raw.replace(/^API \d+ [^:]+:\s*/, '').trim();
+    let message;
+    try { message = JSON.parse(jsonText)?.message; } catch { message = jsonText.slice(0, 120); }
+    return message || 'Compra rechazada por el servidor. Revisa el tipo de entrada.';
+  }
+  if (status === 429) {
+    return 'Demasiados intentos. Espera unos minutos y vuelve a probar.';
+  }
+  if (!status) {
+    return 'Sin conexión con el servidor. Comprueba tu red e inténtalo de nuevo.';
+  }
+  return `Error ${status}: no se pudo procesar la compra.`;
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function ShopSeatsPage() {
   const { screeningId } = useParams();
@@ -134,6 +169,9 @@ export default function ShopSeatsPage() {
   const [globalType, setGlobalType]   = useState('adult');
   const [guestEmail, setGuestEmail]   = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  // Datos que devuelve el backend al abrir el pago. Mientras no sea null,
+  // se muestra el modal de Stripe.
+  const [paymentSession, setPaymentSession] = useState(null);
   const [paying, setPaying]           = useState(false);
   const [payError, setPayError]       = useState('');
   const [step, setStep]               = useState('seats'); // seats | checkout | done
@@ -148,7 +186,10 @@ export default function ShopSeatsPage() {
           const s = await sessionsService.getById(screeningId);
           setScreening(s);
         }
-        const raw = await sessionsService.syncSeats(screeningId);
+        // Antes se llamaba a syncSeats, que es una operacion de gestion:
+        // un visitante provocaba una escritura pensada para el panel. El
+        // endpoint publico materializa el mapa si aun no existe.
+        const raw = await sessionsService.getSeats(screeningId);
         const arr = Array.isArray(raw) ? raw
           : Array.isArray(raw?.content) ? raw.content
           : Array.isArray(raw?.data)    ? raw.data
@@ -281,12 +322,74 @@ export default function ShopSeatsPage() {
 
       const purchase = await shopApi.post('/purchases', body);
 
-      let confirmed = null;
-      if (purchase?.id) {
-        try { confirmed = await shopApi.post(`/purchases/${purchase.id}/confirm`, {}); } catch { /* best-effort */ }
+      if (!purchase?.id) {
+        setPayError('El servidor no devolvió la compra. Inténtalo de nuevo.');
+        setPaying(false);
+        return;
       }
 
-      // Build ticket list for confirmation screen
+      /*
+       * Aquí se llamaba a /purchases/{id}/confirm, que marca la compra como
+       * pagada sin cobrar nada: es la vía del mostrador, donde el cajero ya
+       * tiene el dinero. Por internet hay que pasar por la pasarela.
+       *
+       * El importe no se envía: lo calcula el servidor a partir de la compra.
+       */
+      const intent = await shopApi.post('/payments/intent', {
+        purchaseId: purchase.id,
+        currency: 'EUR',
+      });
+
+      if (!intent?.clientSecret || !intent?.publishableKey) {
+        setPayError('No se pudo iniciar el pago. Inténtalo de nuevo.');
+        setPaying(false);
+        return;
+      }
+
+      setPaymentSession({
+        clientSecret: intent.clientSecret,
+        publishableKey: intent.publishableKey,
+        purchase,
+        email,
+      });
+      setPaying(false);
+      return;
+    } catch (err) {
+      setPayError(describePurchaseError(err));
+      setPaying(false);
+    }
+  };
+
+  /**
+   * Stripe ya confirmó el cobro. La compra la completa el webhook en el
+   * servidor — reserva de butacas, descuento de socio y correo — así que aquí
+   * solo queda llevar al cliente a su confirmación.
+   */
+  const handlePaymentSuccess = () => {
+    const session = paymentSession;
+    setPaymentSession(null);
+    if (!session) return;
+    navigate('/shop/confirm', {
+      state: {
+        tickets: buildTickets(session.purchase, session.email),
+        purchaseId: session.purchase.id,
+        email: session.email,
+      },
+    });
+  };
+
+  /**
+   * El cliente cerró el pago. La compra se queda pendiente: no se toca, porque
+   * puede volver a intentarlo, y si el pago falla de verdad el webhook la
+   * cancela.
+   */
+  const handlePaymentCancel = () => {
+    setPaymentSession(null);
+    setPayError('Pago cancelado. Tus butacas siguen seleccionadas si quieres volver a intentarlo.');
+  };
+
+  // Entradas que se muestran en la pantalla de confirmación.
+  const buildTickets = (purchase, email) => {
       const generated = (purchase?.tickets?.length > 0 ? purchase.tickets : []).map(tk => {
         const seatStr = `${tk.row}${String(tk.number).padStart(2, '0')}`;
         const qrValue = `LUMEN:${purchase.id}-${tk.id}|${movie?.title}|${theater?.name}|${date}|${time}|${seatStr}|${tk.ticketType}`;
@@ -313,38 +416,7 @@ export default function ShopSeatsPage() {
         return { id: localId, purchaseId: purchase?.id, movie: movie?.title, room: theater?.name, date, time, seat, format: movie?.format, language: movie?.language, type: type.backendType, email, qrValue };
       });
 
-      navigate('/shop/confirm', {
-        state: {
-          tickets: finalTickets,
-          purchaseId: purchase?.id,
-          email,
-          discountApplied: confirmed?.discountApplied,
-          discountAmount: confirmed?.discountAmount,
-        },
-      });
-    } catch (err) {
-      const rawBody   = err?.message ?? '';
-      const rawLower  = rawBody.toLowerCase();
-      const status    = err?.status ?? null;
-      let msg;
-      if (status === 400 && (rawLower.includes('ended') || rawLower.includes('finaliz'))) {
-        msg = 'Esta sesión ya ha finalizado. Vuelve a la cartelera.';
-      } else if (status === 409) {
-        msg = 'Una de las butacas ya no está disponible. Vuelve al mapa y elige otras.';
-      } else if (status === 422) {
-        const jsonText = rawBody.replace(/^API \d+ [^:]+:\s*/, '').trim();
-        let bMsg = '';
-        try { bMsg = JSON.parse(jsonText)?.message ?? ''; } catch { bMsg = jsonText.slice(0, 120); }
-        msg = bMsg || 'Compra rechazada por el servidor. Revisa el tipo de entrada.';
-      } else if (!status) {
-        msg = 'Sin conexión con el servidor. Comprueba tu red e inténtalo de nuevo.';
-      } else {
-        msg = `Error ${status}: no se pudo procesar la compra.`;
-      }
-      setPayError(msg);
-    } finally {
-      setPaying(false);
-    }
+      return finalTickets;
   };
 
   if (loading) {
@@ -535,6 +607,22 @@ export default function ShopSeatsPage() {
           : <><CreditCard size={16} aria-hidden="true" /> Pagar €{total.toFixed(2)}</>
         }
       </button>
+
+      {/*
+        El componente existía pero ninguna página lo montaba: la pasarela
+        estaba construida en el backend y nunca se invocaba desde la interfaz.
+        El importe que se muestra es informativo; el que se cobra lo calcula el
+        servidor a partir de la compra.
+      */}
+      {paymentSession && (
+        <StripePaymentModal
+          clientSecret={paymentSession.clientSecret}
+          publishableKey={paymentSession.publishableKey}
+          amount={total}
+          onSuccess={handlePaymentSuccess}
+          onCancel={handlePaymentCancel}
+        />
+      )}
     </div>
   );
 }

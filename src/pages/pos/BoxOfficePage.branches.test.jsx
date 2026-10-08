@@ -45,6 +45,7 @@ vi.mock('../../services/sessionsService', () => ({
   sessionsService: {
     getAll: (...a) => sessionsGetAll(...a),
     syncSeats: (...a) => sessionsSyncSeats(...a),
+    getSeats: (...a) => sessionsSyncSeats(...a),
     create: (...a) => sessionsCreate(...a),
     update: (...a) => sessionsUpdate(...a),
     remove: (...a) => sessionsRemove(...a),

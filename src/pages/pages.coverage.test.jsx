@@ -106,12 +106,19 @@ vi.mock('../services/sessionsService', () => ({
       { id: 1, seat: { id: 1, row: 'A', number: 1 }, occupied: false },
       { id: 2, seat: { id: 2, row: 'A', number: 2 }, occupied: false },
     ]),
+    // La lectura del mapa de butacas usa el endpoint publico, no sync-seats,
+    // que es una operacion de gestion.
+    getSeats: vi.fn().mockResolvedValue([
+      { id: 1, seat: { id: 1, row: 'A', number: 1 }, occupied: false },
+      { id: 2, seat: { id: 2, row: 'A', number: 2 }, occupied: false },
+    ]),
   }),
   screeningsService:  mkSvc({
     getAll: vi.fn().mockResolvedValue(SCREENINGS),
     getUpcoming: vi.fn().mockResolvedValue(SCREENINGS),
     getByMovie: vi.fn().mockResolvedValue(SCREENINGS),
     syncSeats: vi.fn().mockResolvedValue([]),
+    getSeats: vi.fn().mockResolvedValue([]),
   }),
 }));
 vi.mock('../services/seatsService', () => ({

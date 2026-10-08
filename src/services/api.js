@@ -1,59 +1,18 @@
-export const BASE = import.meta.env.VITE_API_URL ?? '/api';
+/**
+ * Cliente HTTP del panel de empleados.
+ *
+ * La implementacion vive en httpClient.js, compartida con la tienda. Aqui solo
+ * se fija a que sesion pertenece.
+ */
+import { createHttpClient, BASE } from './httpClient';
 
-function unwrap(data) {
-  if (data && typeof data === 'object') {
-    if (Array.isArray(data.content)) return data.content;
-    if (Array.isArray(data.data)) return data.data;
-    if ('data' in data) {
-      const inner = data.data;
-      if (Array.isArray(inner?.content)) return inner.content;
-      if (Array.isArray(inner)) return inner;
-      return inner;
-    }
-    if ('payload' in data) return data.payload;
-  }
-  return data;
-}
+export { BASE };
 
-async function request(path, options = {}) {
-  const token = localStorage.getItem('lumen_token');
-  const isFormData = options.body instanceof FormData;
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-    ...options,
-  });
+export const STAFF_TOKEN_KEY = 'lumen_token';
+export const STAFF_USER_KEY = 'lumen_user';
 
-  if (res.status === 401) {
-    if (!path.startsWith('/auth/')) {
-      localStorage.removeItem('lumen_token');
-      localStorage.removeItem('lumen_user');
-      window.dispatchEvent(new CustomEvent('auth:expired'));
-      const err = new Error('Sesión expirada. Vuelve a iniciar sesión.');
-      err.status = 401;
-      throw err;
-    }
-  }
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    const err  = new Error(`API ${res.status} ${path}: ${text}`);
-    err.status = res.status;
-    throw err;
-  }
-
-  if (res.status === 204) return null;
-  return unwrap(await res.json());
-}
-
-export const api = {
-  get:    (path)       => request(path),
-  post:   (path, body) => request(path, { method: 'POST',   body: JSON.stringify(body) }),
-  postFormData: (path, formData) => request(path, { method: 'POST', body: formData }),
-  put:    (path, body) => request(path, { method: 'PUT',    body: JSON.stringify(body) }),
-  patch:  (path, body) => request(path, { method: 'PATCH',  body: JSON.stringify(body) }),
-  delete: (path)       => request(path, { method: 'DELETE' }),
-};
+export const api = createHttpClient({
+  tokenKey: STAFF_TOKEN_KEY,
+  userKey: STAFF_USER_KEY,
+  expiredEvent: 'auth:expired',
+});
